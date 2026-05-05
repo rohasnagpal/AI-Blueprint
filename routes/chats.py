@@ -31,6 +31,7 @@ def _format_chat(row) -> dict:
         "doc_context": row["doc_context"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
+        "archived_at": row["archived_at"] if "archived_at" in row.keys() else None,
     }
 
 
@@ -66,7 +67,7 @@ def _build_system_prompt(settings: dict) -> str:
 @router.get("/chats")
 async def list_chats():
     conn = database.get_connection()
-    rows = conn.execute("SELECT * FROM chats ORDER BY updated_at DESC").fetchall()
+    rows = conn.execute("SELECT * FROM chats WHERE archived_at IS NULL ORDER BY updated_at DESC").fetchall()
     conn.close()
     return [_format_chat(r) for r in rows]
 
@@ -493,6 +494,20 @@ async def delete_chat(chat_id: str):
         raise HTTPException(404, detail="Chat not found")
     conn.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
     conn.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@router.post("/chats/{chat_id}/archive")
+async def archive_chat(chat_id: str):
+    conn = database.get_connection()
+    chat = conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
+    if not chat:
+        conn.close()
+        raise HTTPException(404, detail="Chat not found")
+    now = _now()
+    conn.execute("UPDATE chats SET archived_at = ?, updated_at = ? WHERE id = ?", (now, now, chat_id))
     conn.commit()
     conn.close()
     return {"ok": True}

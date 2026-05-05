@@ -126,6 +126,9 @@ def init_db():
             value TEXT
         );
     """)
+    chat_cols = [row["name"] for row in conn.execute("PRAGMA table_info(chats)").fetchall()]
+    if "archived_at" not in chat_cols:
+        conn.execute("ALTER TABLE chats ADD COLUMN archived_at TEXT")
     count = conn.execute("SELECT COUNT(*) FROM settings").fetchone()[0]
     if count == 0:
         for k, v in DEFAULTS.items():
