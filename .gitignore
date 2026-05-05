@@ -10,6 +10,8 @@ dist/
 build/
 .eggs/
 
+council-feature-plan.html
+
 # ── Virtual environments ──────────────────────────────────────────────────────
 .venv/
 venv/

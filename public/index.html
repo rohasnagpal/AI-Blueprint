@@ -198,6 +198,7 @@
     transition: all var(--transition);
     margin-bottom: 1px;
     font-size: 13px;
+    position: relative;
   }
 
   .chat-history-item:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }
@@ -205,6 +206,96 @@
 
   .chat-history-item svg { width: 13px; height: 13px; flex-shrink: 0; opacity: 0.5; }
   .chat-history-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .chat-history-title {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .chat-menu-btn {
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .chat-history-item:hover .chat-menu-btn,
+  .chat-history-item:focus-within .chat-menu-btn,
+  .chat-history-item.menu-open .chat-menu-btn {
+    display: flex;
+  }
+
+  .chat-menu-btn:hover {
+    background: rgba(255,255,255,0.08);
+  }
+
+  .chat-menu-btn svg {
+    width: 15px;
+    height: 15px;
+    opacity: 0.85;
+  }
+
+  .chat-row-menu {
+    position: absolute;
+    right: 8px;
+    top: 30px;
+    min-width: 130px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    padding: 4px;
+    z-index: 50;
+    color: var(--text);
+  }
+
+  .chat-menu-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: 12.5px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .chat-menu-item:hover {
+    background: var(--badge-bg);
+  }
+
+  .chat-menu-item.danger {
+    color: #dc2626;
+  }
+
+  .chat-menu-item:disabled {
+    color: var(--text-subtle);
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+
+  .chat-menu-item:disabled:hover {
+    background: transparent;
+  }
+
+  .chat-menu-item svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.75;
+  }
 
   .sidebar-bottom {
     padding: 10px;
@@ -2497,7 +2588,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false, openChatMenuId: null };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -2752,14 +2843,83 @@ function renderChatHistory() {
   list.innerHTML = '';
   for (const chat of App.chats) {
     const item = document.createElement('div');
-    item.className = 'chat-history-item' + (chat.id === App.currentChatId ? ' active' : '');
-    item.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>${esc(chat.title || 'New Chat')}</span>`;
+    item.className = 'chat-history-item' + (chat.id === App.currentChatId ? ' active' : '') + (chat.id === App.openChatMenuId ? ' menu-open' : '');
+    const menu = chat.id === App.openChatMenuId ? `
+      <div class="chat-row-menu" onclick="event.stopPropagation()">
+        <button class="chat-menu-item" type="button" onclick="archiveChat('${chat.id}', event)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
+          <span>Archive</span>
+        </button>
+        <button class="chat-menu-item danger" type="button" onclick="deleteChat('${chat.id}', event)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          <span>Delete</span>
+        </button>
+      </div>` : '';
+    item.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="chat-history-title">${esc(chat.title || 'New Chat')}</span><button class="chat-menu-btn" type="button" title="Chat options" onclick="toggleChatMenu('${chat.id}', event)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>${menu}`;
     item.onclick = () => openChat(chat.id);
     list.appendChild(item);
   }
 }
 
+function toggleChatMenu(chatId, event) {
+  event.stopPropagation();
+  App.openChatMenuId = App.openChatMenuId === chatId ? null : chatId;
+  renderChatHistory();
+}
+
+function closeChatMenus() {
+  if (!App.openChatMenuId) return;
+  App.openChatMenuId = null;
+  renderChatHistory();
+}
+
+async function archiveChat(chatId, event) {
+  event.stopPropagation();
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before archiving a chat.', 'warning');
+    return;
+  }
+  try {
+    const r = await fetch(`/api/chats/${chatId}/archive`, { method: 'POST' });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || err.error || 'Archive failed');
+    }
+    App.openChatMenuId = null;
+    if (App.currentChatId === chatId) newChat();
+    await loadChats();
+    showToast('Chat archived.', 'success');
+  } catch(e) {
+    showToast('Failed to archive chat: ' + e.message, 'error');
+  }
+}
+
+async function deleteChat(chatId, event) {
+  event.stopPropagation();
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before deleting a chat.', 'warning');
+    return;
+  }
+  const chat = App.chats.find(c => c.id === chatId);
+  const title = chat?.title || 'New Chat';
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  try {
+    const r = await fetch(`/api/chats/${chatId}`, { method: 'DELETE' });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || err.error || 'Delete failed');
+    }
+    App.openChatMenuId = null;
+    if (App.currentChatId === chatId) newChat();
+    await loadChats();
+    showToast('Chat deleted.', 'success');
+  } catch(e) {
+    showToast('Failed to delete chat: ' + e.message, 'error');
+  }
+}
+
 async function openChat(chatId) {
+  App.openChatMenuId = null;
   App.currentChatId = chatId;
   switchView('chat');
   const conv = document.getElementById('chat-conversation');
@@ -2776,6 +2936,7 @@ async function openChat(chatId) {
 }
 
 function newChat() {
+  App.openChatMenuId = null;
   App.currentChatId = null;
   App.selectedDocIds = 'all';
   updateDocSelector();
@@ -3090,6 +3251,7 @@ function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault
 function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px'; }
 
 // ── START ─────────────────────────────────────────────────────────────────
+document.addEventListener('click', closeChatMenus);
 document.addEventListener('DOMContentLoaded', () => { init(); initUpload(); });
 </script>
 </body>
