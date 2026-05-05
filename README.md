@@ -1,8 +1,78 @@
 # AI Blueprint
 
-Chat with your documents using AI — privately, on your own laptop. No accounts, no cloud uploads, no data leaving your machine (unless you choose OpenAI mode).
+**AI Blueprint** is a system for building, running, and reusing AI workflows. Locally or in the cloud.
 
-Upload PDFs, Word docs, spreadsheets, or plain text. Ask questions in natural language. Get cited answers streamed in real time.
+The core idea behind AI Blueprint is **Blueprints**.
+
+A **Blueprint** is a reusable AI configuration — a structured combination of:
+
+- a **persona** (who the AI is and how it behaves)  
+- a **knowledge layer (RAG)** built from your documents  
+- **tools** (web search, parsing, calculations, APIs)  
+- and **execution modes** (simple Q&A, agents, or multi-AI councils)
+
+Instead of prompting the AI every time, you define a Blueprint once.
+
+Then you can:
+- run it again  
+- refine it  
+- share it  
+- or deploy it  
+
+---
+
+## 🚀 What you can do today
+
+- Chat with your documents using RAG (OpenAI or fully local)  
+- Get streamed, cited answers grounded in your data  
+- Use multiple LLM providers (OpenAI, Groq, Ollama)  
+- Run everything locally with zero cloud dependency if needed  
+
+---
+
+## 🔭 What’s coming next
+
+AI Blueprint is evolving from a document chat app into a full AI system builder.
+
+### 🧩 Blueprints
+- Create Blueprints by describing what you want  
+- Save and reuse across sessions  
+- Export / import as JSON  
+- Share and discover via a marketplace  
+
+---
+
+### 🎭 Personas and Skills
+- Define role-based AIs (lawyer, investigator, analyst)  
+- Attach capabilities (tools, constraints, output formats)  
+- Build domain-specific behavior without coding  
+
+---
+
+### 🤖 Agents
+- Multi-step AI workflows that can use tools  
+- Plan → act → observe → refine  
+- Ideal for investigations, research, and complex tasks  
+
+---
+
+### 🧠 LLM Councils
+- Multiple AIs argue, critique, and refine answers  
+- Structured roles (e.g. claimant vs respondent vs judge)  
+- Designed for use cases like arbitration and moot courts  
+
+---
+
+### 🛠️ Tools
+- Web search and live data retrieval  
+- Website and document parsing  
+- Extensible tool system for custom workflows  
+
+---
+
+### 🌐 Local vs Hosted Modes
+- Run fully private on your laptop  
+- Or deploy as a multi-user hosted system with authentication and control  
 
 ---
 
