@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 python-multipart
-openai>=1.30.0
+openai>=2.34.0
 groq
 httpx
 cryptography
