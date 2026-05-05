@@ -39,6 +39,9 @@ DEFAULTS = {
     "font_size": "14",
     "vector_store_id": "",
     "assistant_id": "",
+    "app_name": "AI Blueprint",
+    "app_intro": "Build, run and chat with AI agents, pipelines and tools. Powered by your documents.",
+    "suggested_questions": '["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]',
 }
 
 API_KEY_FIELDS = {

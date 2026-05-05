@@ -26,7 +26,7 @@ Upload PDFs, Word docs, spreadsheets, or plain text. Ask questions in natural la
 | Plain text | `.txt` |
 | CSV | `.csv` |
 | Excel | `.xlsx` |
-| Markdown | `.md` |
+| Markdown | `.md` |\n| JSON | `.json` |
 
 ---
 
