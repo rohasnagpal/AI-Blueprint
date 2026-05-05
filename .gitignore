@@ -1,0 +1,63 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── DocTalk runtime data ──────────────────────────────────────────────────────
+# Secret key used to encrypt API keys — never commit this
+.secret_key
+
+# SQLite database (contains chat history and encrypted API keys)
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded documents
+uploads/
+
+# ChromaDB vector store (local RAG mode)
+chroma_db/
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Claude Code ───────────────────────────────────────────────────────────────
+.claude/

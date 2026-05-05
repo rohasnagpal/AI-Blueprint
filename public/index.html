@@ -1,0 +1,3015 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Blueprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css"/>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4ef;
+    --surface: #ffffff;
+    --sidebar-bg: #1a1915;
+    --sidebar-text: #c8c5bb;
+    --sidebar-text-muted: #6b6860;
+    --sidebar-hover: rgba(255,255,255,0.07);
+    --sidebar-active: rgba(255,255,255,0.12);
+    --sidebar-border: rgba(255,255,255,0.06);
+    --text: #1a1915;
+    --text-muted: #6b6860;
+    --text-subtle: #9b9890;
+    --border: #e8e5df;
+    --input-bg: #ffffff;
+    --input-border: #dedad3;
+    --accent: #d97706;
+    --accent-soft: #fef3c7;
+    --user-bubble: #1a1915;
+    --user-bubble-text: #f5f4ef;
+    --ai-bubble: #ffffff;
+    --ai-bubble-border: #e8e5df;
+    --badge-bg: #f0ede6;
+    --badge-text: #6b6860;
+    --doc-card-bg: #ffffff;
+    --doc-card-border: #e8e5df;
+    --upload-zone: #fafaf7;
+    --upload-zone-border: #dedad3;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --sidebar-width: 260px;
+    --transition: 0.18s ease;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0f0f0d;
+    --surface: #1a1915;
+    --sidebar-bg: #111110;
+    --sidebar-text: #c8c5bb;
+    --sidebar-text-muted: #5a5750;
+    --sidebar-hover: rgba(255,255,255,0.05);
+    --sidebar-active: rgba(255,255,255,0.09);
+    --sidebar-border: rgba(255,255,255,0.05);
+    --text: #e8e5df;
+    --text-muted: #9b9890;
+    --text-subtle: #6b6860;
+    --border: #2a2925;
+    --input-bg: #1a1915;
+    --input-border: #2a2925;
+    --accent: #f59e0b;
+    --accent-soft: #292310;
+    --user-bubble: #e8e5df;
+    --user-bubble-text: #1a1915;
+    --ai-bubble: #1a1915;
+    --ai-bubble-border: #2a2925;
+    --badge-bg: #252420;
+    --badge-text: #9b9890;
+    --doc-card-bg: #1a1915;
+    --doc-card-border: #2a2925;
+    --upload-zone: #141411;
+    --upload-zone-border: #2a2925;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.6;
+    transition: background var(--transition), color var(--transition);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    flex-shrink: 0;
+    border-right: 1px solid var(--sidebar-border);
+  }
+
+  .sidebar-brand {
+    padding: 20px 18px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--sidebar-border);
+    margin-bottom: 8px;
+  }
+
+  .brand-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .brand-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 20px;
+    color: #f0ede6;
+    letter-spacing: -0.3px;
+  }
+
+  .sidebar-section {
+    padding: 0 10px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sidebar-text-muted);
+    padding: 10px 8px 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--sidebar-text);
+    transition: background var(--transition), color var(--transition);
+    user-select: none;
+    margin-bottom: 1px;
+    font-size: 13.5px;
+    font-weight: 400;
+  }
+
+  .nav-item:hover { background: var(--sidebar-hover); }
+  .nav-item.active { background: var(--sidebar-active); color: #f0ede6; }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.8; }
+  .nav-item.active svg { opacity: 1; }
+
+  .nav-item .nav-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.1);
+    color: var(--sidebar-text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 20px;
+  }
+
+  .sidebar-divider {
+    height: 1px;
+    background: var(--sidebar-border);
+    margin: 8px 10px;
+  }
+
+  /* Chat history list */
+  .chat-history {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 10px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.08) transparent;
+  }
+
+  .chat-history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--sidebar-text-muted);
+    transition: all var(--transition);
+    margin-bottom: 1px;
+    font-size: 13px;
+  }
+
+  .chat-history-item:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }
+  .chat-history-item.active { background: var(--sidebar-active); color: #f0ede6; }
+
+  .chat-history-item svg { width: 13px; height: 13px; flex-shrink: 0; opacity: 0.5; }
+  .chat-history-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .sidebar-bottom {
+    padding: 10px;
+    border-top: 1px solid var(--sidebar-border);
+    flex-shrink: 0;
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--sidebar-text-muted);
+    transition: all var(--transition);
+    font-size: 13.5px;
+    margin-bottom: 4px;
+  }
+
+  .theme-toggle:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }
+  .theme-toggle svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .toggle-pill {
+    margin-left: auto;
+    width: 32px; height: 18px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 9px;
+    position: relative;
+    transition: background var(--transition);
+  }
+
+  [data-theme="dark"] .toggle-pill { background: var(--accent); }
+
+  .toggle-pill::after {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform var(--transition);
+  }
+
+  [data-theme="dark"] .toggle-pill::after { transform: translateX(14px); }
+
+  .user-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--sidebar-text);
+    transition: background var(--transition);
+    font-size: 13.5px;
+  }
+
+  .user-item:hover { background: var(--sidebar-hover); }
+
+  .user-avatar {
+    width: 26px; height: 26px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  /* ── MAIN AREA ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg);
+    transition: background var(--transition);
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    gap: 12px;
+    flex-shrink: 0;
+    transition: background var(--transition), border-color var(--transition);
+  }
+
+  .topbar-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .doc-selector {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    transition: all var(--transition);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .doc-selector:hover { border-color: var(--accent); color: var(--text); }
+  .doc-selector svg { width: 13px; height: 13px; }
+
+  .doc-selector .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .topbar-spacer { flex: 1; }
+
+  .topbar-actions { display: flex; gap: 8px; }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all var(--transition);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+  .icon-btn svg { width: 15px; height: 15px; }
+
+  /* ── CHAT VIEW ── */
+  .view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .view.active { display: flex; }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  /* Welcome */
+  .welcome {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  .welcome-icon {
+    width: 56px; height: 56px;
+    background: var(--accent);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(217,119,6,0.3);
+  }
+
+  .welcome-icon svg { width: 26px; height: 26px; color: white; }
+
+  .welcome h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px;
+    color: var(--text);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .welcome p {
+    color: var(--text-muted);
+    font-size: 14px;
+    max-width: 380px;
+    line-height: 1.7;
+    margin-bottom: 28px;
+  }
+
+  .suggestion-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    max-width: 520px;
+  }
+
+  .chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 7px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .chip:hover { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+
+  /* Messages */
+  .msg-group {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .msg {
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .msg.user { align-items: flex-end; }
+  .msg.ai { align-items: flex-start; }
+
+  .msg-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: var(--text-subtle);
+  }
+
+  .msg-meta .avatar {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .msg-meta .avatar.user-av { background: var(--user-bubble); color: var(--user-bubble-text); }
+  .msg-meta .avatar.ai-av { background: var(--accent); color: white; }
+
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 14px;
+    max-width: 85%;
+    line-height: 1.65;
+    font-size: 14px;
+  }
+
+  .msg.user .bubble {
+    background: var(--user-bubble);
+    color: var(--user-bubble-text);
+    border-bottom-right-radius: 4px;
+  }
+
+  .msg.ai .bubble {
+    background: var(--ai-bubble);
+    border: 1px solid var(--ai-bubble-border);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Sources */
+  .sources {
+    margin-top: 10px;
+    max-width: 85%;
+  }
+
+  .sources-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--accent-soft);
+    border: 1px solid transparent;
+    transition: all var(--transition);
+    font-weight: 500;
+  }
+
+  .sources-toggle:hover { border-color: var(--accent); }
+  .sources-toggle svg { width: 12px; height: 12px; }
+
+  .sources-panel {
+    display: none;
+    margin-top: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .sources-panel.open { display: block; }
+
+  .source-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+
+  .source-item:last-child { border-bottom: none; }
+  .source-item svg { width: 13px; height: 13px; color: var(--accent); flex-shrink: 0; }
+
+  .source-item .source-doc { font-weight: 500; color: var(--text); }
+  .source-item .source-page { margin-left: auto; font-size: 11px; color: var(--text-subtle); }
+
+  /* Msg actions */
+  .msg-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+    opacity: 0;
+    transition: opacity var(--transition);
+  }
+
+  .msg:hover .msg-actions { opacity: 1; }
+
+  .msg-action-btn {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all var(--transition);
+  }
+
+  .msg-action-btn:hover { color: var(--text); border-color: var(--accent); }
+  .msg-action-btn svg { width: 13px; height: 13px; }
+
+  .msg-action-btn.thumb-up:hover { color: var(--success); border-color: var(--success); }
+  .msg-action-btn.thumb-down:hover { color: var(--danger); border-color: var(--danger); }
+
+  /* ── CHAT INPUT ── */
+  .chat-input-area {
+    padding: 16px 24px 20px;
+    background: var(--bg);
+    transition: background var(--transition);
+    flex-shrink: 0;
+  }
+
+  .input-wrapper {
+    max-width: 720px;
+    margin: 0 auto;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+
+  .input-wrapper:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(217,119,6,0.1), var(--shadow-md);
+  }
+
+  .input-doc-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px 0;
+    font-size: 12px;
+    color: var(--text-subtle);
+  }
+
+  .input-doc-tag svg { width: 12px; height: 12px; }
+
+  .input-doc-badge {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: flex-end;
+    padding: 8px 10px 8px 14px;
+    gap: 8px;
+  }
+
+  .chat-textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    resize: none;
+    line-height: 1.6;
+    max-height: 160px;
+    min-height: 24px;
+    scrollbar-width: none;
+  }
+
+  .chat-textarea::placeholder { color: var(--text-subtle); }
+
+  .input-actions { display: flex; align-items: center; gap: 6px; }
+
+  .attach-btn {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all var(--transition);
+  }
+
+  .attach-btn:hover { color: var(--text); border-color: var(--accent); }
+  .attach-btn svg { width: 15px; height: 15px; }
+
+  .send-btn {
+    width: 34px; height: 34px;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: white;
+    transition: all var(--transition);
+    box-shadow: 0 2px 8px rgba(217,119,6,0.3);
+  }
+
+  .send-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(217,119,6,0.4); }
+  .send-btn svg { width: 16px; height: 16px; }
+
+  .input-hint {
+    text-align: center;
+    font-size: 11.5px;
+    color: #555;
+    padding-top: 8px;
+  }
+
+  /* ── ADD DOCUMENT VIEW ── */
+  .add-doc-view {
+    flex: 1;
+    overflow-y: auto;
+    padding: 36px 40px;
+  }
+
+  .view-header {
+    max-width: 680px;
+    margin: 0 auto 28px;
+  }
+
+  .view-header h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 26px;
+    color: var(--text);
+    margin-bottom: 6px;
+    letter-spacing: -0.4px;
+  }
+
+  .view-header p {
+    font-size: 13.5px;
+    color: var(--text-muted);
+  }
+
+  .upload-zone {
+    max-width: 680px;
+    margin: 0 auto 24px;
+    background: var(--upload-zone);
+    border: 2px dashed var(--upload-zone-border);
+    border-radius: var(--radius);
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .upload-icon {
+    width: 52px; height: 52px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition);
+  }
+
+  .upload-zone:hover .upload-icon { border-color: var(--accent); }
+  .upload-icon svg { width: 22px; height: 22px; color: var(--accent); }
+
+  .upload-zone h3 {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .upload-zone p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 18px;
+  }
+
+  .file-types {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .file-type-badge {
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  .upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 9px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    box-shadow: 0 2px 8px rgba(217,119,6,0.3);
+    margin-top: 18px;
+  }
+
+  .upload-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(217,119,6,0.4); }
+  .upload-btn svg { width: 15px; height: 15px; }
+
+  /* Upload progress */
+  .upload-queue {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .upload-queue-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 10px;
+  }
+
+  .upload-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .upload-item-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .icon-pdf { background: #fee2e2; color: #dc2626; }
+  .icon-docx { background: #dbeafe; color: #2563eb; }
+  .icon-txt { background: #f3f4f6; color: #6b7280; }
+  .icon-csv { background: #d1fae5; color: #16a34a; }
+
+  [data-theme="dark"] .icon-pdf { background: #3f1515; color: #f87171; }
+  [data-theme="dark"] .icon-docx { background: #1e2a3f; color: #60a5fa; }
+  [data-theme="dark"] .icon-txt { background: #252525; color: #9ca3af; }
+  [data-theme="dark"] .icon-csv { background: #1a2e1f; color: #34d399; }
+
+  .upload-item-info { flex: 1; min-width: 0; }
+
+  .upload-item-name {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 5px;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  .upload-item-size {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+    flex-shrink: 0;
+  }
+
+  .upload-item-status {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .status-done { background: #d1fae5; color: #16a34a; }
+  .status-loading { border: 2px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  [data-theme="dark"] .status-done { background: #1a2e1f; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── VIEW DOCUMENTS ── */
+  .view-docs-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 36px 40px;
+  }
+
+  .docs-toolbar {
+    max-width: 880px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .search-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--transition);
+  }
+
+  .search-input-wrap:focus-within { border-color: var(--accent); }
+  .search-input-wrap svg { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+
+  .search-input {
+    border: none; outline: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .search-input::placeholder { color: var(--text-subtle); }
+
+  .filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+  .filter-btn svg { width: 14px; height: 14px; }
+
+  .docs-grid {
+    max-width: 880px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+
+  .doc-card {
+    background: var(--doc-card-bg);
+    border: 1px solid var(--doc-card-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    cursor: pointer;
+    transition: all var(--transition);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .doc-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .doc-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .doc-card-icon {
+    width: 38px; height: 38px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .doc-card-title {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .doc-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--text-subtle);
+  }
+
+  .doc-card-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-subtle); }
+
+  .doc-card-actions {
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity var(--transition);
+  }
+
+  .doc-card:hover .doc-card-actions { opacity: 1; }
+
+  .doc-action-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .doc-action-btn:hover { background: var(--bg); color: var(--text); }
+  .doc-action-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: #fee2e2; }
+  [data-theme="dark"] .doc-action-btn.danger:hover { background: #3f1515; }
+  .doc-action-btn svg { width: 12px; height: 12px; }
+
+  /* Stats row */
+  .docs-stats {
+    max-width: 880px;
+    margin: 0 auto 16px;
+    display: flex;
+    gap: 10px;
+  }
+
+  .stat-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .stat-pill strong { color: var(--text); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Animations */
+  .view.active { animation: fadeIn 0.15s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── SETTINGS ── */
+  .settings-layout {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .settings-nav {
+    width: 200px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    padding: 28px 12px;
+    overflow-y: auto;
+    background: var(--bg);
+    transition: background var(--transition), border-color var(--transition);
+  }
+
+  .settings-nav-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+    padding: 10px 10px 5px;
+  }
+
+  .settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    transition: all var(--transition);
+    margin-bottom: 1px;
+    user-select: none;
+  }
+
+  .settings-nav-item:hover { background: var(--border); color: var(--text); }
+  .settings-nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+  .settings-nav-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  .settings-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .settings-section { display: none; }
+  .settings-section.active { display: block; }
+
+  .settings-section-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    color: var(--text);
+    margin-bottom: 4px;
+    letter-spacing: -0.3px;
+  }
+
+  .settings-section-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+  }
+
+  .settings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .settings-card-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .settings-card-header svg { width: 16px; height: 16px; color: var(--accent); flex-shrink: 0; }
+
+  .settings-card-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .settings-card-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+
+  .settings-row {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .settings-row:last-child { border-bottom: none; }
+
+  .settings-row-info { flex: 1; min-width: 0; }
+
+  .settings-row-label {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .settings-row-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .settings-row-control { flex-shrink: 0; }
+
+  /* Provider card */
+  .provider-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--transition);
+  }
+
+  .provider-card:focus-within { border-color: var(--accent); }
+
+  .provider-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .provider-logo {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    letter-spacing: -0.5px;
+  }
+
+  .provider-name { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .provider-desc { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+  .provider-key-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .key-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    transition: border-color var(--transition);
+  }
+
+  .key-input-wrap:focus-within { border-color: var(--accent); }
+
+  .key-input {
+    flex: 1;
+    border: none; outline: none;
+    background: transparent;
+    font-family: 'DM Sans', monospace;
+    font-size: 13px;
+    color: var(--text);
+    padding: 8px 10px;
+  }
+
+  .key-input::placeholder { color: var(--text-subtle); font-family: 'DM Sans', sans-serif; }
+
+  .key-toggle {
+    padding: 0 10px;
+    cursor: pointer;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    display: flex; align-items: center;
+    transition: color var(--transition);
+  }
+
+  .key-toggle:hover { color: var(--text); }
+  .key-toggle svg { width: 14px; height: 14px; }
+
+  .key-save-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+
+  .key-save-btn:hover { opacity: 0.88; }
+
+  .provider-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 20px;
+    margin-left: auto;
+  }
+
+  .provider-status.connected { background: #d1fae5; color: #16a34a; }
+  .provider-status.not-connected { background: var(--badge-bg); color: var(--text-subtle); }
+  [data-theme="dark"] .provider-status.connected { background: #1a2e1f; }
+
+  .provider-status::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* Settings inputs */
+  .s-select {
+    background: var(--bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    padding: 7px 28px 7px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239b9890' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    transition: border-color var(--transition);
+    min-width: 160px;
+  }
+
+  .s-select:focus { border-color: var(--accent); }
+
+  .s-input {
+    background: var(--bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color var(--transition);
+    min-width: 160px;
+  }
+
+  .s-input:focus { border-color: var(--accent); }
+
+  /* Toggle switch */
+  .s-toggle {
+    width: 40px; height: 22px;
+    background: var(--border);
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background var(--transition);
+    flex-shrink: 0;
+  }
+
+  .s-toggle.on { background: var(--accent); }
+
+  .s-toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform var(--transition);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .s-toggle.on::after { transform: translateX(18px); }
+
+  /* Slider */
+  .s-slider-wrap { display: flex; align-items: center; gap: 10px; min-width: 200px; }
+
+  .s-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .s-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+
+  .s-slider-val {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  /* Danger zone */
+  .danger-zone {
+    border-color: #fecaca;
+    background: #fff5f5;
+  }
+
+  [data-theme="dark"] .danger-zone {
+    border-color: #7f1d1d;
+    background: #1f0a0a;
+  }
+
+  .danger-zone .settings-card-header { border-bottom-color: #fecaca; }
+  [data-theme="dark"] .danger-zone .settings-card-header { border-bottom-color: #7f1d1d; }
+  .danger-zone .settings-card-title { color: var(--danger); }
+  .danger-zone .settings-row { border-bottom-color: #fecaca; }
+  [data-theme="dark"] .danger-zone .settings-row { border-bottom-color: #7f1d1d; }
+
+  .danger-btn {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    border-radius: var(--radius-sm);
+    padding: 7px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .danger-btn:hover { background: var(--danger); color: white; }
+
+  /* Avatar upload */
+  .avatar-upload {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .avatar-preview {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .avatar-change-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .avatar-change-btn:hover { border-color: var(--accent); color: var(--text); }
+
+  .settings-save-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 14px 0 0;
+    margin-top: 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    padding: 8px 18px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .btn-secondary:hover { color: var(--text); border-color: var(--accent); }
+
+  .btn-primary {
+    background: var(--accent);
+    border: none;
+    color: white;
+    border-radius: var(--radius-sm);
+    padding: 8px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    box-shadow: 0 2px 8px rgba(217,119,6,0.3);
+  }
+
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    </div>
+    <span class="brand-name">AI Blueprint</span>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="nav-item active" onclick="switchView('chat')" id="nav-chat">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      New Chat
+    </div>
+    <div class="nav-item" onclick="switchView('add-doc')" id="nav-add-doc">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Add Document
+    </div>
+    <div class="nav-item" onclick="switchView('view-docs')" id="nav-view-docs">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      View Documents
+      <span class="nav-badge" id="docs-count-badge">0</span>
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Recent Chats</div>
+  </div>
+
+  <div class="chat-history" id="chat-history-list"></div>
+
+  <div class="sidebar-bottom">
+    <div class="theme-toggle" onclick="toggleTheme()">
+      <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      Dark mode
+      <div class="toggle-pill"></div>
+    </div>
+    <div class="nav-item" onclick="switchView('settings')" id="nav-settings">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Settings
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="user-item">
+      <div class="user-avatar">U</div>
+      AI Blueprint User
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <span class="topbar-title" id="topbar-title">Chat</span>
+    <div class="doc-selector" id="doc-selector">
+      <div class="dot"></div>
+      All Documents
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-actions">
+      <div class="icon-btn" title="Search chats">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div class="icon-btn" title="Share">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CHAT VIEW ── -->
+  <div class="view active" id="view-chat">
+    <div class="chat-messages" id="chat-messages">
+      <!-- Welcome screen -->
+      <div class="welcome" id="welcome-screen">
+        <div class="welcome-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <h2>AI Blueprint</h2>
+        <p>Build, run and chat with AI agents, pipelines and tools. Powered by your documents.</p>
+        <div class="suggestion-chips">
+          <div class="chip" onclick="fillInput(this)">Summarize the key points</div>
+          <div class="chip" onclick="fillInput(this)">What are the main findings?</div>
+          <div class="chip" onclick="fillInput(this)">List all action items</div>
+          <div class="chip" onclick="fillInput(this)">Compare sections across documents</div>
+          <div class="chip" onclick="fillInput(this)">What dates or deadlines are mentioned?</div>
+          <div class="chip" onclick="fillInput(this)">Explain this in simple terms</div>
+        </div>
+      </div>
+
+      <!-- Conversation populated dynamically -->
+      <div class="msg-group" id="chat-conversation" style="display:none"></div>
+    </div>
+
+    <!-- INPUT -->
+    <div class="chat-input-area">
+      <div class="input-wrapper">
+        <div class="input-doc-tag">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Searching in <span class="input-doc-badge" id="input-doc-badge">All Documents</span>
+        </div>
+        <div class="input-row">
+          <textarea class="chat-textarea" id="chat-input" rows="1" placeholder="Ask anything about your documents…" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <div class="input-actions">
+            <div class="attach-btn" title="Attach file">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </div>
+            <button class="send-btn" onclick="sendMessage()">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="input-hint">Built in India 🇮🇳 for the world by Rohas Nagpal.<br/>AI Blueprint may make mistakes. Always verify important information from the original documents.</div>
+    </div>
+  </div>
+
+  <!-- ── ADD DOCUMENT VIEW ── -->
+  <div class="view" id="view-add-doc">
+    <div class="add-doc-view">
+      <div class="view-header">
+        <h2>Add Documents</h2>
+        <p>Upload documents to your knowledge base. AI Blueprint supports PDF, DOCX, TXT, CSV and more.</p>
+      </div>
+
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <input type="file" id="file-input" style="display:none" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.md"/>
+        <div class="upload-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <h3>Drag & drop your files here</h3>
+        <p>Or click to browse from your computer</p>
+        <div class="file-types">
+          <span class="file-type-badge">PDF</span>
+          <span class="file-type-badge">DOCX</span>
+          <span class="file-type-badge">TXT</span>
+          <span class="file-type-badge">CSV</span>
+          <span class="file-type-badge">XLSX</span>
+          <span class="file-type-badge">MD</span>
+        </div>
+        <button class="upload-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Choose Files
+        </button>
+      </div>
+
+      <!-- Upload queue -->
+      <div class="upload-queue">
+        <div class="upload-queue-title" id="upload-queue-title" style="display:none">Uploading</div>
+        <div id="upload-queue-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VIEW DOCUMENTS VIEW ── -->
+  <div class="view" id="view-view-docs">
+    <div class="view-docs-area">
+      <div class="view-header">
+        <h2>Your Documents</h2>
+        <p>Browse and manage all documents in your knowledge base.</p>
+      </div>
+
+      <div class="docs-stats">
+        <div class="stat-pill"><strong id="stat-docs-count">0</strong> documents</div>
+        <div class="stat-pill"><strong id="stat-total-size">0 B</strong> total size</div>
+        <div class="stat-pill"><strong id="stat-file-types">0</strong> file types</div>
+      </div>
+
+      <div class="docs-toolbar">
+        <div class="search-input-wrap">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-input" type="text" placeholder="Search documents…" oninput="searchDocs(this.value)"/>
+        </div>
+        <div class="filter-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+          Filter
+        </div>
+        <div class="filter-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          Sort
+        </div>
+      </div>
+
+      <div class="docs-grid" id="docs-grid"></div>
+    </div>
+  </div>
+  <!-- ── SETTINGS VIEW ── -->
+  <div class="view" id="view-settings">
+    <div class="settings-layout">
+
+      <!-- Settings left nav -->
+      <div class="settings-nav">
+        <div class="settings-nav-label">Settings</div>
+        <div class="settings-nav-item active" onclick="switchSettingsTab('api-keys', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          API Keys
+        </div>
+        <div class="settings-nav-item" onclick="switchSettingsTab('model', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Model
+        </div>
+        <div class="settings-nav-item" onclick="switchSettingsTab('rag', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          RAG Behaviour
+        </div>
+        <div class="settings-nav-item" onclick="switchSettingsTab('chat', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Chat Preferences
+        </div>
+        <div class="settings-nav-item" onclick="switchSettingsTab('documents', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Documents
+        </div>
+        <div class="settings-nav-item" onclick="switchSettingsTab('appearance', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 1 7 7c0 4-7 13-7 13S5 13 5 9a7 7 0 0 1 7-7z"/></svg>
+          Appearance
+        </div>
+        <div class="settings-nav-item" onclick="switchSettingsTab('rag-provider', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          RAG Provider
+        </div>
+      </div>
+
+      <!-- Settings content -->
+      <div class="settings-content">
+
+        <!-- API KEYS -->
+        <div class="settings-section active" id="stab-api-keys">
+          <div class="settings-section-title">API Keys</div>
+          <div class="settings-section-desc">Connect your AI provider accounts. Keys are stored locally and never shared.</div>
+
+          <!-- OpenAI -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#d4f0d4;color:#16a34a;">OAI</div>
+              <div>
+                <div class="provider-name">OpenAI</div>
+                <div class="provider-desc">GPT-4o, GPT-4 Turbo, GPT-3.5 — gpt.openai.com</div>
+              </div>
+              <span class="provider-status connected">Connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" value="sk-proj-••••••••••••••••••••••••TZ9A" placeholder="sk-proj-…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Anthropic -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#fde8d0;color:#c2410c;">ANT</div>
+              <div>
+                <div class="provider-name">Anthropic</div>
+                <div class="provider-desc">Claude 3.5 Sonnet, Claude 3 Opus, Haiku — anthropic.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="sk-ant-api03-…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Gemini -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#dbeafe;color:#2563eb;">GEM</div>
+              <div>
+                <div class="provider-name">Google Gemini</div>
+                <div class="provider-desc">Gemini 1.5 Pro, Flash — aistudio.google.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="AIza…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Mistral -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#ede9fe;color:#7c3aed;">MIS</div>
+              <div>
+                <div class="provider-name">Mistral AI</div>
+                <div class="provider-desc">Mistral Large, Mixtral 8x7B — console.mistral.ai</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Cohere -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#d1fae5;color:#065f46;">COH</div>
+              <div>
+                <div class="provider-name">Cohere</div>
+                <div class="provider-desc">Command R+, Embed v3 — dashboard.cohere.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Groq -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#fef9c3;color:#854d0e;">GRQ</div>
+              <div>
+                <div class="provider-name">Groq</div>
+                <div class="provider-desc">LLaMA 3, Mixtral via ultra-fast inference — console.groq.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="gsk_…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- xAI Grok -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#f1f5f9;color:#0f172a;">XAI</div>
+              <div>
+                <div class="provider-name">xAI (Grok)</div>
+                <div class="provider-desc">Grok-1, Grok-2 — console.x.ai</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="xai-…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Cloudflare Workers AI -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#fff7ed;color:#c2410c;">CF</div>
+              <div>
+                <div class="provider-name">Cloudflare Workers AI</div>
+                <div class="provider-desc">LLaMA, Mistral via Cloudflare edge — dash.cloudflare.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="Account ID + API Token"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Together AI -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#f0fdf4;color:#15803d;">TOG</div>
+              <div>
+                <div class="provider-name">Together AI</div>
+                <div class="provider-desc">Open-source models at scale — api.together.xyz</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- MODEL -->
+        <div class="settings-section" id="stab-model">
+          <div class="settings-section-title">Model</div>
+          <div class="settings-section-desc">Choose the AI and embedding models that power AI Blueprint's responses.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <div><div class="settings-card-title">Chat Model</div><div class="settings-card-subtitle">Used for generating answers from your documents</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Provider</div>
+                <div class="settings-row-desc">Select which connected AI provider to use</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select">
+                  <option>OpenAI</option>
+                  <option>Anthropic</option>
+                  <option>Google Gemini</option>
+                  <option>Groq</option>
+                  <option>Mistral AI</option>
+                  <option>Cohere</option>
+                  <option>xAI (Grok)</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Model</div>
+                <div class="settings-row-desc">Larger models are more accurate but slower and costlier</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-chat-model">
+                  <option value="gpt-4o">gpt-4o</option>
+                  <option value="gpt-4-turbo">gpt-4-turbo</option>
+                  <option value="gpt-4o-mini">gpt-4o-mini</option>
+                  <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Max Output Tokens</div>
+                <div class="settings-row-desc">Maximum length of each generated response</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-max-tokens">
+                  <option value="1024">1024 tokens</option>
+                  <option value="2048" selected>2048 tokens</option>
+                  <option value="4096">4096 tokens</option>
+                  <option value="8192">8192 tokens</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Temperature</div>
+                <div class="settings-row-desc">Lower = more factual, Higher = more creative</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-slider-wrap">
+                  <input type="range" class="s-slider" id="sl-temperature" min="0" max="100" value="20" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(1)"/>
+                  <span class="s-slider-val">0.2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+              <div><div class="settings-card-title">Embedding Model</div><div class="settings-card-subtitle">Used for converting documents into searchable vectors</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Embedding Provider</div>
+                <div class="settings-row-desc">Can differ from your chat model provider</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select">
+                  <option>OpenAI</option>
+                  <option>Cohere</option>
+                  <option>Google</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Embedding Model</div>
+                <div class="settings-row-desc">Higher dimension models improve retrieval accuracy</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-embedding-model">
+                  <option value="text-embedding-3-large">text-embedding-3-large</option>
+                  <option value="text-embedding-3-small">text-embedding-3-small</option>
+                  <option value="text-embedding-ada-002">text-embedding-ada-002</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveModelSettings()">Save changes</button>
+          </div>
+        </div>
+
+        <!-- RAG BEHAVIOUR -->
+        <div class="settings-section" id="stab-rag">
+          <div class="settings-section-title">RAG Behaviour</div>
+          <div class="settings-section-desc">Control how AI Blueprint retrieves and uses content from your documents.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <div><div class="settings-card-title">Retrieval</div><div class="settings-card-subtitle">How documents are searched and ranked</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Top K Results</div>
+                <div class="settings-row-desc">Number of document chunks retrieved per query</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-slider-wrap">
+                  <input type="range" class="s-slider" id="sl-top-k" min="1" max="20" value="5" oninput="this.nextElementSibling.textContent=this.value"/>
+                  <span class="s-slider-val">5</span>
+                </div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Similarity Threshold</div>
+                <div class="settings-row-desc">Minimum relevance score to include a chunk as a source</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-slider-wrap">
+                  <input type="range" class="s-slider" id="sl-similarity" min="0" max="100" value="72" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)"/>
+                  <span class="s-slider-val">0.72</span>
+                </div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Retrieval Strategy</div>
+                <div class="settings-row-desc">How chunks are matched to your query</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-retrieval">
+                  <option value="semantic">Semantic (vector)</option>
+                  <option value="keyword">Keyword (BM25)</option>
+                  <option value="hybrid">Hybrid (semantic + keyword)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <div><div class="settings-card-title">Chunking</div><div class="settings-card-subtitle">How uploaded documents are split for indexing</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Chunk Size</div>
+                <div class="settings-row-desc">Number of tokens per document chunk</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-slider-wrap">
+                  <input type="range" class="s-slider" id="sl-chunk-size" min="128" max="2048" step="128" value="512" oninput="this.nextElementSibling.textContent=this.value"/>
+                  <span class="s-slider-val">512</span>
+                </div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Chunk Overlap</div>
+                <div class="settings-row-desc">Overlapping tokens between adjacent chunks for context continuity</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-slider-wrap">
+                  <input type="range" class="s-slider" id="sl-chunk-overlap" min="0" max="256" step="16" value="64" oninput="this.nextElementSibling.textContent=this.value"/>
+                  <span class="s-slider-val">64</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveRagSettings()">Save changes</button>
+          </div>
+        </div>
+
+        <!-- CHAT PREFERENCES -->
+        <div class="settings-section" id="stab-chat">
+          <div class="settings-section-title">Chat Preferences</div>
+          <div class="settings-section-desc">Customise how AI Blueprint behaves during conversations.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <div><div class="settings-card-title">Response Behaviour</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Response Length</div>
+                <div class="settings-row-desc">Controls how detailed answers are by default</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-response-length">
+                  <option value="concise">Concise</option>
+                  <option value="balanced" selected>Balanced</option>
+                  <option value="detailed">Detailed</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Always Show Sources</div>
+                <div class="settings-row-desc">Automatically expand source citations below every answer</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-toggle" id="tog-always-sources" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Stream Responses</div>
+                <div class="settings-row-desc">Show answers word by word as they are generated (typewriter effect)</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-toggle on" id="tog-stream" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <div><div class="settings-card-title">Language</div><div class="settings-card-subtitle">AI Blueprint will respond in the selected language regardless of document language</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Response Language</div>
+                <div class="settings-row-desc">Language used for all AI-generated answers</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-response-language" style="min-width:200px;">
+                  <option value="English">English</option>
+                  <option>Hindi — हिन्दी</option>
+                  <option>Arabic — العربية</option>
+                  <option>Spanish — Español</option>
+                  <option>French — Français</option>
+                  <option>German — Deutsch</option>
+                  <option>Portuguese — Português</option>
+                  <option>Japanese — 日本語</option>
+                  <option>Chinese (Simplified) — 简体中文</option>
+                  <option>Chinese (Traditional) — 繁體中文</option>
+                  <option>Korean — 한국어</option>
+                  <option>Italian — Italiano</option>
+                  <option>Dutch — Nederlands</option>
+                  <option>Russian — Русский</option>
+                  <option>Turkish — Türkçe</option>
+                  <option>Polish — Polski</option>
+                  <option>Swedish — Svenska</option>
+                  <option>Indonesian — Bahasa Indonesia</option>
+                  <option>Malay — Bahasa Melayu</option>
+                  <option>Bengali — বাংলা</option>
+                  <option>Tamil — தமிழ்</option>
+                  <option>Urdu — اردو</option>
+                  <option>Vietnamese — Tiếng Việt</option>
+                  <option>Thai — ภาษาไทย</option>
+                  <option>Greek — Ελληνικά</option>
+                  <option>Hebrew — עברית</option>
+                  <option>Swahili — Kiswahili</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Auto-detect Language</div>
+                <div class="settings-row-desc">Match response language to the language of each user message</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-toggle" id="tog-auto-detect" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveChatSettings()">Save changes</button>
+          </div>
+        </div>
+
+        <!-- DOCUMENTS -->
+        <div class="settings-section" id="stab-documents">
+          <div class="settings-section-title">Documents</div>
+          <div class="settings-section-desc">Control which file types are accepted and how documents are managed.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+              <div><div class="settings-card-title">Accepted File Types</div></div>
+            </div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">PDF (.pdf)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Word Document (.docx)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Plain Text (.txt)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">CSV (.csv)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Excel Spreadsheet (.xlsx)</div></div><div class="settings-row-control"><div class="s-toggle" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Markdown (.md)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">PowerPoint (.pptx)</div></div><div class="settings-row-control"><div class="s-toggle" onclick="this.classList.toggle('on')"></div></div></div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              <div><div class="settings-card-title">Storage & Limits</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Max File Size</div>
+                <div class="settings-row-desc">Maximum size per uploaded file</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-max-file-size">
+                  <option value="5">5 MB</option>
+                  <option value="10">10 MB</option>
+                  <option value="25" selected>25 MB</option>
+                  <option value="50">50 MB</option>
+                  <option value="100">100 MB</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Auto-delete After</div>
+                <div class="settings-row-desc">Automatically remove documents after a set period</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-auto-delete">
+                  <option value="0" selected>Never</option>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90">90 days</option>
+                  <option value="365">1 year</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveDocsSettings()">Save changes</button>
+          </div>
+        </div>
+
+        <!-- APPEARANCE -->
+        <div class="settings-section" id="stab-appearance">
+          <div class="settings-section-title">Appearance</div>
+          <div class="settings-section-desc">Personalise how AI Blueprint looks and feels.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+              <div><div class="settings-card-title">Theme</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Dark Mode</div>
+                <div class="settings-row-desc">Switch between light and dark interface</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-toggle" id="appearance-dark-toggle" onclick="toggleThemeFromSettings(this)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+              <div><div class="settings-card-title">Typography</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Font Size</div>
+                <div class="settings-row-desc">Base font size for the interface</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-font-size">
+                  <option value="13">Small (13px)</option>
+                  <option value="14" selected>Medium (14px)</option>
+                  <option value="16">Large (16px)</option>
+                  <option value="18">Extra Large (18px)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveAppearanceSettings()">Save changes</button>
+          </div>
+        </div>
+
+        <!-- RAG PROVIDER -->
+        <div class="settings-section" id="stab-rag-provider">
+          <div class="settings-section-title">RAG Provider</div>
+          <div class="settings-section-desc">Choose how AI Blueprint stores and searches your documents. You can switch at any time — existing documents will be re-indexed.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <div><div class="settings-card-title">Active RAG Backend</div><div class="settings-card-subtitle">Controls how documents are chunked, embedded and retrieved</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Provider</div>
+                <div class="settings-row-desc">Switching will re-index all your documents automatically</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="rag-provider-select" onchange="onRagProviderChange(this.value)" style="min-width:240px;">
+                  <option value="openai">OpenAI RAG (recommended)</option>
+                  <option value="llamaindex">Local — LlamaIndex + ChromaDB (free, offline)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- OpenAI RAG info -->
+          <div class="settings-card" id="rag-openai-info">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><div class="settings-card-title">OpenAI RAG</div><div class="settings-card-subtitle">Uses OpenAI Files API + Vector Stores</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Requires</div>
+                <div class="settings-row-desc">OpenAI API key (enter in API Keys tab)</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status connected">Ready</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Cost</div>
+                <div class="settings-row-desc">Charged per token by OpenAI — see openai.com/pricing</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status not-connected">Paid</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Works offline</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status not-connected">No</span></div>
+            </div>
+          </div>
+
+          <!-- LlamaIndex info -->
+          <div class="settings-card" id="rag-llamaindex-info" style="display:none;">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><div class="settings-card-title">Local RAG — LlamaIndex + ChromaDB</div><div class="settings-card-subtitle">Runs entirely on your laptop, no API key needed</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Embedding Model</div>
+                <div class="settings-row-desc">Runs locally via sentence-transformers (downloads on first use, ~90MB)</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select">
+                  <option>all-MiniLM-L6-v2 (fast, small)</option>
+                  <option>all-mpnet-base-v2 (balanced)</option>
+                  <option>paraphrase-multilingual-MiniLM-L12-v2 (best for non-English)</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Cost</div>
+                <div class="settings-row-desc">Completely free — everything runs on your machine</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status connected">Free</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Works offline</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status connected">Yes</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">LLM for answers</div>
+                <div class="settings-row-desc">Still needs an API key for the language model (OpenAI, Groq, etc.) unless you use Ollama locally</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select">
+                  <option>OpenAI (API key required)</option>
+                  <option>Groq (API key required, free tier)</option>
+                  <option>Ollama (fully local, no key needed)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card danger-zone">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div><div class="settings-card-title">Danger Zone</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Delete All Documents</div>
+                <div class="settings-row-desc">Permanently remove all uploaded documents and their vector indexes. Cannot be undone.</div>
+              </div>
+              <div class="settings-row-control">
+                <button class="danger-btn" onclick="deleteAllDocuments()">Delete all documents</button>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Reset All Settings</div>
+                <div class="settings-row-desc">Restore all settings to their defaults including API keys.</div>
+              </div>
+              <div class="settings-row-control">
+                <button class="danger-btn" onclick="resetAllSettings()">Reset settings</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveRagProviderSettings()">Save changes</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
+
+<style>
+@keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+</style>
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false };
+
+// ── TOAST ──────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  const bg = type === 'success' ? '#16a34a' : type === 'error' ? '#dc2626' : '#d97706';
+  t.style.cssText = `background:${bg};color:white;padding:10px 16px;border-radius:8px;font-size:13.5px;font-family:'DM Sans',sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.25);max-width:340px;line-height:1.4;animation:slideIn 0.2s ease;pointer-events:auto;`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+async function init() {
+  await Promise.all([loadSettings(), loadChats(), loadDocuments()]);
+  checkFirstRun();
+}
+
+async function checkFirstRun() {
+  try {
+    const r = await fetch('/api/health');
+    const d = await r.json();
+    if (d.first_run) {
+      const b = document.getElementById('first-run-banner');
+      if (b) b.style.display = 'flex';
+    }
+  } catch(e) {}
+}
+
+// ── SETTINGS ───────────────────────────────────────────────────────────────
+async function loadSettings() {
+  try {
+    const r = await fetch('/api/settings');
+    App.settings = await r.json();
+    applySettings();
+    populateSettingsUI();
+  } catch(e) {}
+}
+
+function applySettings() {
+  const s = App.settings;
+  document.documentElement.setAttribute('data-theme', s.dark_mode === 'true' ? 'dark' : 'light');
+  if (s.font_size) document.body.style.fontSize = s.font_size + 'px';
+  updateDocSelector();
+}
+
+function populateSettingsUI() {
+  const s = App.settings;
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+  const tog = (id, on) => { const el = document.getElementById(id); if (el) { el.classList.toggle('on', !!on); } };
+  set('sel-chat-model', s.chat_model);
+  set('sel-max-tokens', s.max_tokens);
+  const tempEl = document.getElementById('sl-temperature');
+  if (tempEl && s.temperature) { tempEl.value = Math.round(parseFloat(s.temperature) * 100); tempEl.nextElementSibling.textContent = parseFloat(s.temperature).toFixed(1); }
+  const topkEl = document.getElementById('sl-top-k');
+  if (topkEl && s.top_k) { topkEl.value = s.top_k; topkEl.nextElementSibling.textContent = s.top_k; }
+  const simEl = document.getElementById('sl-similarity');
+  if (simEl && s.similarity_threshold) { simEl.value = Math.round(parseFloat(s.similarity_threshold) * 100); simEl.nextElementSibling.textContent = parseFloat(s.similarity_threshold).toFixed(2); }
+  const csEl = document.getElementById('sl-chunk-size');
+  if (csEl && s.chunk_size) { csEl.value = s.chunk_size; csEl.nextElementSibling.textContent = s.chunk_size; }
+  const coEl = document.getElementById('sl-chunk-overlap');
+  if (coEl && s.chunk_overlap) { coEl.value = s.chunk_overlap; coEl.nextElementSibling.textContent = s.chunk_overlap; }
+  set('sel-retrieval', s.retrieval_strategy);
+  set('sel-response-length', s.response_length);
+  set('sel-response-language', 'English');
+  if (s.response_language) {
+    const langSel = document.getElementById('sel-response-language');
+    if (langSel) { for (let o of langSel.options) { if (o.value === s.response_language || o.text.startsWith(s.response_language)) { langSel.value = o.value; break; } } }
+  }
+  tog('tog-always-sources', s.always_show_sources === 'true');
+  tog('tog-stream', s.stream_responses !== 'false');
+  tog('tog-auto-detect', s.auto_detect_language === 'true');
+  tog('appearance-dark-toggle', s.dark_mode === 'true');
+  set('sel-font-size', s.font_size);
+  set('sel-max-file-size', s.max_file_size_mb);
+  set('sel-auto-delete', s.auto_delete_days);
+  const ragSel = document.getElementById('rag-provider-select');
+  if (ragSel && s.rag_provider) { ragSel.value = s.rag_provider; onRagProviderChange(s.rag_provider); }
+  // Show connected status for API keys
+  document.querySelectorAll('.provider-card').forEach(card => {
+    const name = card.querySelector('.provider-name')?.textContent?.trim();
+    const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key' };
+    const k = keyMap[name];
+    const status = card.querySelector('.provider-status');
+    if (k && status && s[k] && s[k] !== '') { status.textContent = 'Connected'; status.className = 'provider-status connected'; }
+  });
+}
+
+async function saveSettings(obj) {
+  try {
+    const r = await fetch('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({settings:obj}) });
+    const d = await r.json();
+    if (d.ok) { showToast('Settings saved.'); await loadSettings(); }
+    else showToast(d.error || 'Save failed.', 'error');
+  } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+}
+
+function saveApiKey(btn) {
+  const card = btn.closest('.provider-card');
+  const input = card.querySelector('.key-input');
+  const val = input.value.trim();
+  if (!val || val === '••••••••') return;
+  const name = card.querySelector('.provider-name')?.textContent?.trim();
+  const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key' };
+  const k = keyMap[name];
+  if (!k) { showToast('Unknown provider', 'error'); return; }
+  saveSettings({[k]: val}).then(() => { input.value = '••••••••'; });
+}
+
+async function testConnection() {
+  try {
+    const r = await fetch('/api/settings/test-connection');
+    const d = await r.json();
+    if (d.ok) showToast(d.message, 'success'); else showToast(d.error, 'error');
+  } catch(e) { showToast('Test failed: ' + e.message, 'error'); }
+}
+
+function saveModelSettings() {
+  const m = document.getElementById('sel-chat-model')?.value;
+  const t = document.getElementById('sel-max-tokens')?.value;
+  const temp = document.getElementById('sl-temperature')?.value;
+  const em = document.getElementById('sel-embedding-model')?.value;
+  const s = {};
+  if (m) s.chat_model = m;
+  if (t) s.max_tokens = t;
+  if (temp) s.temperature = (parseFloat(temp)/100).toFixed(2);
+  if (em) s.embedding_model = em;
+  saveSettings(s);
+}
+
+function saveRagSettings() {
+  const k = document.getElementById('sl-top-k')?.value;
+  const sim = document.getElementById('sl-similarity')?.value;
+  const ret = document.getElementById('sel-retrieval')?.value;
+  const cs = document.getElementById('sl-chunk-size')?.value;
+  const co = document.getElementById('sl-chunk-overlap')?.value;
+  const s = {};
+  if (k) s.top_k = k;
+  if (sim) s.similarity_threshold = (parseFloat(sim)/100).toFixed(2);
+  if (ret) s.retrieval_strategy = ret;
+  if (cs) s.chunk_size = cs;
+  if (co) s.chunk_overlap = co;
+  saveSettings(s);
+}
+
+function saveChatSettings() {
+  const lang = document.getElementById('sel-response-language')?.value;
+  const len = document.getElementById('sel-response-length')?.value;
+  const src = document.getElementById('tog-always-sources')?.classList.contains('on');
+  const str = document.getElementById('tog-stream')?.classList.contains('on');
+  const auto = document.getElementById('tog-auto-detect')?.classList.contains('on');
+  const s = {};
+  if (lang) s.response_language = lang;
+  if (len) s.response_length = len;
+  s.always_show_sources = src ? 'true' : 'false';
+  s.stream_responses = str ? 'true' : 'false';
+  s.auto_detect_language = auto ? 'true' : 'false';
+  saveSettings(s);
+}
+
+function saveDocsSettings() {
+  const mf = document.getElementById('sel-max-file-size')?.value;
+  const ad = document.getElementById('sel-auto-delete')?.value;
+  const s = {};
+  if (mf) s.max_file_size_mb = mf;
+  if (ad != null) s.auto_delete_days = ad;
+  saveSettings(s);
+}
+
+function saveAppearanceSettings() {
+  const fs = document.getElementById('sel-font-size')?.value;
+  const dm = document.getElementById('appearance-dark-toggle')?.classList.contains('on');
+  const s = { dark_mode: dm ? 'true' : 'false' };
+  if (fs) { s.font_size = fs; document.body.style.fontSize = fs + 'px'; }
+  saveSettings(s);
+}
+
+function saveRagProviderSettings() {
+  const v = document.getElementById('rag-provider-select')?.value;
+  if (v) saveSettings({ rag_provider: v });
+}
+
+async function resetAllSettings() {
+  if (!confirm('Reset all settings to defaults? API keys will be cleared.')) return;
+  try {
+    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'' };
+    await saveSettings(defaults);
+  } catch(e) { showToast('Reset failed.', 'error'); }
+}
+
+// ── CHATS ──────────────────────────────────────────────────────────────────
+async function loadChats() {
+  try {
+    const r = await fetch('/api/chats');
+    App.chats = await r.json();
+    renderChatHistory();
+  } catch(e) {}
+}
+
+function renderChatHistory() {
+  const list = document.getElementById('chat-history-list');
+  if (!list) return;
+  list.innerHTML = '';
+  for (const chat of App.chats) {
+    const item = document.createElement('div');
+    item.className = 'chat-history-item' + (chat.id === App.currentChatId ? ' active' : '');
+    item.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>${esc(chat.title || 'New Chat')}</span>`;
+    item.onclick = () => openChat(chat.id);
+    list.appendChild(item);
+  }
+}
+
+async function openChat(chatId) {
+  App.currentChatId = chatId;
+  switchView('chat');
+  const conv = document.getElementById('chat-conversation');
+  conv.innerHTML = '';
+  conv.style.display = 'block';
+  document.getElementById('welcome-screen').style.display = 'none';
+  renderChatHistory();
+  try {
+    const r = await fetch(`/api/chats/${chatId}/messages`);
+    const msgs = await r.json();
+    for (const m of msgs) conv.appendChild(m.role === 'user' ? mkUser(m.content) : mkAi(m.content, m.sources || []));
+    scrollBottom();
+  } catch(e) { showToast('Failed to load messages.', 'error'); }
+}
+
+function newChat() {
+  App.currentChatId = null;
+  App.selectedDocIds = 'all';
+  updateDocSelector();
+  document.getElementById('chat-conversation').innerHTML = '';
+  document.getElementById('chat-conversation').style.display = 'none';
+  document.getElementById('welcome-screen').style.display = 'flex';
+  document.getElementById('chat-input').value = '';
+  renderChatHistory();
+}
+
+// ── DOCUMENTS ─────────────────────────────────────────────────────────────
+async function loadDocuments() {
+  try {
+    const r = await fetch('/api/documents');
+    App.documents = await r.json();
+    renderDocuments();
+    updateDocsBadge();
+    updateDocSelector();
+  } catch(e) {}
+}
+
+function renderDocuments(filter = '') {
+  const grid = document.getElementById('docs-grid');
+  if (!grid) return;
+  const docs = filter ? App.documents.filter(d => d.original_name.toLowerCase().includes(filter.toLowerCase())) : App.documents;
+  if (!docs.length) { grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-subtle)">No documents yet. Upload one to get started.</div>'; }
+  else grid.innerHTML = docs.map(d => docCard(d)).join('');
+  const total = App.documents.reduce((s,d) => s+(d.size_bytes||0), 0);
+  const types = new Set(App.documents.map(d=>d.file_type)).size;
+  el('stat-docs-count', App.documents.length);
+  el('stat-total-size', fmtBytes(total));
+  el('stat-file-types', types);
+}
+
+function docCard(d) {
+  const ext = (d.file_type||'TXT').toUpperCase();
+  const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt'}[ext]||'icon-txt';
+  const date = d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+  const pages = d.page_count ? `<div class="dot"></div><span>${d.page_count} pages</span>` : '';
+  return `<div class="doc-card">
+    <div class="doc-card-header"><div class="doc-card-icon ${cls}">${ext}</div><div class="doc-card-title" title="${esc(d.original_name)}">${esc(d.original_name)}</div></div>
+    <div class="doc-card-meta"><span>${fmtBytes(d.size_bytes||0)}</span>${date?`<div class="dot"></div><span>${date}</span>`:''}${pages}</div>
+    <div class="doc-card-actions">
+      <button class="doc-action-btn" onclick="chatWithDoc('${d.id}','${esc(d.original_name).replace(/'/g,"\\'")}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat
+      </button>
+      <button class="doc-action-btn danger" onclick="deleteDocument('${d.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete
+      </button>
+    </div>
+  </div>`;
+}
+
+function updateDocsBadge() { el('docs-count-badge', App.documents.length); }
+function updateDocSelector() {
+  const badge = document.getElementById('input-doc-badge');
+  if (!badge) return;
+  badge.textContent = App.selectedDocIds === 'all' ? `All Documents (${App.documents.length})` : `${App.selectedDocIds.length} selected`;
+}
+
+async function deleteDocument(id) {
+  if (!confirm('Delete this document?')) return;
+  try {
+    await fetch(`/api/documents/${id}`, {method:'DELETE'});
+    showToast('Document deleted.');
+    await loadDocuments();
+  } catch(e) { showToast('Delete failed.', 'error'); }
+}
+
+async function deleteAllDocuments() {
+  if (!confirm('Delete ALL documents? This cannot be undone.')) return;
+  try {
+    await fetch('/api/documents', {method:'DELETE'});
+    showToast('All documents deleted.');
+    await loadDocuments();
+  } catch(e) { showToast('Delete failed.', 'error'); }
+}
+
+function chatWithDoc(id) {
+  App.selectedDocIds = [id];
+  updateDocSelector();
+  switchView('chat');
+  newChat();
+}
+
+function searchDocs(q) { renderDocuments(q); }
+
+// ── UPLOAD ────────────────────────────────────────────────────────────────
+function initUpload() {
+  const zone = document.getElementById('upload-zone');
+  const input = document.getElementById('file-input');
+  if (!zone || !input) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='var(--accent)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor=''; });
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor=''; handleFiles(e.dataTransfer.files); });
+  input.addEventListener('change', () => { handleFiles(input.files); input.value=''; });
+}
+
+function handleFiles(files) {
+  const allowed = ['.pdf','.docx','.txt','.csv','.xlsx','.md'];
+  const maxMb = parseInt(App.settings.max_file_size_mb || 25);
+  const title = document.getElementById('upload-queue-title');
+  if (title) title.style.display = 'block';
+  for (const f of files) {
+    const ext = '.' + f.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) { showToast(`${f.name}: File type not supported.`, 'error'); continue; }
+    if (f.size > maxMb * 1024 * 1024) { showToast(`${f.name}: Exceeds ${maxMb} MB limit.`, 'error'); continue; }
+    uploadFile(f);
+  }
+}
+
+async function uploadFile(file) {
+  const queueEl = document.getElementById('upload-queue-list');
+  const ext = file.name.split('.').pop().toUpperCase();
+  const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt'}[ext]||'icon-txt';
+  const item = document.createElement('div');
+  item.className = 'upload-item';
+  item.innerHTML = `<div class="upload-item-icon ${cls}">${ext}</div><div class="upload-item-info"><div class="upload-item-name">${esc(file.name)}</div><div class="progress-bar"><div class="progress-fill" style="width:5%"></div></div></div><div class="upload-item-size">${fmtBytes(file.size)}</div><div class="upload-item-status status-loading"></div>`;
+  queueEl.appendChild(item);
+  const fill = item.querySelector('.progress-fill');
+  const status = item.querySelector('.upload-item-status');
+  let pct = 5;
+  const iv = setInterval(() => { pct = Math.min(pct + Math.random() * 12, 85); fill.style.width = pct + '%'; }, 300);
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const r = await fetch('/api/documents/upload', {method:'POST', body:fd});
+    clearInterval(iv);
+    if (!r.ok) {
+      const err = await r.json();
+      fill.style.width='100%'; fill.style.background='var(--danger)';
+      status.className='upload-item-status'; status.textContent='✕'; status.style.color='var(--danger)';
+      showToast(err.detail || 'Upload failed.', 'error');
+    } else {
+      fill.style.width='100%';
+      status.className='upload-item-status status-done';
+      status.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      showToast(`${file.name} uploaded.`);
+      await loadDocuments();
+    }
+  } catch(e) { clearInterval(iv); showToast('Upload failed: ' + e.message, 'error'); }
+  setTimeout(() => item.remove(), 4000);
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────────────
+async function sendMessage() {
+  if (App.isStreaming) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = ''; input.style.height = 'auto';
+  document.getElementById('welcome-screen').style.display = 'none';
+  const conv = document.getElementById('chat-conversation');
+  conv.style.display = 'block';
+  if (!App.currentChatId) {
+    try {
+      const docCtx = App.selectedDocIds === 'all' ? 'all' : App.selectedDocIds.join(',');
+      const r = await fetch('/api/chats', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({doc_context:docCtx})});
+      const chat = await r.json();
+      App.currentChatId = chat.id;
+    } catch(e) { showToast('Failed to create chat.', 'error'); return; }
+  }
+  conv.appendChild(mkUser(text));
+  const aiEl = mkAi('', []);
+  const bubble = aiEl.querySelector('.bubble');
+  conv.appendChild(aiEl);
+  scrollBottom();
+  App.isStreaming = true;
+  document.querySelector('.send-btn').style.opacity = '0.5';
+  let content = '', sources = [];
+  try {
+    const r = await fetch(`/api/chats/${App.currentChatId}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text})});
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream:true});
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          if (ev.type === 'token') { content += ev.content; bubble.innerHTML = mdRender(content); scrollBottom(); }
+          else if (ev.type === 'source') sources.push(ev);
+          else if (ev.type === 'error') showToast(ev.content, 'error');
+          else if (ev.type === 'done' && sources.length) {
+            const sp = mkSources(sources);
+            aiEl.insertBefore(sp, aiEl.querySelector('.msg-actions'));
+            if (App.settings.always_show_sources === 'true') sp.querySelector('.sources-panel').classList.add('open');
+          }
+        } catch(ex) {}
+      }
+    }
+  } catch(e) { showToast('Stream error: ' + e.message, 'error'); }
+  App.isStreaming = false;
+  document.querySelector('.send-btn').style.opacity = '';
+  await loadChats();
+}
+
+function mkUser(text) {
+  const d = document.createElement('div'); d.className = 'msg user';
+  d.innerHTML = `<div class="msg-meta"><span>You</span><div class="avatar user-av">U</div></div><div class="bubble">${esc(text)}</div>`;
+  return d;
+}
+
+function mkAi(content, sources) {
+  const d = document.createElement('div'); d.className = 'msg ai';
+  const docSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+  d.innerHTML = `<div class="msg-meta"><div class="avatar ai-av">${docSvg}</div><span>AI Blueprint</span></div><div class="bubble">${content ? mdRender(content) : '<span style="opacity:.4">Thinking…</span>'}</div><div class="msg-actions"><div class="msg-action-btn" title="Copy" onclick="copyMsg(this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div></div>`;
+  if (sources.length) d.insertBefore(mkSources(sources), d.querySelector('.msg-actions'));
+  return d;
+}
+
+function mkSources(sources) {
+  const d = document.createElement('div'); d.className = 'sources';
+  const items = sources.map(s => `<div class="source-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div><div class="source-doc">${esc(s.filename||'')}</div>${s.excerpt?`<div style="font-size:11.5px;color:var(--text-subtle);margin-top:2px">${esc(s.excerpt.substring(0,120))}</div>`:''}</div>${s.page!=null?`<span class="source-page">Chunk ${s.page}</span>`:''}</div>`).join('');
+  d.innerHTML = `<div class="sources-toggle" onclick="toggleSources(this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${sources.length} source${sources.length>1?'s':''}<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg></div><div class="sources-panel">${items}</div>`;
+  return d;
+}
+
+function copyMsg(btn) {
+  const b = btn.closest('.msg').querySelector('.bubble');
+  navigator.clipboard.writeText(b.innerText).then(() => showToast('Copied.'));
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtBytes(b) { if(!b)return'0 B'; if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; return(b/1048576).toFixed(1)+' MB'; }
+function mdRender(t) { return esc(t).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code style="background:var(--badge-bg);padding:1px 4px;border-radius:3px;font-size:.9em">$1</code>').replace(/\n/g,'<br>'); }
+function scrollBottom() { const m=document.getElementById('chat-messages'); if(m) m.scrollTop=m.scrollHeight; }
+function el(id, val) { const e=document.getElementById(id); if(e) e.textContent=val; }
+
+// ── VIEW SWITCHING ────────────────────────────────────────────────────────
+const VIEWS = {chat:'view-chat','add-doc':'view-add-doc','view-docs':'view-view-docs',settings:'view-settings'};
+const NAVS = {chat:'nav-chat','add-doc':'nav-add-doc','view-docs':'nav-view-docs',settings:'nav-settings'};
+const TITLES = {chat:'Chat','add-doc':'Add Document','view-docs':'View Documents',settings:'Settings'};
+
+function switchView(name) {
+  Object.values(VIEWS).forEach(id => document.getElementById(id)?.classList.remove('active'));
+  Object.values(NAVS).forEach(id => document.getElementById(id)?.classList.remove('active'));
+  document.getElementById(VIEWS[name])?.classList.add('active');
+  document.getElementById(NAVS[name])?.classList.add('active');
+  document.getElementById('topbar-title').textContent = TITLES[name] || name;
+  document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
+  if (name === 'view-docs') renderDocuments();
+  if (name === 'chat' && !App.currentChatId) {
+    document.getElementById('welcome-screen').style.display = 'flex';
+    document.getElementById('chat-conversation').style.display = 'none';
+  }
+}
+
+// ── SETTINGS TABS ─────────────────────────────────────────────────────────
+function switchSettingsTab(tab, el) {
+  document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.settings-nav-item').forEach(s => s.classList.remove('active'));
+  document.getElementById('stab-' + tab)?.classList.add('active');
+  el.classList.add('active');
+}
+
+// ── RAG PROVIDER ──────────────────────────────────────────────────────────
+function onRagProviderChange(val) {
+  const a=document.getElementById('rag-openai-info'), b=document.getElementById('rag-llamaindex-info');
+  if(a) a.style.display = val==='openai'?'block':'none';
+  if(b) b.style.display = val==='llamaindex'?'block':'none';
+}
+
+// ── THEME ─────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const newDark = !isDark;
+  document.documentElement.setAttribute('data-theme', newDark ? 'dark' : 'light');
+  const label = document.querySelector('.theme-toggle');
+  if (label && label.childNodes[2]) label.childNodes[2].textContent = newDark ? ' Light mode' : ' Dark mode';
+  const appTog = document.getElementById('appearance-dark-toggle');
+  if (appTog) appTog.classList.toggle('on', newDark);
+  saveSettings({ dark_mode: newDark ? 'true' : 'false' });
+}
+
+function toggleThemeFromSettings(el) {
+  el.classList.toggle('on');
+  const isDark = el.classList.contains('on');
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  const label = document.querySelector('.theme-toggle');
+  if (label && label.childNodes[2]) label.childNodes[2].textContent = isDark ? ' Light mode' : ' Dark mode';
+  saveSettings({ dark_mode: isDark ? 'true' : 'false' });
+}
+
+// ── EXISTING HELPERS ──────────────────────────────────────────────────────
+function toggleKey(btn) {
+  const input = btn.previousElementSibling;
+  const hide = input.type === 'password';
+  input.type = hide ? 'text' : 'password';
+  btn.innerHTML = hide
+    ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+}
+
+function toggleSources(btn) {
+  const panel = btn.nextElementSibling;
+  panel.classList.toggle('open');
+  const chevron = btn.querySelector('svg:last-child');
+  if (chevron) chevron.style.transform = panel.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+function fillInput(chip) {
+  const input = document.getElementById('chat-input');
+  input.value = chip.textContent.trim();
+  input.focus();
+  autoResize(input);
+}
+
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px'; }
+
+// ── START ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => { init(); initUpload(); });
+</script>
+</body>
+</html>

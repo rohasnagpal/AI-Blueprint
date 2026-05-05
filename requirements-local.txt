@@ -1,0 +1,6 @@
+# Extra dependencies for Local RAG mode (LlamaIndex + sentence-transformers)
+# See README for full install instructions — chromadb needs a separate step.
+sentence-transformers>=2.2.0
+llama-index>=0.10.0,<0.12
+llama-index-vector-stores-chroma>=0.1.0,<0.4
+llama-index-embeddings-huggingface>=0.1.0,<0.5
