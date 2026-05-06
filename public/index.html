@@ -903,11 +903,13 @@
   .icon-docx { background: #dbeafe; color: #2563eb; }
   .icon-txt { background: #f3f4f6; color: #6b7280; }
   .icon-csv { background: #d1fae5; color: #16a34a; }
+  .icon-html { background: #ffedd5; color: #ea580c; }
 
   [data-theme="dark"] .icon-pdf { background: #3f1515; color: #f87171; }
   [data-theme="dark"] .icon-docx { background: #1e2a3f; color: #60a5fa; }
   [data-theme="dark"] .icon-txt { background: #252525; color: #9ca3af; }
   [data-theme="dark"] .icon-csv { background: #1a2e1f; color: #34d399; }
+  [data-theme="dark"] .icon-html { background: #3f2412; color: #fb923c; }
 
   .upload-item-info { flex: 1; min-width: 0; }
 
@@ -1021,6 +1023,245 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 14px;
+  }
+
+  /* ── COUNCILS ── */
+  .councils-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+  }
+
+  .councils-shell {
+    max-width: 1040px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 22px;
+  }
+
+  .council-nav {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px;
+    height: fit-content;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .council-tab {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .council-tab:hover,
+  .council-tab.active {
+    background: var(--badge-bg);
+    color: var(--text);
+  }
+
+  .council-tab svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .council-panel {
+    display: none;
+  }
+
+  .council-panel.active {
+    display: block;
+  }
+
+  #view-councils .settings-card > .council-form,
+  #view-councils .settings-card > .council-list {
+    padding: 16px 20px 20px;
+  }
+
+  #view-councils .settings-card-header + .council-form,
+  #view-councils .settings-card-header + .council-list {
+    padding-top: 16px;
+  }
+
+  .council-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .council-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+  }
+
+  .council-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .council-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .council-card-meta {
+    font-size: 12px;
+    color: var(--text-subtle);
+    margin-bottom: 10px;
+  }
+
+  .council-card-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .council-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  .council-status.completed { background: #d1fae5; color: #166534; }
+  .council-status.running { background: #dbeafe; color: #1d4ed8; }
+  .council-status.error { background: #fee2e2; color: #b91c1c; }
+
+  [data-theme="dark"] .council-status.completed { background: #12301e; color: #86efac; }
+  [data-theme="dark"] .council-status.running { background: #14253d; color: #93c5fd; }
+  [data-theme="dark"] .council-status.error { background: #3f1515; color: #fca5a5; }
+
+  .council-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .council-form {
+    display: grid;
+    gap: 14px;
+  }
+
+  .council-form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .council-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+
+  .council-input,
+  .council-textarea,
+  .council-select {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    outline: none;
+  }
+
+  .council-textarea {
+    resize: vertical;
+    min-height: 78px;
+  }
+
+  .council-input:focus,
+  .council-textarea:focus,
+  .council-select:focus {
+    border-color: var(--accent);
+  }
+
+  .council-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .council-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .council-row-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .council-result {
+    display: grid;
+    gap: 14px;
+  }
+
+  .council-output {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .council-output-role {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .council-output-phase {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+    margin-bottom: 10px;
+  }
+
+  @media (max-width: 860px) {
+    .councils-area { padding: 24px 18px; }
+    .councils-shell { grid-template-columns: 1fr; }
+    .council-nav { display: flex; gap: 6px; overflow-x: auto; }
+    .council-tab { white-space: nowrap; }
+    .council-form-row { grid-template-columns: 1fr; }
   }
 
   .doc-card {
@@ -1597,6 +1838,10 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       New Chat
     </div>
+    <div class="nav-item" onclick="switchView('councils')" id="nav-councils">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Councils
+    </div>
     <div class="nav-item" onclick="switchView('add-doc')" id="nav-add-doc">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Add Document
@@ -1702,16 +1947,158 @@
     </div>
   </div>
 
+  <!-- ── COUNCILS VIEW ── -->
+  <div class="view" id="view-councils">
+    <div class="councils-area">
+      <!-- <div class="view-header">
+        <h2>Councils</h2>
+        <p>Configure multiple AI participants, run them in ordered phases, and save document-grounded council outputs.</p>
+      </div> -->
+
+      <div class="councils-shell">
+        <div class="council-nav">
+          <button class="council-tab active" type="button" onclick="switchCouncilTab('runs', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 13l3 3 7-7"/></svg>
+            Runs
+          </button>
+          <button class="council-tab" type="button" onclick="switchCouncilTab('templates', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Templates
+          </button>
+          <button class="council-tab" type="button" onclick="switchCouncilTab('builder', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            Builder
+          </button>
+        </div>
+
+        <div>
+          <div class="council-panel active" id="council-panel-runs">
+            <div class="council-toolbar">
+              <div>
+                <div class="settings-section-title">AI Council Runs</div>
+                <div class="settings-section-desc">Run a preset or custom council against selected documents.</div>
+              </div>
+              <button class="btn-primary" type="button" onclick="startCouncilFromForm()">Run Council</button>
+            </div>
+
+            <div class="settings-card" style="margin-bottom:16px">
+              <div class="settings-card-header">
+                <div><div class="settings-card-title">New Run</div><div class="settings-card-subtitle">Choose a template, objective, and document scope.</div></div>
+              </div>
+              <div class="council-form">
+                <div class="council-form-row">
+                  <div class="council-field">
+                    <label for="council-run-template">Template</label>
+                    <select class="council-select" id="council-run-template"></select>
+                  </div>
+                  <div class="council-field">
+                    <label for="council-run-docs">Documents</label>
+                    <select class="council-select" id="council-run-docs">
+                      <option value="all">All documents</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="council-field">
+                  <label for="council-run-title">Title</label>
+                  <input class="council-input" id="council-run-title" placeholder="Optional run title"/>
+                </div>
+                <div class="council-field">
+                  <label for="council-run-objective">Objective or submission</label>
+                  <textarea class="council-textarea" id="council-run-objective" placeholder="Describe the dispute, question, or student argument to evaluate."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="council-list" id="council-runs-list"></div>
+            <div class="council-result" id="council-run-result" style="margin-top:16px"></div>
+          </div>
+
+          <div class="council-panel" id="council-panel-templates">
+            <div class="council-toolbar">
+              <div>
+                <div class="settings-section-title">AI Council Templates</div>
+                <div class="settings-section-desc">Use presets or duplicate them into editable custom councils.</div>
+              </div>
+              <button class="btn-secondary" type="button" onclick="loadCouncils()">Refresh</button>
+            </div>
+            <div class="council-grid" id="council-templates-grid"></div>
+          </div>
+
+          <div class="council-panel" id="council-panel-builder">
+            <div class="council-toolbar">
+              <div>
+                <div class="settings-section-title">AI Council Builder</div>
+                <div class="settings-section-desc">Create a council by defining AI participants and execution phases.</div>
+              </div>
+              <div class="council-actions">
+                <button class="btn-secondary" type="button" onclick="resetCouncilBuilder()">Reset</button>
+                <button class="btn-primary" type="button" onclick="saveCouncilTemplate()">Save Template</button>
+              </div>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <div><div class="settings-card-title">Template Details</div></div>
+              </div>
+              <div class="council-form">
+                <div class="council-form-row">
+                  <div class="council-field">
+                    <label for="builder-name">Name</label>
+                    <input class="council-input" id="builder-name" placeholder="Custom Council"/>
+                  </div>
+                  <div class="council-field">
+                    <label for="builder-output">Output format</label>
+                    <select class="council-select" id="builder-output">
+                      <option value="memo">Memo</option>
+                      <option value="reasoned_award">Reasoned award</option>
+                      <option value="scorecard">Scorecard</option>
+                      <option value="transcript">Transcript</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="council-field">
+                  <label for="builder-description">Description</label>
+                  <input class="council-input" id="builder-description" placeholder="What this council is for"/>
+                </div>
+                <div class="council-field">
+                  <label for="builder-objective">Default objective prompt</label>
+                  <textarea class="council-textarea" id="builder-objective" placeholder="Default task for this council. Users can override it when running."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-card" style="margin-top:14px">
+              <div class="settings-card-header">
+                <div><div class="settings-card-title">AI Participants</div><div class="settings-card-subtitle">Each participant can have its own role, instructions, and model defaults.</div></div>
+                <button class="btn-secondary" type="button" onclick="addCouncilAgent()">Add AI</button>
+              </div>
+              <div class="council-list" id="builder-agents"></div>
+            </div>
+
+            <div class="settings-card" style="margin-top:14px">
+              <div class="settings-card-header">
+                <div><div class="settings-card-title">Phases</div><div class="settings-card-subtitle">Control order, parallelism, and which AIs speak in each phase.</div></div>
+                <button class="btn-secondary" type="button" onclick="addCouncilPhase()">Add Phase</button>
+              </div>
+              <div class="council-list" id="builder-phases"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── ADD DOCUMENT VIEW ── -->
   <div class="view" id="view-add-doc">
     <div class="add-doc-view">
       <div class="view-header">
         <h2>Add Documents</h2>
-        <p>Upload documents to your knowledge base. AI Blueprint supports PDF, DOCX, TXT, CSV, JSON and more.</p>
+        <p>Upload documents to your knowledge base. AI Blueprint supports PDF, DOCX, TXT, HTML, CSV, JSON and more.</p>
       </div>
 
       <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
-        <input type="file" id="file-input" style="display:none" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.md,.json"/>
+        <input type="file" id="file-input" style="display:none" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.md,.json,.html,.htm"/>
         <div class="upload-icon">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </div>
@@ -1725,6 +2112,7 @@
           <span class="file-type-badge">XLSX</span>
           <span class="file-type-badge">MD</span>
           <span class="file-type-badge">JSON</span>
+          <span class="file-type-badge">HTML</span>
         </div>
         <button class="upload-btn">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -2320,6 +2708,7 @@
             <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">CSV (.csv)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
             <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Excel Spreadsheet (.xlsx)</div></div><div class="settings-row-control"><div class="s-toggle" onclick="this.classList.toggle('on')"></div></div></div>
             <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Markdown (.md)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">HTML (.html, .htm)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
             <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">PowerPoint (.pptx)</div></div><div class="settings-row-control"><div class="s-toggle" onclick="this.classList.toggle('on')"></div></div></div>
           </div>
 
@@ -2588,7 +2977,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false, openChatMenuId: null };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -2603,7 +2992,7 @@ function showToast(msg, type = 'success') {
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadSettings(), loadChats(), loadDocuments()]);
+  await Promise.all([loadSettings(), loadChats(), loadDocuments(), loadCouncils()]);
   checkFirstRun();
 }
 
@@ -2955,6 +3344,7 @@ async function loadDocuments() {
     renderDocuments();
     updateDocsBadge();
     updateDocSelector();
+    renderCouncilDocOptions();
   } catch(e) {}
 }
 
@@ -2973,7 +3363,7 @@ function renderDocuments(filter = '') {
 
 function docCard(d) {
   const ext = (d.file_type||'TXT').toUpperCase();
-  const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt'}[ext]||'icon-txt';
+  const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt',JSON:'icon-txt',HTML:'icon-html',HTM:'icon-html'}[ext]||'icon-txt';
   const date = d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
   const pages = d.page_count ? `<div class="dot"></div><span>${d.page_count} pages</span>` : '';
   return `<div class="doc-card">
@@ -3024,6 +3414,391 @@ function chatWithDoc(id) {
 
 function searchDocs(q) { renderDocuments(q); }
 
+// ── COUNCILS ──────────────────────────────────────────────────────────────
+async function loadCouncils() {
+  try {
+    const [templatesRes, runsRes] = await Promise.all([
+      fetch('/api/council/templates'),
+      fetch('/api/council/runs')
+    ]);
+    App.councilTemplates = await templatesRes.json();
+    App.councilRuns = await runsRes.json();
+    renderCouncilTemplates();
+    renderCouncilRuns();
+    renderCouncilTemplateOptions();
+    renderCouncilDocOptions();
+    if (!App.councilBuilder) resetCouncilBuilder();
+  } catch(e) {}
+}
+
+function renderCouncilTemplateOptions() {
+  const sel = document.getElementById('council-run-template');
+  if (!sel) return;
+  sel.innerHTML = App.councilTemplates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+}
+
+function renderCouncilDocOptions() {
+  const sel = document.getElementById('council-run-docs');
+  if (!sel) return;
+  const opts = ['<option value="all">All documents</option>'].concat(
+    App.documents.map(d => `<option value="${d.id}">${esc(d.original_name)}</option>`)
+  );
+  sel.innerHTML = opts.join('');
+}
+
+function renderCouncilTemplates() {
+  const grid = document.getElementById('council-templates-grid');
+  if (!grid) return;
+  if (!App.councilTemplates.length) {
+    grid.innerHTML = '<div class="council-card"><div class="council-card-desc">No templates yet.</div></div>';
+    return;
+  }
+  grid.innerHTML = App.councilTemplates.map(t => `
+    <div class="council-card">
+      <div class="council-card-title">${esc(t.name)}</div>
+      <div class="council-card-meta">${t.is_builtin ? 'Built-in template' : 'Custom template'} · ${(t.config.agents || []).length} AI${(t.config.agents || []).length === 1 ? '' : 's'} · ${(t.config.phases || []).length} phase${(t.config.phases || []).length === 1 ? '' : 's'}</div>
+      <div class="council-card-desc">${esc(t.description || t.config.description || '')}</div>
+      <div class="council-actions">
+        <button class="btn-primary" type="button" onclick="useCouncilTemplate('${t.id}')">Use</button>
+        <button class="btn-secondary" type="button" onclick="loadTemplateIntoBuilder('${t.id}')">Edit</button>
+        <button class="danger-btn" type="button" onclick="deleteCouncilTemplate('${t.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderCouncilRuns() {
+  const list = document.getElementById('council-runs-list');
+  if (!list) return;
+  if (!App.councilRuns.length) {
+    list.innerHTML = '<div class="council-row"><div class="council-card-desc">No council runs yet.</div></div>';
+    return;
+  }
+  list.innerHTML = App.councilRuns.map(r => `
+    <div class="council-row">
+      <div class="council-row-head">
+        <div>
+          <div class="council-card-title">${esc(r.title || 'Council Run')}</div>
+          <div class="council-card-meta">${esc((r.objective || '').slice(0, 120))}${(r.objective || '').length > 120 ? '…' : ''}</div>
+        </div>
+        <span class="council-status ${esc(r.status || 'pending')}">${esc(r.status || 'pending')}</span>
+      </div>
+      ${r.error ? `<div class="council-card-desc" style="color:var(--danger)">${esc(r.error)}</div>` : ''}
+      <div class="council-actions">
+        <button class="btn-secondary" type="button" onclick="openCouncilRun('${r.id}')">Open</button>
+        ${r.status === 'pending' || r.status === 'error' ? `<button class="btn-primary" type="button" onclick="startExistingCouncilRun('${r.id}')">Run</button>` : ''}
+        <button class="danger-btn" type="button" onclick="deleteCouncilRun('${r.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function useCouncilTemplate(templateId) {
+  const sel = document.getElementById('council-run-template');
+  if (sel) sel.value = templateId;
+  switchCouncilTab('runs');
+}
+
+function switchCouncilTab(tab, el) {
+  document.querySelectorAll('.council-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.council-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('council-panel-' + tab)?.classList.add('active');
+  if (el) el.classList.add('active');
+  else document.querySelector(`.council-tab[onclick*="'${tab}'"]`)?.classList.add('active');
+}
+
+async function startCouncilFromForm() {
+  const templateId = document.getElementById('council-run-template')?.value;
+  const title = document.getElementById('council-run-title')?.value.trim() || '';
+  const objective = document.getElementById('council-run-objective')?.value.trim();
+  const docContext = document.getElementById('council-run-docs')?.value || 'all';
+  if (!templateId) { showToast('Choose a council template.', 'error'); return; }
+  if (!objective) { showToast('Enter a council objective or submission.', 'error'); return; }
+  showToast('Council run started. This may take a while.', 'warning');
+  try {
+    const createRes = await fetch('/api/council/runs', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({template_id:templateId, title, objective, doc_context:docContext})
+    });
+    if (!createRes.ok) throw new Error(await apiError(createRes));
+    const run = await createRes.json();
+    await startExistingCouncilRun(run.id);
+    document.getElementById('council-run-title').value = '';
+  } catch(e) {
+    showToast('Council run failed: ' + e.message, 'error');
+  }
+}
+
+async function startExistingCouncilRun(runId) {
+  try {
+    const r = await fetch(`/api/council/runs/${runId}/start`, {method:'POST'});
+    if (!r.ok) throw new Error(await apiError(r));
+    await loadCouncils();
+    await openCouncilRun(runId);
+    showToast('Council run completed.', 'success');
+  } catch(e) {
+    await loadCouncils();
+    showToast('Council run failed: ' + e.message, 'error');
+  }
+}
+
+async function openCouncilRun(runId) {
+  try {
+    const [runRes, outRes] = await Promise.all([
+      fetch(`/api/council/runs/${runId}`),
+      fetch(`/api/council/runs/${runId}/outputs`)
+    ]);
+    if (!runRes.ok) throw new Error(await apiError(runRes));
+    if (!outRes.ok) throw new Error(await apiError(outRes));
+    const run = await runRes.json();
+    const data = await outRes.json();
+    renderCouncilRunResult(run, data.outputs || [], data.evidence || []);
+  } catch(e) {
+    showToast('Failed to open council run: ' + e.message, 'error');
+  }
+}
+
+function renderCouncilRunResult(run, outputs, evidence) {
+  const box = document.getElementById('council-run-result');
+  if (!box) return;
+  const phases = [...new Set(outputs.map(o => o.phase_id))];
+  const phaseHtml = phases.map(pid => {
+    const phaseOutputs = outputs.filter(o => o.phase_id === pid);
+    const phaseName = phaseOutputs[0]?.phase_name || pid;
+    const ev = evidence.find(e => e.phase_id === pid);
+    const evidenceHtml = ev && ev.sources?.length ? `<div class="sources" style="margin-bottom:10px">${mkSources(ev.sources).innerHTML}</div>` : '';
+    return `
+      <div class="settings-card">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">${esc(phaseName)}</div><div class="settings-card-subtitle">${ev ? esc(ev.query || '') : ''}</div></div>
+        </div>
+        ${evidenceHtml}
+        ${phaseOutputs.map(o => `
+          <div class="council-output">
+            <div class="council-output-role">${esc(o.role_name)}</div>
+            <div class="council-output-phase">${esc(o.metadata?.model || '')} · ${esc(o.metadata?.output_type || 'output')}</div>
+            <div>${mdRender(o.content || '')}</div>
+            ${o.sources?.length ? `<div style="margin-top:10px">${mkSources(o.sources).innerHTML}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
+  box.innerHTML = `
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <div><div class="settings-card-title">${esc(run.title || 'Council Run')}</div><div class="settings-card-subtitle">${esc(run.objective || '')}</div></div>
+        <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
+      </div>
+    </div>
+    ${phaseHtml || '<div class="council-row"><div class="council-card-desc">No outputs yet.</div></div>'}
+  `;
+  box.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function deleteCouncilRun(runId) {
+  if (!confirm('Delete this council run? This cannot be undone.')) return;
+  try {
+    const r = await fetch(`/api/council/runs/${runId}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    document.getElementById('council-run-result').innerHTML = '';
+    await loadCouncils();
+    showToast('Council run deleted.');
+  } catch(e) { showToast('Failed to delete run: ' + e.message, 'error'); }
+}
+
+function resetCouncilBuilder(render = true) {
+  App.councilEditingTemplateId = null;
+  App.councilBuilder = {
+    agents: [
+      {id:'agent_1', name:'AI Participant 1', instructions:'Analyze the documents and objective from this role.', provider:'default', model:'default', temperature:0.2, max_tokens:1400, context_access:['documents','user_prompt'], output_type:'argument', require_citations:true},
+      {id:'agent_2', name:'AI Participant 2', instructions:'Critique and complement the other perspective.', provider:'default', model:'default', temperature:0.2, max_tokens:1400, context_access:['documents','user_prompt','prior_outputs'], output_type:'critique', require_citations:true}
+    ],
+    phases: [
+      {id:'phase_1', name:'Initial Analysis', mode:'parallel', agents:['agent_1','agent_2'], instructions:'Produce initial council outputs.', retrieval_query:'objective'}
+    ]
+  };
+  const name = document.getElementById('builder-name'); if (name) name.value = 'Custom Council';
+  const desc = document.getElementById('builder-description'); if (desc) desc.value = '';
+  const obj = document.getElementById('builder-objective'); if (obj) obj.value = 'Analyze the user objective using uploaded documents.';
+  const out = document.getElementById('builder-output'); if (out) out.value = 'memo';
+  if (render) renderCouncilBuilder();
+}
+
+function renderCouncilBuilder() {
+  renderBuilderAgents();
+  renderBuilderPhases();
+}
+
+function renderBuilderAgents() {
+  const box = document.getElementById('builder-agents');
+  if (!box || !App.councilBuilder) return;
+  box.innerHTML = App.councilBuilder.agents.map((a, i) => `
+    <div class="council-row">
+      <div class="council-row-head">
+        <div class="council-card-title">AI ${i + 1}</div>
+        <button class="danger-btn" type="button" onclick="removeCouncilAgent(${i})">Remove</button>
+      </div>
+      <div class="council-form-row">
+        <div class="council-field"><label>Role name</label><input class="council-input builder-agent-name" data-i="${i}" value="${esc(a.name)}"/></div>
+        <div class="council-field"><label>Output type</label><input class="council-input builder-agent-output" data-i="${i}" value="${esc(a.output_type || 'custom')}"/></div>
+      </div>
+      <div class="council-form-row">
+        <div class="council-field"><label>Provider</label><select class="council-select builder-agent-provider" data-i="${i}"><option value="default">Default</option><option value="openai">OpenAI</option><option value="groq">Groq</option><option value="ollama">Ollama</option></select></div>
+        <div class="council-field"><label>Model</label><input class="council-input builder-agent-model" data-i="${i}" value="${esc(a.model || 'default')}"/></div>
+      </div>
+      <div class="council-form-row">
+        <div class="council-field"><label>Temperature</label><input class="council-input builder-agent-temp" data-i="${i}" type="number" min="0" max="1" step="0.1" value="${a.temperature ?? 0.2}"/></div>
+        <div class="council-field"><label>Max tokens</label><input class="council-input builder-agent-tokens" data-i="${i}" type="number" min="256" step="128" value="${a.max_tokens || 1400}"/></div>
+      </div>
+      <div class="council-field"><label>Instructions</label><textarea class="council-textarea builder-agent-instructions" data-i="${i}">${esc(a.instructions || '')}</textarea></div>
+      <div class="council-field"><label>Context access</label><input class="council-input builder-agent-context" data-i="${i}" value="${esc((a.context_access || []).join(','))}"/></div>
+    </div>
+  `).join('');
+  App.councilBuilder.agents.forEach((a, i) => {
+    const sel = box.querySelector(`.builder-agent-provider[data-i="${i}"]`);
+    if (sel) sel.value = a.provider || 'default';
+  });
+}
+
+function renderBuilderPhases() {
+  const box = document.getElementById('builder-phases');
+  if (!box || !App.councilBuilder) return;
+  const agentOptions = App.councilBuilder.agents.map(a => `${a.id}:${a.name}`).join(', ');
+  box.innerHTML = App.councilBuilder.phases.map((p, i) => `
+    <div class="council-row">
+      <div class="council-row-head">
+        <div class="council-card-title">Phase ${i + 1}</div>
+        <button class="danger-btn" type="button" onclick="removeCouncilPhase(${i})">Remove</button>
+      </div>
+      <div class="council-form-row">
+        <div class="council-field"><label>Phase name</label><input class="council-input builder-phase-name" data-i="${i}" value="${esc(p.name)}"/></div>
+        <div class="council-field"><label>Mode</label><select class="council-select builder-phase-mode" data-i="${i}"><option value="sequential">Sequential</option><option value="parallel">Parallel</option></select></div>
+      </div>
+      <div class="council-field"><label>Agent ids (${esc(agentOptions)})</label><input class="council-input builder-phase-agents" data-i="${i}" value="${esc((p.agents || []).join(','))}"/></div>
+      <div class="council-field"><label>Instructions</label><textarea class="council-textarea builder-phase-instructions" data-i="${i}">${esc(p.instructions || '')}</textarea></div>
+    </div>
+  `).join('');
+  App.councilBuilder.phases.forEach((p, i) => {
+    const sel = box.querySelector(`.builder-phase-mode[data-i="${i}"]`);
+    if (sel) sel.value = p.mode || 'sequential';
+  });
+}
+
+function collectCouncilBuilder() {
+  const agents = [...document.querySelectorAll('.builder-agent-name')].map(input => {
+    const i = input.dataset.i;
+    const old = App.councilBuilder.agents[i];
+    return {
+      id: old.id,
+      name: input.value.trim() || old.id,
+      instructions: document.querySelector(`.builder-agent-instructions[data-i="${i}"]`)?.value.trim() || '',
+      provider: document.querySelector(`.builder-agent-provider[data-i="${i}"]`)?.value || 'default',
+      model: document.querySelector(`.builder-agent-model[data-i="${i}"]`)?.value.trim() || 'default',
+      temperature: parseFloat(document.querySelector(`.builder-agent-temp[data-i="${i}"]`)?.value || '0.2'),
+      max_tokens: parseInt(document.querySelector(`.builder-agent-tokens[data-i="${i}"]`)?.value || '1400'),
+      context_access: (document.querySelector(`.builder-agent-context[data-i="${i}"]`)?.value || 'documents,user_prompt').split(',').map(v => v.trim()).filter(Boolean),
+      output_type: document.querySelector(`.builder-agent-output[data-i="${i}"]`)?.value.trim() || 'custom',
+      require_citations: true
+    };
+  });
+  const phases = [...document.querySelectorAll('.builder-phase-name')].map(input => {
+    const i = input.dataset.i;
+    const old = App.councilBuilder.phases[i];
+    return {
+      id: old.id,
+      name: input.value.trim() || old.id,
+      mode: document.querySelector(`.builder-phase-mode[data-i="${i}"]`)?.value || 'sequential',
+      agents: (document.querySelector(`.builder-phase-agents[data-i="${i}"]`)?.value || '').split(',').map(v => v.trim()).filter(Boolean),
+      instructions: document.querySelector(`.builder-phase-instructions[data-i="${i}"]`)?.value.trim() || '',
+      retrieval_query: 'objective'
+    };
+  });
+  App.councilBuilder.agents = agents;
+  App.councilBuilder.phases = phases;
+  return {
+    name: document.getElementById('builder-name')?.value.trim() || 'Custom Council',
+    description: document.getElementById('builder-description')?.value.trim() || '',
+    document_scope: 'run',
+    objective_prompt: document.getElementById('builder-objective')?.value.trim() || '',
+    output_format: document.getElementById('builder-output')?.value || 'memo',
+    agents,
+    phases
+  };
+}
+
+function addCouncilAgent() {
+  collectCouncilBuilder();
+  const n = App.councilBuilder.agents.length + 1;
+  App.councilBuilder.agents.push({id:`agent_${n}`, name:`AI Participant ${n}`, instructions:'Analyze the objective from this role.', provider:'default', model:'default', temperature:0.2, max_tokens:1400, context_access:['documents','user_prompt','prior_outputs'], output_type:'custom', require_citations:true});
+  renderCouncilBuilder();
+}
+
+function removeCouncilAgent(i) {
+  collectCouncilBuilder();
+  App.councilBuilder.agents.splice(i, 1);
+  renderCouncilBuilder();
+}
+
+function addCouncilPhase() {
+  collectCouncilBuilder();
+  const n = App.councilBuilder.phases.length + 1;
+  App.councilBuilder.phases.push({id:`phase_${n}`, name:`Phase ${n}`, mode:'sequential', agents:App.councilBuilder.agents.map(a => a.id).slice(0,1), instructions:'Run this phase.', retrieval_query:'objective'});
+  renderCouncilBuilder();
+}
+
+function removeCouncilPhase(i) {
+  collectCouncilBuilder();
+  App.councilBuilder.phases.splice(i, 1);
+  renderCouncilBuilder();
+}
+
+async function saveCouncilTemplate() {
+  const config = collectCouncilBuilder();
+  try {
+    const url = App.councilEditingTemplateId ? `/api/council/templates/${App.councilEditingTemplateId}` : '/api/council/templates';
+    const r = await fetch(url, {
+      method: App.councilEditingTemplateId ? 'PUT' : 'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:config.name, description:config.description, config})
+    });
+    if (!r.ok) throw new Error(await apiError(r));
+    await loadCouncils();
+    switchCouncilTab('templates');
+    showToast('Council template saved.');
+  } catch(e) { showToast('Failed to save template: ' + e.message, 'error'); }
+}
+
+function loadTemplateIntoBuilder(templateId) {
+  const t = App.councilTemplates.find(x => x.id === templateId);
+  if (!t) return;
+  const config = JSON.parse(JSON.stringify(t.config || {}));
+  App.councilEditingTemplateId = t.id;
+  App.councilBuilder = {agents: config.agents || [], phases: config.phases || []};
+  document.getElementById('builder-name').value = t.name;
+  document.getElementById('builder-description').value = t.description || config.description || '';
+  document.getElementById('builder-objective').value = config.objective_prompt || '';
+  document.getElementById('builder-output').value = config.output_format || 'memo';
+  renderCouncilBuilder();
+  switchCouncilTab('builder');
+}
+
+async function deleteCouncilTemplate(templateId) {
+  if (!confirm('Delete this council template?')) return;
+  try {
+    const r = await fetch(`/api/council/templates/${templateId}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    await loadCouncils();
+    showToast('Council template deleted.');
+  } catch(e) { showToast('Failed to delete template: ' + e.message, 'error'); }
+}
+
+async function apiError(response) {
+  const data = await response.json().catch(() => ({}));
+  return data.detail || data.error || response.statusText || 'Request failed';
+}
+
 // ── UPLOAD ────────────────────────────────────────────────────────────────
 function initUpload() {
   const zone = document.getElementById('upload-zone');
@@ -3036,7 +3811,7 @@ function initUpload() {
 }
 
 function handleFiles(files) {
-  const allowed = ['.pdf','.docx','.txt','.csv','.xlsx','.md','.json'];
+  const allowed = ['.pdf','.docx','.txt','.csv','.xlsx','.md','.json','.html','.htm'];
   const maxMb = parseInt(App.settings.max_file_size_mb || 25);
   const title = document.getElementById('upload-queue-title');
   if (title) title.style.display = 'block';
@@ -3051,7 +3826,7 @@ function handleFiles(files) {
 async function uploadFile(file) {
   const queueEl = document.getElementById('upload-queue-list');
   const ext = file.name.split('.').pop().toUpperCase();
-  const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt'}[ext]||'icon-txt';
+  const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt',JSON:'icon-txt',HTML:'icon-html',HTM:'icon-html'}[ext]||'icon-txt';
   const item = document.createElement('div');
   item.className = 'upload-item';
   item.innerHTML = `<div class="upload-item-icon ${cls}">${ext}</div><div class="upload-item-info"><div class="upload-item-name">${esc(file.name)}</div><div class="progress-bar"><div class="progress-fill" style="width:5%"></div></div></div><div class="upload-item-size">${fmtBytes(file.size)}</div><div class="upload-item-status status-loading"></div>`;
@@ -3169,9 +3944,9 @@ function scrollBottom() { const m=document.getElementById('chat-messages'); if(m
 function el(id, val) { const e=document.getElementById(id); if(e) e.textContent=val; }
 
 // ── VIEW SWITCHING ────────────────────────────────────────────────────────
-const VIEWS = {chat:'view-chat','add-doc':'view-add-doc','view-docs':'view-view-docs',settings:'view-settings'};
-const NAVS = {chat:'nav-chat','add-doc':'nav-add-doc','view-docs':'nav-view-docs',settings:'nav-settings'};
-const TITLES = {chat:'Chat','add-doc':'Add Document','view-docs':'View Documents',settings:'Settings'};
+const VIEWS = {chat:'view-chat',councils:'view-councils','add-doc':'view-add-doc','view-docs':'view-view-docs',settings:'view-settings'};
+const NAVS = {chat:'nav-chat',councils:'nav-councils','add-doc':'nav-add-doc','view-docs':'nav-view-docs',settings:'nav-settings'};
+const TITLES = {chat:'Chat',councils:'Councils','add-doc':'Add Document','view-docs':'View Documents',settings:'Settings'};
 
 function switchView(name) {
   Object.values(VIEWS).forEach(id => document.getElementById(id)?.classList.remove('active'));
@@ -3181,6 +3956,7 @@ function switchView(name) {
   document.getElementById('topbar-title').textContent = TITLES[name] || name;
   document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
   if (name === 'view-docs') renderDocuments();
+  if (name === 'councils') loadCouncils();
   if (name === 'chat' && !App.currentChatId) {
     document.getElementById('welcome-screen').style.display = 'flex';
     document.getElementById('chat-conversation').style.display = 'none';
