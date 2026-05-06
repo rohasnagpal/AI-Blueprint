@@ -1,6 +1,6 @@
 # AI Blueprint
 
-**AI Blueprint** is a system for building, running, and reusing AI workflows - locally or in the cloud.
+**AI Blueprint** is an open-source platform for building AI workflows with document RAG and multi-AI councils where models argue, critique, and deliberate.
 
 A **Blueprint** is a reusable AI configuration. It is a structured combination of:
 
