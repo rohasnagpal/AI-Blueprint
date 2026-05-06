@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 import database
@@ -271,7 +271,7 @@ async def get_run_outputs(run_id: str):
 
 
 @router.post("/council/runs/{run_id}/start")
-async def start_run(run_id: str):
+async def start_run(run_id: str, background_tasks: BackgroundTasks):
     conn = database.get_connection()
     run = conn.execute("SELECT * FROM council_runs WHERE id = ?", (run_id,)).fetchone()
     conn.close()
@@ -279,7 +279,8 @@ async def start_run(run_id: str):
         raise HTTPException(404, detail="Council run not found")
     if run["status"] == "running":
         raise HTTPException(409, detail="Council run is already running")
-    await _execute_run(run_id)
+    _mark_run_running(run_id)
+    background_tasks.add_task(_execute_run, run_id, False)
     return await get_run(run_id)
 
 
@@ -298,24 +299,29 @@ async def delete_run(run_id: str):
     return {"ok": True}
 
 
-async def _execute_run(run_id: str):
-    settings = _get_settings_with_secrets()
+def _mark_run_running(run_id: str):
     conn = database.get_connection()
-    run = conn.execute("SELECT * FROM council_runs WHERE id = ?", (run_id,)).fetchone()
-    if not run:
-        conn.close()
-        raise HTTPException(404, detail="Council run not found")
-    config = _json_loads(run["config_json"], {})
-    _validate_config(config)
-    now = _now()
     conn.execute("DELETE FROM council_outputs WHERE run_id = ?", (run_id,))
     conn.execute("DELETE FROM council_evidence WHERE run_id = ?", (run_id,))
     conn.execute(
         "UPDATE council_runs SET status = 'running', error = NULL, started_at = ?, completed_at = NULL WHERE id = ?",
-        (now, run_id),
+        (_now(), run_id),
     )
     conn.commit()
     conn.close()
+
+
+async def _execute_run(run_id: str, reset_state: bool = True):
+    settings = _get_settings_with_secrets()
+    conn = database.get_connection()
+    run = conn.execute("SELECT * FROM council_runs WHERE id = ?", (run_id,)).fetchone()
+    conn.close()
+    if not run:
+        raise HTTPException(404, detail="Council run not found")
+    config = _json_loads(run["config_json"], {})
+    _validate_config(config)
+    if reset_state:
+        _mark_run_running(run_id)
 
     try:
         doc_ids = _doc_ids_from_context(run["doc_context"])
@@ -421,7 +427,9 @@ async def _run_agent(
     temperature = float(agent.get("temperature", settings.get("temperature", 0.2)))
     max_tokens = int(agent.get("max_tokens", settings.get("max_tokens", 2048)))
 
-    if provider == "groq":
+    if provider == "anthropic":
+        content = await _complete_anthropic(settings.get("anthropic_api_key", ""), system, user, model, temperature, max_tokens)
+    elif provider == "groq":
         content = await _complete_groq(settings.get("groq_api_key", ""), system, user, model, temperature, max_tokens)
     elif provider == "ollama":
         content = await _complete_ollama(system, user, model, temperature, max_tokens)
@@ -614,6 +622,32 @@ async def _complete_groq(key: str, system: str, user: str, model: str, temperatu
         max_tokens=max_tokens,
     )
     return response.choices[0].message.content or ""
+
+
+async def _complete_anthropic(key: str, system: str, user: str, model: str, temperature: float, max_tokens: int) -> str:
+    if not key:
+        raise RuntimeError("Anthropic API key not configured.")
+    import httpx
+
+    async with httpx.AsyncClient(timeout=180) as client:
+        response = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": model or "claude-3-5-sonnet-latest",
+                "system": system,
+                "messages": [{"role": "user", "content": user}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return "".join(block.get("text", "") for block in data.get("content", []) if block.get("type") == "text")
 
 
 async def _complete_ollama(system: str, user: str, model: str, temperature: float, max_tokens: int) -> str:
