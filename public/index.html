@@ -2412,14 +2412,10 @@
                 <div class="settings-row-desc">Select which connected AI provider to use</div>
               </div>
               <div class="settings-row-control">
-                <select class="s-select">
-                  <option>OpenAI</option>
-                  <option>Anthropic</option>
-                  <option>Google Gemini</option>
-                  <option>Groq</option>
-                  <option>Mistral AI</option>
-                  <option>Cohere</option>
-                  <option>xAI (Grok)</option>
+                <select class="s-select" id="sel-chat-provider" onchange="renderChatModelOptions()">
+                  <option value="openai">OpenAI</option>
+                  <option value="groq">Groq</option>
+                  <option value="ollama">Ollama</option>
                 </select>
               </div>
             </div>
@@ -2429,12 +2425,7 @@
                 <div class="settings-row-desc">Larger models are more accurate but slower and costlier</div>
               </div>
               <div class="settings-row-control">
-                <select class="s-select" id="sel-chat-model">
-                  <option value="gpt-4o">gpt-4o</option>
-                  <option value="gpt-4-turbo">gpt-4-turbo</option>
-                  <option value="gpt-4o-mini">gpt-4o-mini</option>
-                  <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-                </select>
+                <select class="s-select" id="sel-chat-model"></select>
               </div>
             </div>
             <div class="settings-row">
@@ -2501,6 +2492,54 @@
           <div class="settings-save-bar">
             <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
             <button class="btn-primary" onclick="saveModelSettings()">Save changes</button>
+          </div>
+
+          <div class="settings-card" style="margin-top:18px">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">Model Registry</div><div class="settings-card-subtitle">Add, edit, delete, or disable models as providers change their catalogs.</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Provider</div>
+                <div class="settings-row-desc">Use lowercase ids such as openai, groq, or ollama</div>
+              </div>
+              <div class="settings-row-control"><input class="s-input" id="model-provider-input" placeholder="openai" style="width:140px"/></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Display Name</div>
+                <div class="settings-row-desc">Name shown in dropdowns</div>
+              </div>
+              <div class="settings-row-control"><input class="s-input" id="model-name-input" placeholder="GPT-4o" style="width:180px"/></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Model ID</div>
+                <div class="settings-row-desc">Exact API/local model id</div>
+              </div>
+              <div class="settings-row-control"><input class="s-input" id="model-id-input" placeholder="gpt-4o" style="width:180px"/></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Enabled</div>
+                <div class="settings-row-desc">Disabled models stay saved but disappear from model selectors</div>
+              </div>
+              <div class="settings-row-control"><div class="s-toggle on" id="model-enabled-toggle" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Registry Actions</div>
+                <div class="settings-row-desc">Save updates the selected model when editing, otherwise creates a new model</div>
+              </div>
+              <div class="settings-row-control" style="display:flex;gap:8px">
+                <button class="btn-secondary" onclick="resetModelForm()">Clear</button>
+                <button class="btn-primary" onclick="saveModelRegistryEntry()">Save Model</button>
+              </div>
+            </div>
+            <div class="settings-row" style="display:block">
+              <div class="settings-row-label" style="margin-bottom:10px">Saved Models</div>
+              <div class="council-list" id="model-registry-list"></div>
+            </div>
           </div>
         </div>
 
@@ -2977,7 +3016,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -2992,7 +3031,7 @@ function showToast(msg, type = 'success') {
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadSettings(), loadChats(), loadDocuments(), loadCouncils()]);
+  await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadCouncils()]);
   checkFirstRun();
 }
 
@@ -3037,6 +3076,9 @@ function populateSettingsUI() {
   const s = App.settings;
   const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
   const tog = (id, on) => { const el = document.getElementById(id); if (el) { el.classList.toggle('on', !!on); } };
+  const chatProvider = document.getElementById('sel-chat-provider');
+  if (chatProvider) chatProvider.value = s.local_llm_provider || 'openai';
+  renderChatModelOptions();
   set('sel-chat-model', s.chat_model);
   set('sel-max-tokens', s.max_tokens);
   const tempEl = document.getElementById('sl-temperature');
@@ -3087,6 +3129,141 @@ async function saveSettings(obj) {
   } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
 }
 
+async function loadModels() {
+  try {
+    const r = await fetch('/api/models');
+    App.models = await r.json();
+    renderChatProviderOptions();
+    renderChatModelOptions();
+    renderModelRegistry();
+    renderCouncilBuilder();
+  } catch(e) {}
+}
+
+function providerLabel(provider) {
+  const labels = {openai:'OpenAI', groq:'Groq', ollama:'Ollama'};
+  return labels[provider] || provider;
+}
+
+function modelProviders() {
+  const providers = [...new Set(App.models.map(m => m.provider))];
+  return providers.length ? providers : ['openai', 'groq', 'ollama'];
+}
+
+function enabledModels(provider) {
+  return App.models.filter(m => m.enabled && (!provider || m.provider === provider));
+}
+
+function renderChatProviderOptions() {
+  const sel = document.getElementById('sel-chat-provider');
+  if (!sel) return;
+  const current = sel.value || App.settings.local_llm_provider || 'openai';
+  sel.innerHTML = modelProviders().map(p => `<option value="${esc(p)}">${esc(providerLabel(p))}</option>`).join('');
+  sel.value = modelProviders().includes(current) ? current : (modelProviders()[0] || 'openai');
+}
+
+function renderChatModelOptions() {
+  const sel = document.getElementById('sel-chat-model');
+  const provider = document.getElementById('sel-chat-provider')?.value || 'openai';
+  if (!sel) return;
+  const current = sel.value || App.settings.chat_model || '';
+  const models = enabledModels(provider);
+  sel.innerHTML = models.map(m => `<option value="${esc(m.model_id)}">${esc(m.display_name)} (${esc(m.model_id)})</option>`).join('');
+  if (models.some(m => m.model_id === current)) sel.value = current;
+  else if (App.settings.chat_model && models.some(m => m.model_id === App.settings.chat_model)) sel.value = App.settings.chat_model;
+}
+
+function providerOptions(selected) {
+  return modelProviders().map(p => `<option value="${esc(p)}" ${p === selected ? 'selected' : ''}>${esc(providerLabel(p))}</option>`).join('');
+}
+
+function modelOptions(provider, selected, includeDefault = true) {
+  const models = enabledModels(provider);
+  const opts = includeDefault ? ['<option value="default">Default</option>'] : [];
+  opts.push(...models.map(m => `<option value="${esc(m.model_id)}" ${m.model_id === selected ? 'selected' : ''}>${esc(m.display_name)} (${esc(m.model_id)})</option>`));
+  if (selected && selected !== 'default' && !models.some(m => m.model_id === selected)) {
+    opts.push(`<option value="${esc(selected)}" selected>${esc(selected)}</option>`);
+  }
+  return opts.join('');
+}
+
+function renderModelRegistry() {
+  const list = document.getElementById('model-registry-list');
+  if (!list) return;
+  if (!App.models.length) {
+    list.innerHTML = '<div class="council-row"><div class="council-card-desc">No models configured.</div></div>';
+    return;
+  }
+  list.innerHTML = App.models.map(m => `
+    <div class="council-row">
+      <div class="council-row-head">
+        <div>
+          <div class="council-card-title">${esc(m.display_name)}</div>
+          <div class="council-card-meta">${esc(providerLabel(m.provider))} · ${esc(m.model_id)} · ${m.enabled ? 'Enabled' : 'Disabled'}</div>
+        </div>
+        <div class="council-actions">
+          <button class="btn-secondary" onclick="editModelRegistryEntry('${m.id}')">Edit</button>
+          <button class="danger-btn" onclick="deleteModelRegistryEntry('${m.id}')">Delete</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function editModelRegistryEntry(id) {
+  const model = App.models.find(m => m.id === id);
+  if (!model) return;
+  App.editingModelId = id;
+  document.getElementById('model-provider-input').value = model.provider;
+  document.getElementById('model-name-input').value = model.display_name;
+  document.getElementById('model-id-input').value = model.model_id;
+  document.getElementById('model-enabled-toggle')?.classList.toggle('on', model.enabled);
+}
+
+function resetModelForm() {
+  App.editingModelId = null;
+  const provider = document.getElementById('model-provider-input');
+  const name = document.getElementById('model-name-input');
+  const modelId = document.getElementById('model-id-input');
+  if (provider) provider.value = 'openai';
+  if (name) name.value = '';
+  if (modelId) modelId.value = '';
+  document.getElementById('model-enabled-toggle')?.classList.add('on');
+}
+
+async function saveModelRegistryEntry() {
+  const provider = document.getElementById('model-provider-input')?.value.trim().toLowerCase();
+  const display_name = document.getElementById('model-name-input')?.value.trim();
+  const model_id = document.getElementById('model-id-input')?.value.trim();
+  const enabled = document.getElementById('model-enabled-toggle')?.classList.contains('on');
+  if (!provider || !display_name || !model_id) {
+    showToast('Provider, display name, and model ID are required.', 'error');
+    return;
+  }
+  try {
+    const url = App.editingModelId ? `/api/models/${App.editingModelId}` : '/api/models';
+    const r = await fetch(url, {
+      method: App.editingModelId ? 'PUT' : 'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({provider, display_name, model_id, enabled})
+    });
+    if (!r.ok) throw new Error(await apiError(r));
+    resetModelForm();
+    await loadModels();
+    showToast('Model saved.');
+  } catch(e) { showToast('Failed to save model: ' + e.message, 'error'); }
+}
+
+async function deleteModelRegistryEntry(id) {
+  if (!confirm('Delete this model from the registry?')) return;
+  try {
+    const r = await fetch(`/api/models/${id}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    await loadModels();
+    showToast('Model deleted.');
+  } catch(e) { showToast('Failed to delete model: ' + e.message, 'error'); }
+}
+
 function saveApiKey(btn) {
   const card = btn.closest('.provider-card');
   const input = card.querySelector('.key-input');
@@ -3108,11 +3285,17 @@ async function testConnection() {
 }
 
 function saveModelSettings() {
+  const p = document.getElementById('sel-chat-provider')?.value;
   const m = document.getElementById('sel-chat-model')?.value;
   const t = document.getElementById('sel-max-tokens')?.value;
   const temp = document.getElementById('sl-temperature')?.value;
   const em = document.getElementById('sel-embedding-model')?.value;
+  if (App.settings.rag_provider === 'openai' && p && p !== 'openai') {
+    showToast('OpenAI RAG requires an OpenAI chat model. Use Local RAG for Groq or Ollama chat models.', 'error');
+    return;
+  }
   const s = {};
+  if (p) s.local_llm_provider = p;
   if (m) s.chat_model = m;
   if (t) s.max_tokens = t;
   if (temp) s.temperature = (parseFloat(temp)/100).toFixed(2);
@@ -3645,8 +3828,8 @@ function renderBuilderAgents() {
         <div class="council-field"><label>Output type</label><input class="council-input builder-agent-output" data-i="${i}" value="${esc(a.output_type || 'custom')}"/></div>
       </div>
       <div class="council-form-row">
-        <div class="council-field"><label>Provider</label><select class="council-select builder-agent-provider" data-i="${i}"><option value="default">Default</option><option value="openai">OpenAI</option><option value="groq">Groq</option><option value="ollama">Ollama</option></select></div>
-        <div class="council-field"><label>Model</label><input class="council-input builder-agent-model" data-i="${i}" value="${esc(a.model || 'default')}"/></div>
+        <div class="council-field"><label>Provider</label><select class="council-select builder-agent-provider" data-i="${i}" onchange="renderBuilderAgentModelSelect(${i})"><option value="default">Default</option>${providerOptions(a.provider)}</select></div>
+        <div class="council-field"><label>Model</label><select class="council-select builder-agent-model" data-i="${i}">${modelOptions(a.provider === 'default' ? (App.settings.local_llm_provider || 'openai') : a.provider, a.model || 'default')}</select></div>
       </div>
       <div class="council-form-row">
         <div class="council-field"><label>Temperature</label><input class="council-input builder-agent-temp" data-i="${i}" type="number" min="0" max="1" step="0.1" value="${a.temperature ?? 0.2}"/></div>
@@ -3660,6 +3843,14 @@ function renderBuilderAgents() {
     const sel = box.querySelector(`.builder-agent-provider[data-i="${i}"]`);
     if (sel) sel.value = a.provider || 'default';
   });
+}
+
+function renderBuilderAgentModelSelect(i) {
+  const providerSel = document.querySelector(`.builder-agent-provider[data-i="${i}"]`);
+  const modelSel = document.querySelector(`.builder-agent-model[data-i="${i}"]`);
+  if (!providerSel || !modelSel) return;
+  const provider = providerSel.value === 'default' ? (App.settings.local_llm_provider || 'openai') : providerSel.value;
+  modelSel.innerHTML = modelOptions(provider, modelSel.value || 'default');
 }
 
 function renderBuilderPhases() {
@@ -3695,7 +3886,7 @@ function collectCouncilBuilder() {
       name: input.value.trim() || old.id,
       instructions: document.querySelector(`.builder-agent-instructions[data-i="${i}"]`)?.value.trim() || '',
       provider: document.querySelector(`.builder-agent-provider[data-i="${i}"]`)?.value || 'default',
-      model: document.querySelector(`.builder-agent-model[data-i="${i}"]`)?.value.trim() || 'default',
+      model: document.querySelector(`.builder-agent-model[data-i="${i}"]`)?.value || 'default',
       temperature: parseFloat(document.querySelector(`.builder-agent-temp[data-i="${i}"]`)?.value || '0.2'),
       max_tokens: parseInt(document.querySelector(`.builder-agent-tokens[data-i="${i}"]`)?.value || '1400'),
       context_access: (document.querySelector(`.builder-agent-context[data-i="${i}"]`)?.value || 'documents,user_prompt').split(',').map(v => v.trim()).filter(Boolean),
