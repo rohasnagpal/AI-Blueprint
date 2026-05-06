@@ -2,6 +2,7 @@ import os
 import base64
 import json
 import sqlite3
+from datetime import datetime, timezone
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 DB_PATH = "ai_blueprint.db"
@@ -193,7 +194,9 @@ def init_db():
         for k, v in DEFAULTS.items():
             conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
     _seed_council_templates(conn)
+    _ensure_builtin_template_updates(conn)
     _seed_ai_models(conn)
+    _ensure_builtin_ai_models(conn)
     conn.commit()
     conn.close()
 
@@ -257,7 +260,7 @@ def _seed_council_templates(conn: sqlite3.Connection):
                     {
                         "id": "judge",
                         "name": "Presiding Judge",
-                        "instructions": "Write a balanced reasoned award after considering the evidence and prior submissions. State findings, reasoning, and outcome.",
+                        "instructions": "Write only the final arbitration award after considering the evidence and prior submissions. Do not repeat party submissions or prompt text. Use clear markdown headings for Findings, Reasons, and Award.",
                         "provider": "default",
                         "model": "default",
                         "temperature": 0.1,
@@ -270,7 +273,7 @@ def _seed_council_templates(conn: sqlite3.Connection):
                 "phases": [
                     {"id": "openings", "name": "Opening Arguments", "mode": "parallel", "agents": ["claimant", "respondent"], "instructions": "Present each side's strongest opening position.", "retrieval_query": "objective"},
                     {"id": "challenge", "name": "Challenge", "mode": "sequential", "agents": ["devils_advocate"], "instructions": "Challenge both party positions.", "retrieval_query": "phase"},
-                    {"id": "decision", "name": "Decision", "mode": "sequential", "agents": ["judge"], "instructions": "Produce the final award.", "retrieval_query": "objective"},
+                    {"id": "award", "name": "Arbitration Award", "mode": "sequential", "agents": ["judge"], "instructions": "Produce only the final arbitration award. Start with the heading 'Arbitration Award'. Do not include a separate Decision heading or quote prior outputs verbatim.", "retrieval_query": "objective"},
                 ],
             },
         },
@@ -348,6 +351,41 @@ def _seed_council_templates(conn: sqlite3.Connection):
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('council_templates_seeded', 'true')")
 
 
+def _ensure_builtin_template_updates(conn: sqlite3.Connection):
+    row = conn.execute("SELECT config_json FROM council_templates WHERE id = 'builtin-arbitration' AND is_builtin = 1").fetchone()
+    if not row:
+        return
+    try:
+        config = json.loads(row["config_json"])
+    except Exception:
+        return
+    changed = False
+    for agent in config.get("agents", []):
+        if agent.get("id") == "judge":
+            instructions = (
+                "Write only the final arbitration award after considering the evidence and prior submissions. "
+                "Do not repeat party submissions or prompt text. Use clear markdown headings for Findings, Reasons, and Award."
+            )
+            if agent.get("instructions") != instructions:
+                agent["instructions"] = instructions
+                changed = True
+    for phase in config.get("phases", []):
+        if phase.get("id") == "decision":
+            phase["id"] = "award"
+            phase["name"] = "Arbitration Award"
+            phase["instructions"] = (
+                "Produce only the final arbitration award. Start with the heading 'Arbitration Award'. "
+                "Do not include a separate Decision heading or quote prior outputs verbatim."
+            )
+            changed = True
+    if changed:
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "UPDATE council_templates SET config_json = ?, updated_at = ? WHERE id = 'builtin-arbitration'",
+            (json.dumps(config), now),
+        )
+
+
 def _seed_ai_models(conn: sqlite3.Connection):
     from datetime import datetime, timezone
 
@@ -361,6 +399,9 @@ def _seed_ai_models(conn: sqlite3.Connection):
         ("openai-gpt-4o-mini", "openai", "GPT-4o mini", "gpt-4o-mini"),
         ("openai-gpt-4-turbo", "openai", "GPT-4 Turbo", "gpt-4-turbo"),
         ("openai-gpt-35-turbo", "openai", "GPT-3.5 Turbo", "gpt-3.5-turbo"),
+        ("anthropic-claude-35-sonnet", "anthropic", "Claude 3.5 Sonnet", "claude-3-5-sonnet-latest"),
+        ("anthropic-claude-35-haiku", "anthropic", "Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
+        ("anthropic-claude-3-opus", "anthropic", "Claude 3 Opus", "claude-3-opus-latest"),
         ("groq-llama-31-8b", "groq", "Llama 3.1 8B Instant", "llama-3.1-8b-instant"),
         ("groq-llama-33-70b", "groq", "Llama 3.3 70B Versatile", "llama-3.3-70b-versatile"),
         ("ollama-llama3", "ollama", "Llama 3", "llama3"),
@@ -377,6 +418,24 @@ def _seed_ai_models(conn: sqlite3.Connection):
             (*model, now, now),
         )
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('ai_models_seeded', 'true')")
+
+
+def _ensure_builtin_ai_models(conn: sqlite3.Connection):
+    now = datetime.now(timezone.utc).isoformat()
+    models = [
+        ("anthropic-claude-35-sonnet", "anthropic", "Claude 3.5 Sonnet", "claude-3-5-sonnet-latest"),
+        ("anthropic-claude-35-haiku", "anthropic", "Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
+        ("anthropic-claude-3-opus", "anthropic", "Claude 3 Opus", "claude-3-opus-latest"),
+    ]
+    for model in models:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO ai_models
+            (id, provider, display_name, model_id, enabled, is_builtin, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 1, 1, ?, ?)
+            """,
+            (*model, now, now),
+        )
 
 
 def get_setting(key: str) -> str:

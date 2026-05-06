@@ -2501,7 +2501,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Provider</div>
-                <div class="settings-row-desc">Use lowercase ids such as openai, groq, or ollama</div>
+                <div class="settings-row-desc">Use lowercase ids such as openai, anthropic, groq, or ollama</div>
               </div>
               <div class="settings-row-control"><input class="s-input" id="model-provider-input" placeholder="openai" style="width:140px"/></div>
             </div>
@@ -2536,10 +2536,13 @@
                 <button class="btn-primary" onclick="saveModelRegistryEntry()">Save Model</button>
               </div>
             </div>
-            <div class="settings-row" style="display:block">
-              <div class="settings-row-label" style="margin-bottom:10px">Saved Models</div>
-              <div class="council-list" id="model-registry-list"></div>
+          </div>
+
+          <div class="settings-card" style="margin-top:18px">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">Saved Models</div><div class="settings-card-subtitle">Models available in chat and council provider selectors.</div></div>
             </div>
+            <div class="council-list" id="model-registry-list"></div>
           </div>
         </div>
 
@@ -3016,7 +3019,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '' };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -3141,7 +3144,7 @@ async function loadModels() {
 }
 
 function providerLabel(provider) {
-  const labels = {openai:'OpenAI', groq:'Groq', ollama:'Ollama'};
+  const labels = {openai:'OpenAI', anthropic:'Anthropic', groq:'Groq', ollama:'Ollama'};
   return labels[provider] || provider;
 }
 
@@ -3291,7 +3294,7 @@ function saveModelSettings() {
   const temp = document.getElementById('sl-temperature')?.value;
   const em = document.getElementById('sel-embedding-model')?.value;
   if (App.settings.rag_provider === 'openai' && p && p !== 'openai') {
-    showToast('OpenAI RAG requires an OpenAI chat model. Use Local RAG for Groq or Ollama chat models.', 'error');
+    showToast('OpenAI RAG requires an OpenAI chat model. Use Local RAG for Anthropic, Groq, or Ollama chat models.', 'error');
     return;
   }
   const s = {};
@@ -3718,8 +3721,7 @@ async function startExistingCouncilRun(runId) {
     const r = await fetch(`/api/council/runs/${runId}/start`, {method:'POST'});
     if (!r.ok) throw new Error(await apiError(r));
     await loadCouncils();
-    await openCouncilRun(runId);
-    showToast('Council run completed.', 'success');
+    await streamCouncilRun(runId);
   } catch(e) {
     await loadCouncils();
     showToast('Council run failed: ' + e.message, 'error');
@@ -3737,12 +3739,54 @@ async function openCouncilRun(runId) {
     const run = await runRes.json();
     const data = await outRes.json();
     renderCouncilRunResult(run, data.outputs || [], data.evidence || []);
+    if (run.status === 'running') streamCouncilRun(runId, false);
   } catch(e) {
     showToast('Failed to open council run: ' + e.message, 'error');
   }
 }
 
-function renderCouncilRunResult(run, outputs, evidence) {
+async function streamCouncilRun(runId, showStartedToast = true) {
+  App.activeCouncilRunId = runId;
+  App.councilRenderKey = '';
+  if (App.councilPollTimer) clearTimeout(App.councilPollTimer);
+  if (showStartedToast) showToast('Council run is streaming as each participant finishes.', 'warning');
+  const poll = async () => {
+    if (App.activeCouncilRunId !== runId) return;
+    try {
+      const [runRes, outRes] = await Promise.all([
+        fetch(`/api/council/runs/${runId}`),
+        fetch(`/api/council/runs/${runId}/outputs`)
+      ]);
+      if (!runRes.ok) throw new Error(await apiError(runRes));
+      if (!outRes.ok) throw new Error(await apiError(outRes));
+      const run = await runRes.json();
+      const data = await outRes.json();
+      const key = JSON.stringify({
+        status: run.status,
+        error: run.error,
+        outputs: (data.outputs || []).map(o => [o.id, o.content?.length || 0]),
+        evidence: (data.evidence || []).map(e => [e.id, e.sources?.length || 0])
+      });
+      if (key !== App.councilRenderKey) {
+        App.councilRenderKey = key;
+        renderCouncilRunResult(run, data.outputs || [], data.evidence || [], !document.getElementById('council-run-result')?.innerHTML);
+      }
+      if (run.status === 'running' || run.status === 'pending') {
+        App.councilPollTimer = setTimeout(poll, 1200);
+        return;
+      }
+      App.councilPollTimer = null;
+      await loadCouncils();
+      if (run.status === 'completed') showToast('Council run completed.', 'success');
+      if (run.status === 'error') showToast('Council run failed: ' + (run.error || 'Unknown error'), 'error');
+    } catch(e) {
+      App.councilPollTimer = setTimeout(poll, 2000);
+    }
+  };
+  await poll();
+}
+
+function renderCouncilRunResult(run, outputs, evidence, shouldScroll = true) {
   const box = document.getElementById('council-run-result');
   if (!box) return;
   const phases = [...new Set(outputs.map(o => o.phase_id))];
@@ -3777,7 +3821,7 @@ function renderCouncilRunResult(run, outputs, evidence) {
     </div>
     ${phaseHtml || '<div class="council-row"><div class="council-card-desc">No outputs yet.</div></div>'}
   `;
-  box.scrollIntoView({behavior:'smooth', block:'start'});
+  if (shouldScroll) box.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 async function deleteCouncilRun(runId) {
@@ -4130,7 +4174,37 @@ function copyMsg(btn) {
 // ── UTILS ─────────────────────────────────────────────────────────────────
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtBytes(b) { if(!b)return'0 B'; if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; return(b/1048576).toFixed(1)+' MB'; }
-function mdRender(t) { return esc(t).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code style="background:var(--badge-bg);padding:1px 4px;border-radius:3px;font-size:.9em">$1</code>').replace(/\n/g,'<br>'); }
+function mdRender(t) {
+  const codeStyle = 'background:var(--badge-bg);padding:1px 4px;border-radius:3px;font-size:.9em';
+  const lines = esc(t || '').split('\n');
+  let html = '';
+  let inList = false;
+  const inline = s => s
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`(.+?)`/g, `<code style="${codeStyle}">$1</code>`);
+  const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) { closeList(); html += '<br>'; continue; }
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      closeList();
+      const tag = heading[1].length === 1 ? 'h3' : 'h4';
+      html += `<${tag}>${inline(heading[2])}</${tag}>`;
+      continue;
+    }
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      html += `<li>${inline(bullet[1])}</li>`;
+      continue;
+    }
+    closeList();
+    html += `<p>${inline(trimmed)}</p>`;
+  }
+  closeList();
+  return html;
+}
 function scrollBottom() { const m=document.getElementById('chat-messages'); if(m) m.scrollTop=m.scrollHeight; }
 function el(id, val) { const e=document.getElementById(id); if(e) e.textContent=val; }
 

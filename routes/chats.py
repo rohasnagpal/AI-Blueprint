@@ -375,6 +375,13 @@ async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None)
     if llm_provider == "ollama":
         async for token in _stream_ollama(system_prompt, full_message, model, temperature, max_tokens):
             yield token
+    elif llm_provider == "anthropic":
+        anthropic_key = settings.get("anthropic_api_key", "")
+        if not anthropic_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Anthropic API key not configured."})}\n\n'
+            return
+        async for token in _stream_anthropic(anthropic_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
     elif llm_provider == "groq":
         groq_key = settings.get("groq_api_key", "")
         if not groq_key:
@@ -440,6 +447,49 @@ async def _stream_groq(
             delta = chunk.choices[0].delta.content if chunk.choices else None
             if delta:
                 yield f'data: {json.dumps({"type": "token", "content": delta})}\n\n'
+    except Exception as e:
+        yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
+
+
+async def _stream_anthropic(
+    key: str, system: str, user: str, model: str, temperature: float, max_tokens: int
+) -> AsyncGenerator[str, None]:
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST",
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": model or "claude-3-5-sonnet-latest",
+                    "system": system,
+                    "messages": [{"role": "user", "content": user}],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "stream": True,
+                },
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    payload = line[6:]
+                    if payload == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(payload)
+                    except Exception:
+                        continue
+                    if data.get("type") == "content_block_delta":
+                        text = data.get("delta", {}).get("text", "")
+                        if text:
+                            yield f'data: {json.dumps({"type": "token", "content": text})}\n\n'
     except Exception as e:
         yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
 
