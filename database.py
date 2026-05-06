@@ -173,6 +173,17 @@ def init_db():
             sources_json TEXT,
             created_at   TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS ai_models (
+            id           TEXT PRIMARY KEY,
+            provider     TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            model_id     TEXT NOT NULL,
+            enabled      INTEGER DEFAULT 1,
+            is_builtin   INTEGER DEFAULT 0,
+            created_at   TEXT,
+            updated_at   TEXT
+        );
     """)
     chat_cols = [row["name"] for row in conn.execute("PRAGMA table_info(chats)").fetchall()]
     if "archived_at" not in chat_cols:
@@ -182,6 +193,7 @@ def init_db():
         for k, v in DEFAULTS.items():
             conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
     _seed_council_templates(conn)
+    _seed_ai_models(conn)
     conn.commit()
     conn.close()
 
@@ -334,6 +346,37 @@ def _seed_council_templates(conn: sqlite3.Connection):
             ),
         )
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('council_templates_seeded', 'true')")
+
+
+def _seed_ai_models(conn: sqlite3.Connection):
+    from datetime import datetime, timezone
+
+    seeded = conn.execute("SELECT value FROM settings WHERE key = 'ai_models_seeded'").fetchone()
+    if seeded and seeded["value"] == "true":
+        return
+
+    now = datetime.now(timezone.utc).isoformat()
+    models = [
+        ("openai-gpt-4o", "openai", "GPT-4o", "gpt-4o"),
+        ("openai-gpt-4o-mini", "openai", "GPT-4o mini", "gpt-4o-mini"),
+        ("openai-gpt-4-turbo", "openai", "GPT-4 Turbo", "gpt-4-turbo"),
+        ("openai-gpt-35-turbo", "openai", "GPT-3.5 Turbo", "gpt-3.5-turbo"),
+        ("groq-llama-31-8b", "groq", "Llama 3.1 8B Instant", "llama-3.1-8b-instant"),
+        ("groq-llama-33-70b", "groq", "Llama 3.3 70B Versatile", "llama-3.3-70b-versatile"),
+        ("ollama-llama3", "ollama", "Llama 3", "llama3"),
+        ("ollama-mistral", "ollama", "Mistral", "mistral"),
+        ("ollama-gemma", "ollama", "Gemma", "gemma"),
+    ]
+    for model in models:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO ai_models
+            (id, provider, display_name, model_id, enabled, is_builtin, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 1, 1, ?, ?)
+            """,
+            (*model, now, now),
+        )
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('ai_models_seeded', 'true')")
 
 
 def get_setting(key: str) -> str:

@@ -79,6 +79,8 @@ Then you can:
 - **Source citations** — every answer links back to the exact document it came from
 - **27 languages** — respond in English, Hindi, Arabic, Spanish, French, German, Japanese, Chinese, and more
 - **Multiple LLM backends** — OpenAI, Groq, or Ollama (run local models like Llama 3)
+- **AI Councils** — configure multiple AI roles, run them in ordered phases, and save council outputs
+- **Model registry** — add, edit, delete, enable, or disable provider models from Settings
 - **No setup friction** — all configuration (API keys, models, settings) lives inside the app's Settings page. No `.env` files to edit.
 
 ---
@@ -129,6 +131,47 @@ python main.py
 Then open **http://localhost:8000** in your browser.
 
 On first launch, go to **Settings → API Keys** and enter your OpenAI API key. That's it — start uploading documents and chatting.
+
+---
+
+## AI Councils
+
+The **Councils** section lets you run configurable multi-AI workflows against your uploaded documents.
+
+You can:
+
+- use built-in templates such as **Arbitration Council** and **Moot Court Grader**
+- create custom council templates
+- choose how many AI participants are involved
+- define each AI's role, instructions, provider, model, temperature, and output type
+- organize participants into ordered phases
+- run phases sequentially or in parallel
+- select the document scope for each run
+- save, open, edit, and delete council templates and runs
+
+Example council designs:
+
+- **Arbitration** — claimant counsel, respondent counsel, devil's advocate, and presiding judge
+- **Moot court grading** — legal merits grader, advocacy grader, and final feedback panel
+- **Review board** — analyst, critic, risk reviewer, and final decision maker
+
+Council templates are stored locally in SQLite and can be edited from **Councils → Builder**.
+
+---
+
+## Model Registry
+
+Model lists change often, so AI Blueprint does not rely only on hardcoded model dropdowns.
+
+In **Settings → Model → Model Registry**, you can:
+
+- add new models
+- edit provider, display name, and model ID
+- delete models
+- enable or disable models
+- maintain separate model lists for providers such as OpenAI, Groq, and Ollama
+
+The Chat model dropdown and Council Builder model dropdowns read from this registry. In Council Builder, the model dropdown updates based on the selected provider.
 
 ---
 
@@ -193,7 +236,9 @@ All settings are saved in the app — nothing to configure in files.
 |---------|-------|-------------|
 | API Keys | Settings → API Keys | OpenAI, Groq, and other provider keys (AES-256 encrypted at rest) |
 | RAG Provider | Settings → RAG Provider | OpenAI or Local |
-| Chat Model | Settings → Model | GPT-4o, GPT-4-turbo, etc. |
+| Chat Provider | Settings → Model | Provider used for model selection, such as OpenAI, Groq, or Ollama |
+| Chat Model | Settings → Model | Selected from the local model registry |
+| Model Registry | Settings → Model | Add, edit, delete, enable, or disable provider models |
 | Temperature | Settings → Model | Response creativity (0 = factual, 1 = creative) |
 | Max Tokens | Settings → Model | Maximum response length |
 | Top K | Settings → RAG | Number of document chunks retrieved per query |
@@ -220,6 +265,7 @@ ai-blueprint/
 ├── routes/
 │   ├── documents.py         # Upload, list, delete documents
 │   ├── chats.py             # Create chats, stream responses (SSE)
+│   ├── councils.py          # Council templates, runs, outputs, execution
 │   └── settings.py          # Read and write all settings
 ├── public/
 │   └── index.html           # Single-page frontend (no build step)
