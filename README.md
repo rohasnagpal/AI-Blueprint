@@ -21,12 +21,18 @@ Then you can:
 
 ## 🚀 What you can do today
 
+### RAG
 - Chat with your documents using RAG (OpenAI or fully local)  
 - Get streamed, cited answers grounded in your data  
 - Use multiple LLM providers (OpenAI, Groq, Ollama)  
 - Run everything locally with zero cloud dependency if needed  
 
 ---
+
+### 🧠 LLM Councils
+- Multiple AIs argue, critique, and refine answers  
+- Structured roles (e.g. claimant vs respondent vs judge)  
+- Designed for use cases like arbitration and moot courts  
 
 ## 🔭 What’s coming next
 
@@ -45,17 +51,10 @@ Then you can:
 
 ---
 
-### 🤖 Agents
+### Agents
 - Multi-step AI workflows that can use tools  
 - Plan → act → observe → refine  
 - Ideal for investigations, research, and complex tasks  
-
----
-
-### 🧠 LLM Councils
-- Multiple AIs argue, critique, and refine answers  
-- Structured roles (e.g. claimant vs respondent vs judge)  
-- Designed for use cases like arbitration and moot courts  
 
 ---
 
