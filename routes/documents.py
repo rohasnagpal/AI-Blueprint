@@ -12,7 +12,7 @@ import database
 router = APIRouter()
 
 UPLOADS_DIR = Path("uploads")
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".csv", ".xlsx", ".md", ".json"}
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".csv", ".xlsx", ".md", ".json", ".html", ".htm"}
 
 
 def _get_provider():
@@ -48,7 +48,7 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
     max_mb = int(database.get_setting("max_file_size_mb") or 25)
     ext = Path(file.filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(400, detail=f"File type '{ext}' not supported. Allowed: PDF, DOCX, TXT, CSV, XLSX, MD, JSON")
+        raise HTTPException(400, detail=f"File type '{ext}' not supported. Allowed: PDF, DOCX, TXT, CSV, XLSX, MD, JSON, HTML")
 
     UPLOADS_DIR.mkdir(exist_ok=True)
     doc_id = str(uuid.uuid4())

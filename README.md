@@ -94,6 +94,7 @@ Then you can:
 | Excel | `.xlsx` |
 | Markdown | `.md` |
 | JSON | `.json` |
+| HTML | `.html`, `.htm` |
 
 ---
 
