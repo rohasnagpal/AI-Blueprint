@@ -664,7 +664,7 @@
     border: 1px solid var(--input-border);
     border-radius: 14px;
     box-shadow: var(--shadow-md);
-    overflow: hidden;
+    overflow: visible;
     transition: border-color var(--transition), box-shadow var(--transition);
   }
 
@@ -673,16 +673,81 @@
     box-shadow: 0 0 0 3px rgba(217,119,6,0.1), var(--shadow-md);
   }
 
-  .input-doc-tag {
+  .input-context-bar {
     display: flex;
     align-items: center;
-    gap: 6px;
+    flex-wrap: wrap;
+    gap: 8px;
     padding: 8px 14px 0;
     font-size: 12px;
     color: var(--text-subtle);
+    position: relative;
   }
 
-  .input-doc-tag svg { width: 12px; height: 12px; }
+  .input-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 18px;
+    padding: 5px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .input-mode-btn:hover { background: var(--badge-bg); }
+  .input-mode-btn svg { width: 13px; height: 13px; }
+  .input-mode-chevron { width: 12px; height: 12px; color: var(--text-subtle); }
+
+  .input-mode-menu {
+    display: none;
+    position: absolute;
+    left: 14px;
+    bottom: 34px;
+    width: 230px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    padding: 6px;
+    z-index: 20;
+  }
+
+  .input-mode-menu.open { display: block; }
+
+  .input-mode-option {
+    width: 100%;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    padding: 9px 10px;
+    text-align: left;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    cursor: pointer;
+    display: grid;
+    gap: 2px;
+  }
+
+  .input-mode-option:hover,
+  .input-mode-option.active {
+    background: var(--accent-soft);
+  }
+
+  .input-mode-option strong {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .input-mode-option span {
+    font-size: 11.5px;
+    color: var(--text-subtle);
+  }
 
   .input-doc-badge {
     background: var(--accent-soft);
@@ -691,6 +756,14 @@
     padding: 1px 7px;
     font-size: 11.5px;
     font-weight: 500;
+  }
+
+  .input-persona-select {
+    min-width: 160px;
+    max-width: 220px;
+    height: 28px;
+    padding-top: 4px;
+    padding-bottom: 4px;
   }
 
   .input-row {
@@ -1372,6 +1445,24 @@
 
   .stat-pill strong { color: var(--text); }
 
+  .stat-pill.selectable {
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .stat-pill.selectable:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .stat-pill.selectable.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .stat-pill.selectable.active strong { color: var(--accent); }
+
   /* Scrollbar */
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -1644,6 +1735,14 @@
 
   .s-select:focus { border-color: var(--accent); }
 
+  .input-context-bar .input-persona-select {
+    min-width: 160px;
+    max-width: 220px;
+    height: 28px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
   .s-input {
     background: var(--bg);
     border: 1px solid var(--input-border);
@@ -1820,6 +1919,65 @@
   }
 
   .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.28);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 24px;
+  }
+
+  .modal-backdrop.open { display: flex; }
+
+  .detail-modal {
+    width: min(720px, 100%);
+    max-height: min(760px, 90vh);
+    overflow: hidden;
+  }
+
+  .detail-modal-body {
+    padding: 18px 20px;
+    overflow-y: auto;
+    max-height: 620px;
+  }
+
+  .detail-block {
+    margin-bottom: 16px;
+  }
+
+  .detail-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-subtle);
+    margin-bottom: 6px;
+  }
+
+  .detail-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.65;
+    white-space: pre-wrap;
+  }
+
+  .detail-list {
+    display: grid;
+    gap: 6px;
+    padding-left: 18px;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 </style>
 </head>
 <body>
@@ -1841,6 +1999,10 @@
     <div class="nav-item" onclick="switchView('councils')" id="nav-councils">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Councils
+    </div>
+    <div class="nav-item" onclick="switchView('personas')" id="nav-personas">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      Personas
     </div>
     <div class="nav-item" onclick="switchView('add-doc')" id="nav-add-doc">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1927,9 +2089,26 @@
     <!-- INPUT -->
     <div class="chat-input-area">
       <div class="input-wrapper">
-        <div class="input-doc-tag">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          Searching in <span class="input-doc-badge" id="input-doc-badge">All Documents</span>
+        <div class="input-context-bar">
+          <button class="input-mode-btn" type="button" onclick="toggleChatModeMenu(event)" title="Choose chat context">
+            <span id="input-mode-icon"></span>
+            <span id="input-mode-label">Documents</span>
+            <svg class="input-mode-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <span class="input-doc-badge" id="input-doc-badge">All Documents</span>
+          <select class="s-select input-persona-select" id="persona-select" onchange="setPersona(this.value)" title="Choose persona">
+            <option value="">No persona</option>
+          </select>
+          <div class="input-mode-menu" id="input-mode-menu">
+            <button class="input-mode-option" id="mode-option-documents" type="button" onclick="setChatMode('documents')">
+              <strong>Documents</strong>
+              <span>Search uploaded documents</span>
+            </button>
+            <button class="input-mode-option" id="mode-option-general" type="button" onclick="setChatMode('general')">
+              <strong>General</strong>
+              <span>No document search</span>
+            </button>
+          </div>
         </div>
         <div class="input-row">
           <textarea class="chat-textarea" id="chat-input" rows="1" placeholder="Ask anything about your documents…" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
@@ -2086,6 +2265,18 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── PERSONAS VIEW ── -->
+  <div class="view" id="view-personas">
+    <div class="add-doc-view">
+      <div class="view-header">
+        <h2>Personas</h2>
+        <p>Choose role-based AI behavior for chats without coding.</p>
+      </div>
+      <div class="docs-stats" id="persona-category-pills"></div>
+      <div class="docs-grid" id="personas-grid"></div>
     </div>
   </div>
 
@@ -3012,6 +3203,19 @@
 
 </main>
 
+<div class="modal-backdrop" id="persona-detail-modal" onclick="closePersonaDetails(event)">
+  <div class="settings-card detail-modal" onclick="event.stopPropagation()">
+    <div class="settings-card-header">
+      <div style="flex:1;min-width:0">
+        <div class="settings-card-title" id="persona-detail-name">Persona</div>
+        <div class="settings-card-subtitle" id="persona-detail-category"></div>
+      </div>
+      <button class="btn-secondary" type="button" onclick="closePersonaDetails()">Close</button>
+    </div>
+    <div class="detail-modal-body" id="persona-detail-body"></div>
+  </div>
+</div>
+
 <div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
 <style>
@@ -3019,7 +3223,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '' };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'documents', selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '' };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -3034,7 +3238,8 @@ function showToast(msg, type = 'success') {
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadCouncils()]);
+  await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadPersonas(), loadCouncils()]);
+  updateChatModeUI();
   checkFirstRun();
 }
 
@@ -3496,6 +3701,13 @@ async function deleteChat(chatId, event) {
 async function openChat(chatId) {
   App.openChatMenuId = null;
   App.currentChatId = chatId;
+  const chat = App.chats.find(c => c.id === chatId);
+  const context = chat?.doc_context || 'all';
+  App.chatMode = context === 'none' ? 'general' : 'documents';
+  App.selectedDocIds = context === 'none' ? 'all' : context === 'all' ? 'all' : context.split(',').filter(Boolean);
+  App.selectedPersonaId = chat?.persona_id || '';
+  updateChatModeUI();
+  updatePersonaSelect();
   switchView('chat');
   const conv = document.getElementById('chat-conversation');
   conv.innerHTML = '';
@@ -3513,8 +3725,11 @@ async function openChat(chatId) {
 function newChat() {
   App.openChatMenuId = null;
   App.currentChatId = null;
+  App.chatMode = 'documents';
   App.selectedDocIds = 'all';
-  updateDocSelector();
+  App.selectedPersonaId = '';
+  updateChatModeUI();
+  updatePersonaSelect();
   document.getElementById('chat-conversation').innerHTML = '';
   document.getElementById('chat-conversation').style.display = 'none';
   document.getElementById('welcome-screen').style.display = 'flex';
@@ -3532,6 +3747,145 @@ async function loadDocuments() {
     updateDocSelector();
     renderCouncilDocOptions();
   } catch(e) {}
+}
+
+// ── PERSONAS ─────────────────────────────────────────────────────────────
+async function loadPersonas() {
+  try {
+    const r = await fetch('/api/personas');
+    App.personas = await r.json();
+    renderPersonaSelect();
+    renderPersonas();
+  } catch(e) {}
+}
+
+function renderPersonaSelect() {
+  const sel = document.getElementById('persona-select');
+  if (!sel) return;
+  const groups = {};
+  for (const p of App.personas) {
+    if (!groups[p.category]) groups[p.category] = [];
+    groups[p.category].push(p);
+  }
+  const html = ['<option value="">No persona</option>'];
+  for (const category of Object.keys(groups).sort()) {
+    html.push(`<optgroup label="${esc(category)}">`);
+    html.push(...groups[category].map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`));
+    html.push('</optgroup>');
+  }
+  sel.innerHTML = html.join('');
+  updatePersonaSelect();
+}
+
+function updatePersonaSelect() {
+  const sel = document.getElementById('persona-select');
+  if (sel) sel.value = App.selectedPersonaId || '';
+}
+
+function setPersona(personaId) {
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before changing personas.', 'warning');
+    updatePersonaSelect();
+    return;
+  }
+  if (App.currentChatId && App.selectedPersonaId !== personaId) {
+    const draft = document.getElementById('chat-input')?.value || '';
+    newChat();
+    const input = document.getElementById('chat-input');
+    if (input) {
+      input.value = draft;
+      autoResize(input);
+    }
+  }
+  App.selectedPersonaId = personaId || '';
+  updatePersonaSelect();
+}
+
+function renderPersonas() {
+  const grid = document.getElementById('personas-grid');
+  const pills = document.getElementById('persona-category-pills');
+  if (!grid || !pills) return;
+  const categories = [...new Set(App.personas.map(p => p.category))];
+  if (!App.personas.length) {
+    pills.innerHTML = '';
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-subtle)">No personas yet.</div>';
+    return;
+  }
+  if (!App.selectedPersonaCategory || !categories.includes(App.selectedPersonaCategory)) {
+    App.selectedPersonaCategory = categories[0] || '';
+  }
+  pills.innerHTML = categories.map(c => `
+    <button class="stat-pill selectable ${c === App.selectedPersonaCategory ? 'active' : ''}" type="button" onclick="setPersonaCategory('${esc(c)}')">
+      <strong>${esc(c)}</strong>
+    </button>
+  `).join('');
+  const visible = App.personas.filter(p => p.category === App.selectedPersonaCategory);
+  grid.innerHTML = visible.map(p => `
+    <div class="doc-card">
+      <div class="doc-card-header">
+        <div class="doc-card-icon icon-txt">${esc(p.name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase())}</div>
+        <div class="doc-card-title" title="${esc(p.name)}">${esc(p.name)}</div>
+      </div>
+      <div class="doc-card-meta"><span>${esc(p.category)}</span>${p.is_builtin ? '<div class="dot"></div><span>Built-in</span>' : ''}</div>
+      <div class="settings-row-desc">${esc(p.description || '')}</div>
+      <div class="doc-card-actions">
+        <button class="doc-action-btn" onclick="showPersonaDetails('${esc(p.id)}')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>Details
+        </button>
+        <button class="doc-action-btn" onclick="usePersona('${esc(p.id)}')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg>Use
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setPersonaCategory(category) {
+  App.selectedPersonaCategory = category;
+  renderPersonas();
+}
+
+function usePersona(personaId) {
+  setPersona(personaId);
+  switchView('chat');
+}
+
+function showPersonaDetails(personaId) {
+  const p = App.personas.find(x => x.id === personaId);
+  if (!p) return;
+  el('persona-detail-name', p.name);
+  el('persona-detail-category', `${p.category}${p.is_builtin ? ' · Built-in' : ''}`);
+  const body = document.getElementById('persona-detail-body');
+  const constraints = (p.constraints || []).length
+    ? `<ul class="detail-list">${p.constraints.map(c => `<li>${esc(c)}</li>`).join('')}</ul>`
+    : '<div class="detail-text">None</div>';
+  const tags = (p.tags || []).length
+    ? `<div class="tag-row">${p.tags.map(t => `<span class="stat-pill">${esc(t)}</span>`).join('')}</div>`
+    : '<div class="detail-text">None</div>';
+  body.innerHTML = `
+    <div class="detail-block">
+      <div class="detail-label">Description</div>
+      <div class="detail-text">${esc(p.description || '')}</div>
+    </div>
+    <div class="detail-block">
+      <div class="detail-label">System Prompt</div>
+      <div class="detail-text">${esc(p.system_prompt || '')}</div>
+    </div>
+    <div class="detail-block">
+      <div class="detail-label">Constraints</div>
+      ${constraints}
+    </div>
+    <div class="detail-block">
+      <div class="detail-label">Tags</div>
+      ${tags}
+    </div>
+  `;
+  document.getElementById('persona-detail-modal')?.classList.add('open');
+}
+
+function closePersonaDetails(event) {
+  if (event && event.target.id !== 'persona-detail-modal') return;
+  document.getElementById('persona-detail-modal')?.classList.remove('open');
 }
 
 function renderDocuments(filter = '') {
@@ -3567,10 +3921,57 @@ function docCard(d) {
 }
 
 function updateDocsBadge() { el('docs-count-badge', App.documents.length); }
+function toggleChatModeMenu(event) {
+  event.stopPropagation();
+  document.getElementById('input-mode-menu')?.classList.toggle('open');
+}
+
+function setChatMode(mode) {
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before changing modes.', 'warning');
+    return;
+  }
+  document.getElementById('input-mode-menu')?.classList.remove('open');
+  if (App.currentChatId && App.chatMode !== mode) {
+    const draft = document.getElementById('chat-input')?.value || '';
+    newChat();
+    const input = document.getElementById('chat-input');
+    if (input) {
+      input.value = draft;
+      autoResize(input);
+    }
+  }
+  App.chatMode = mode;
+  if (mode === 'documents' && App.selectedDocIds === 'none') App.selectedDocIds = 'all';
+  updateChatModeUI();
+}
+
+function updateChatModeUI() {
+  const label = document.getElementById('input-mode-label');
+  const icon = document.getElementById('input-mode-icon');
+  const input = document.getElementById('chat-input');
+  const docOpt = document.getElementById('mode-option-documents');
+  const generalOpt = document.getElementById('mode-option-general');
+  if (label) label.textContent = App.chatMode === 'general' ? 'General' : 'Documents';
+  if (icon) icon.innerHTML = App.chatMode === 'general'
+    ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+    : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+  if (input) input.placeholder = App.chatMode === 'general' ? 'Ask anything...' : 'Ask anything about your documents...';
+  docOpt?.classList.toggle('active', App.chatMode === 'documents');
+  generalOpt?.classList.toggle('active', App.chatMode === 'general');
+  updateDocSelector();
+}
+
 function updateDocSelector() {
   const badge = document.getElementById('input-doc-badge');
   if (!badge) return;
+  if (App.chatMode === 'general') {
+    badge.textContent = 'No document search';
+    badge.style.display = 'inline-flex';
+    return;
+  }
   badge.textContent = App.selectedDocIds === 'all' ? `All Documents (${App.documents.length})` : `${App.selectedDocIds.length} selected`;
+  badge.style.display = 'inline-flex';
 }
 
 async function deleteDocument(id) {
@@ -3592,10 +3993,14 @@ async function deleteAllDocuments() {
 }
 
 function chatWithDoc(id) {
+  App.chatMode = 'documents';
   App.selectedDocIds = [id];
-  updateDocSelector();
+  updateChatModeUI();
   switchView('chat');
   newChat();
+  App.chatMode = 'documents';
+  App.selectedDocIds = [id];
+  updateChatModeUI();
 }
 
 function searchDocs(q) { renderDocuments(q); }
@@ -4102,8 +4507,8 @@ async function sendMessage() {
   conv.style.display = 'block';
   if (!App.currentChatId) {
     try {
-      const docCtx = App.selectedDocIds === 'all' ? 'all' : App.selectedDocIds.join(',');
-      const r = await fetch('/api/chats', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({doc_context:docCtx})});
+      const docCtx = App.chatMode === 'general' ? 'none' : App.selectedDocIds === 'all' ? 'all' : App.selectedDocIds.join(',');
+      const r = await fetch('/api/chats', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({doc_context:docCtx, persona_id:App.selectedPersonaId || null})});
       const chat = await r.json();
       App.currentChatId = chat.id;
     } catch(e) { showToast('Failed to create chat.', 'error'); return; }
@@ -4208,10 +4613,14 @@ function mdRender(t) {
 function scrollBottom() { const m=document.getElementById('chat-messages'); if(m) m.scrollTop=m.scrollHeight; }
 function el(id, val) { const e=document.getElementById(id); if(e) e.textContent=val; }
 
+document.addEventListener('click', () => {
+  document.getElementById('input-mode-menu')?.classList.remove('open');
+});
+
 // ── VIEW SWITCHING ────────────────────────────────────────────────────────
-const VIEWS = {chat:'view-chat',councils:'view-councils','add-doc':'view-add-doc','view-docs':'view-view-docs',settings:'view-settings'};
-const NAVS = {chat:'nav-chat',councils:'nav-councils','add-doc':'nav-add-doc','view-docs':'nav-view-docs',settings:'nav-settings'};
-const TITLES = {chat:'Chat',councils:'Councils','add-doc':'Add Document','view-docs':'View Documents',settings:'Settings'};
+const VIEWS = {chat:'view-chat',councils:'view-councils',personas:'view-personas','add-doc':'view-add-doc','view-docs':'view-view-docs',settings:'view-settings'};
+const NAVS = {chat:'nav-chat',councils:'nav-councils',personas:'nav-personas','add-doc':'nav-add-doc','view-docs':'nav-view-docs',settings:'nav-settings'};
+const TITLES = {chat:'Chat',councils:'Councils',personas:'Personas','add-doc':'Add Document','view-docs':'View Documents',settings:'Settings'};
 
 function switchView(name) {
   Object.values(VIEWS).forEach(id => document.getElementById(id)?.classList.remove('active'));
@@ -4222,6 +4631,7 @@ function switchView(name) {
   document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
   if (name === 'view-docs') renderDocuments();
   if (name === 'councils') loadCouncils();
+  if (name === 'personas') renderPersonas();
   if (name === 'chat' && !App.currentChatId) {
     document.getElementById('welcome-screen').style.display = 'flex';
     document.getElementById('chat-conversation').style.display = 'none';

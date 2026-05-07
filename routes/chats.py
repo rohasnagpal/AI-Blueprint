@@ -14,6 +14,7 @@ router = APIRouter()
 
 class CreateChat(BaseModel):
     doc_context: str = "all"
+    persona_id: str | None = None
 
 
 class SendMessage(BaseModel):
@@ -29,6 +30,7 @@ def _format_chat(row) -> dict:
         "id": row["id"],
         "title": row["title"],
         "doc_context": row["doc_context"],
+        "persona_id": row["persona_id"] if "persona_id" in row.keys() else None,
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
         "archived_at": row["archived_at"] if "archived_at" in row.keys() else None,
@@ -64,6 +66,60 @@ def _build_system_prompt(settings: dict) -> str:
     )
 
 
+def _apply_persona_prompt(prompt: str, persona: dict | None) -> str:
+    if not persona:
+        return prompt
+    constraints = persona.get("constraints") or []
+    parts = [
+        prompt,
+        "\nPersona:",
+        f"Name: {persona.get('name', '')}",
+        f"Instructions: {persona.get('system_prompt', '')}",
+        "Write the final answer in natural prose or markdown. Do not output JSON unless the user explicitly asks for JSON.",
+    ]
+    if constraints:
+        parts.append("Constraints:\n" + "\n".join(f"- {c}" for c in constraints))
+    return "\n".join(parts)
+
+
+def _build_general_system_prompt(settings: dict) -> str:
+    lang = settings.get("response_language", "English")
+    length = settings.get("response_length", "balanced")
+    return (
+        f"You are AI Blueprint, a helpful assistant.\n"
+        f"Always respond in {lang}.\n"
+        f"Answer the user's question directly without using uploaded document context.\n"
+        f"Response length preference: {length}."
+    )
+
+
+def _get_persona(persona_id: str | None) -> dict | None:
+    if not persona_id:
+        return None
+    conn = database.get_connection()
+    row = conn.execute("SELECT * FROM personas WHERE id = ? AND is_enabled = 1", (persona_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    def parse(value, fallback):
+        if not value:
+            return fallback
+        try:
+            return json.loads(value)
+        except Exception:
+            return fallback
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "category": row["category"],
+        "description": row["description"],
+        "system_prompt": row["system_prompt"],
+        "constraints": parse(row["constraints_json"], []),
+        "output_format": parse(row["output_format_json"], {}),
+        "tags": parse(row["tags_json"], []),
+    }
+
+
 @router.get("/chats")
 async def list_chats():
     conn = database.get_connection()
@@ -78,12 +134,12 @@ async def create_chat(body: CreateChat):
     now = _now()
     conn = database.get_connection()
     conn.execute(
-        "INSERT INTO chats (id, title, doc_context, thread_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (chat_id, None, body.doc_context, None, now, now),
+        "INSERT INTO chats (id, title, doc_context, persona_id, thread_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (chat_id, None, body.doc_context, body.persona_id, None, now, now),
     )
     conn.commit()
     conn.close()
-    return {"id": chat_id, "title": None, "doc_context": body.doc_context, "created_at": now, "updated_at": now}
+    return {"id": chat_id, "title": None, "doc_context": body.doc_context, "persona_id": body.persona_id, "created_at": now, "updated_at": now}
 
 
 @router.get("/chats/{chat_id}/messages")
@@ -133,10 +189,12 @@ async def send_message(chat_id: str, body: SendMessage):
 
     provider_name = settings.get("rag_provider", "openai")
     doc_context = chat["doc_context"]
-    doc_ids = None if doc_context == "all" else [d.strip() for d in doc_context.split(",") if d.strip()]
+    use_documents = doc_context != "none"
+    doc_ids = None if doc_context in ("all", "none") else [d.strip() for d in doc_context.split(",") if d.strip()]
+    persona = _get_persona(chat["persona_id"] if "persona_id" in chat.keys() else None)
 
     return StreamingResponse(
-        _stream(chat_id, chat, body.message, settings, provider_name, doc_ids),
+        _stream(chat_id, chat, body.message, settings, provider_name, doc_ids, use_documents, persona),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -167,13 +225,21 @@ async def _stream(
     settings: dict,
     provider_name: str,
     doc_ids: list[str] | None,
+    use_documents: bool,
+    persona: dict | None,
 ) -> AsyncGenerator[str, None]:
     collected_content = []
     collected_sources = []
 
     try:
-        if provider_name == "openai":
-            async for event in _stream_openai(chat, message, settings):
+        if not use_documents:
+            async for event in _stream_general(message, settings, persona):
+                yield event
+                data = _parse_sse(event)
+                if data and data.get("type") == "token":
+                    collected_content.append(data.get("content", ""))
+        elif provider_name == "openai":
+            async for event in _stream_openai(chat, message, settings, persona):
                 yield event
                 data = _parse_sse(event)
                 if data:
@@ -182,7 +248,7 @@ async def _stream(
                     elif data.get("type") == "source":
                         collected_sources.append(data)
         else:
-            async for event in _stream_local(message, settings, doc_ids):
+            async for event in _stream_local(message, settings, doc_ids, persona):
                 yield event
                 data = _parse_sse(event)
                 if data:
@@ -210,6 +276,39 @@ async def _stream(
     yield f'data: {json.dumps({"type": "done"})}\n\n'
 
 
+async def _stream_general(message: str, settings: dict, persona: dict | None) -> AsyncGenerator[str, None]:
+    system_prompt = _apply_persona_prompt(_build_general_system_prompt(settings), persona)
+    llm_provider = settings.get("local_llm_provider", "openai")
+    model = settings.get("chat_model", "gpt-4o")
+    temperature = float(settings.get("temperature", 0.2))
+    max_tokens = int(settings.get("max_tokens", 2048))
+
+    if llm_provider == "ollama":
+        async for token in _stream_ollama(system_prompt, message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "anthropic":
+        anthropic_key = settings.get("anthropic_api_key", "")
+        if not anthropic_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Anthropic API key not configured."})}\n\n'
+            return
+        async for token in _stream_anthropic(anthropic_key, system_prompt, message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "groq":
+        groq_key = settings.get("groq_api_key", "")
+        if not groq_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Groq API key not configured."})}\n\n'
+            return
+        async for token in _stream_groq(groq_key, system_prompt, message, model, temperature, max_tokens):
+            yield token
+    else:
+        openai_key = settings.get("openai_api_key", "")
+        if not openai_key:
+            yield f'data: {json.dumps({"type": "error", "content": "OpenAI API key not configured. Go to Settings → API Keys."})}\n\n'
+            return
+        async for token in _stream_openai_chat(openai_key, system_prompt, message, model, temperature, max_tokens):
+            yield token
+
+
 def _parse_sse(event: str) -> dict | None:
     if event.startswith("data: "):
         try:
@@ -219,7 +318,7 @@ def _parse_sse(event: str) -> dict | None:
     return None
 
 
-async def _stream_openai(chat, message: str, settings: dict) -> AsyncGenerator[str, None]:
+async def _stream_openai(chat, message: str, settings: dict, persona: dict | None) -> AsyncGenerator[str, None]:
     import openai
 
     key = settings.get("openai_api_key", "")
@@ -290,7 +389,7 @@ async def _stream_openai(chat, message: str, settings: dict) -> AsyncGenerator[s
         yield f'data: {json.dumps({"type": "error", "content": f"Failed to send message: {e}"})}\n\n'
         return
 
-    system_prompt = _build_system_prompt(settings)
+    system_prompt = _apply_persona_prompt(_build_system_prompt(settings), persona)
     top_k = int(settings.get("top_k", 5))
     temperature = float(settings.get("temperature", 0.2))
     max_tokens = int(settings.get("max_tokens", 2048))
@@ -345,7 +444,7 @@ async def _stream_openai(chat, message: str, settings: dict) -> AsyncGenerator[s
         yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
 
 
-async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None) -> AsyncGenerator[str, None]:
+async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None, persona: dict | None) -> AsyncGenerator[str, None]:
     from rag.llamaindex_rag import LlamaIndexRag
 
     provider = LlamaIndexRag()
@@ -365,7 +464,7 @@ async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None)
             f"[Source: {c['source']}]\n{c['content']}" for c in chunks
         )
 
-    system_prompt = _build_system_prompt(settings)
+    system_prompt = _apply_persona_prompt(_build_system_prompt(settings), persona)
     llm_provider = settings.get("local_llm_provider", "openai")
     full_message = f"Document context:\n{context}\n\nQuestion: {message}"
     model = settings.get("chat_model", "gpt-4o")

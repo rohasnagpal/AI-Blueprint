@@ -8,6 +8,7 @@ import database
 from routes.documents import router as doc_router
 from routes.chats import router as chat_router
 from routes.councils import router as council_router
+from routes.personas import router as persona_router
 from routes.settings import router as settings_router
 
 app = FastAPI(title="AI Blueprint")
@@ -34,6 +35,7 @@ async def health():
 app.include_router(doc_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(council_router, prefix="/api")
+app.include_router(persona_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 
 app.mount("/", StaticFiles(directory="public", html=True), name="static")
