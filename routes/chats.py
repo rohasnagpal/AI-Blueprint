@@ -13,7 +13,7 @@ router = APIRouter()
 
 
 class CreateChat(BaseModel):
-    doc_context: str = "all"
+    doc_context: str = "none"
     persona_id: str | None = None
 
 

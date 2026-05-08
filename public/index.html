@@ -1988,7 +1988,7 @@
     <div class="brand-icon">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
     </div>
-    <span class="brand-name">AI Blueprint</span>
+    <span class="brand-name" id="sidebar-brand-name">AI Blueprint</span>
   </div>
 
   <div class="sidebar-section">
@@ -2048,7 +2048,7 @@
     <span class="topbar-title" id="topbar-title">Chat</span>
     <div class="doc-selector" id="doc-selector">
       <div class="dot"></div>
-      All Documents
+      <span id="topbar-doc-label">General</span>
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="topbar-spacer"></div>
@@ -2092,10 +2092,10 @@
         <div class="input-context-bar">
           <button class="input-mode-btn" type="button" onclick="toggleChatModeMenu(event)" title="Choose chat context">
             <span id="input-mode-icon"></span>
-            <span id="input-mode-label">Documents</span>
+            <span id="input-mode-label">General</span>
             <svg class="input-mode-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <span class="input-doc-badge" id="input-doc-badge">All Documents</span>
+          <span class="input-doc-badge" id="input-doc-badge">No document search</span>
           <select class="s-select input-persona-select" id="persona-select" onchange="setPersona(this.value)" title="Choose persona">
             <option value="">No persona</option>
           </select>
@@ -2111,7 +2111,7 @@
           </div>
         </div>
         <div class="input-row">
-          <textarea class="chat-textarea" id="chat-input" rows="1" placeholder="Ask anything about your documents…" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <textarea class="chat-textarea" id="chat-input" rows="1" placeholder="Ask anything..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
           <div class="input-actions">
             <div class="attach-btn" title="Attach file">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
@@ -3223,7 +3223,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'documents', selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '' };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '' };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -3268,13 +3268,18 @@ function applySettings() {
   const s = App.settings;
   document.documentElement.setAttribute('data-theme', s.dark_mode === 'true' ? 'dark' : 'light');
   if (s.font_size) document.body.style.fontSize = s.font_size + 'px';
-  if (s.app_name) { const el = document.getElementById('welcome-title'); if (el) el.textContent = s.app_name; }
+  if (s.app_name) {
+    const title = document.getElementById('welcome-title');
+    const brand = document.getElementById('sidebar-brand-name');
+    if (title) title.textContent = s.app_name;
+    if (brand) brand.textContent = s.app_name;
+  }
   if (s.app_intro) { const el = document.getElementById('welcome-intro'); if (el) el.textContent = s.app_intro; }
   if (s.suggested_questions) {
     try {
       const qs = JSON.parse(s.suggested_questions);
       const chips = document.getElementById('suggestion-chips-list');
-      if (chips && qs.length) chips.innerHTML = qs.map(q => `<div class="chip" onclick="fillInput(this)">${esc(q)}</div>`).join('');
+      if (chips && Array.isArray(qs)) chips.innerHTML = qs.map(q => `<div class="chip" onclick="fillInput(this)">${esc(q)}</div>`).join('');
     } catch(e) {}
   }
   updateDocSelector();
@@ -3725,7 +3730,7 @@ async function openChat(chatId) {
 function newChat() {
   App.openChatMenuId = null;
   App.currentChatId = null;
-  App.chatMode = 'documents';
+  App.chatMode = 'general';
   App.selectedDocIds = 'all';
   App.selectedPersonaId = '';
   updateChatModeUI();
@@ -3742,6 +3747,7 @@ async function loadDocuments() {
   try {
     const r = await fetch('/api/documents');
     App.documents = await r.json();
+    if (!App.documents.length && App.chatMode === 'documents') App.chatMode = 'general';
     renderDocuments();
     updateDocsBadge();
     updateDocSelector();
@@ -3931,6 +3937,12 @@ function setChatMode(mode) {
     showToast('Wait for the current response to finish before changing modes.', 'warning');
     return;
   }
+  if (mode === 'documents' && !App.documents.length) {
+    App.chatMode = 'general';
+    updateChatModeUI();
+    document.getElementById('input-mode-menu')?.classList.remove('open');
+    return;
+  }
   document.getElementById('input-mode-menu')?.classList.remove('open');
   if (App.currentChatId && App.chatMode !== mode) {
     const draft = document.getElementById('chat-input')?.value || '';
@@ -3947,6 +3959,7 @@ function setChatMode(mode) {
 }
 
 function updateChatModeUI() {
+  if (App.chatMode === 'documents' && !App.documents.length) App.chatMode = 'general';
   const label = document.getElementById('input-mode-label');
   const icon = document.getElementById('input-mode-icon');
   const input = document.getElementById('chat-input');
@@ -3964,14 +3977,22 @@ function updateChatModeUI() {
 
 function updateDocSelector() {
   const badge = document.getElementById('input-doc-badge');
-  if (!badge) return;
+  const topbarLabel = document.getElementById('topbar-doc-label');
+  if (!badge && !topbarLabel) return;
   if (App.chatMode === 'general') {
-    badge.textContent = 'No document search';
-    badge.style.display = 'inline-flex';
+    if (badge) {
+      badge.textContent = 'No document search';
+      badge.style.display = 'inline-flex';
+    }
+    if (topbarLabel) topbarLabel.textContent = 'General';
     return;
   }
-  badge.textContent = App.selectedDocIds === 'all' ? `All Documents (${App.documents.length})` : `${App.selectedDocIds.length} selected`;
-  badge.style.display = 'inline-flex';
+  const docText = App.selectedDocIds === 'all' ? `All Documents (${App.documents.length})` : `${App.selectedDocIds.length} selected`;
+  if (badge) {
+    badge.textContent = docText;
+    badge.style.display = 'inline-flex';
+  }
+  if (topbarLabel) topbarLabel.textContent = docText;
 }
 
 async function deleteDocument(id) {
