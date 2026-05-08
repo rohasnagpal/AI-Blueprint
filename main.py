@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,7 +41,8 @@ app.include_router(council_router, prefix="/api")
 app.include_router(persona_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 
-app.mount("/", StaticFiles(directory="public", html=True), name="static")
+BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+app.mount("/", StaticFiles(directory=BASE_DIR / "public", html=True), name="static")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

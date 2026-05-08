@@ -1,0 +1,108 @@
+name: Build Installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+            artifact: ai-blueprint-linux
+            executable: ai-blueprint
+            add-data: "public:public"
+            archive: tar
+          - name: macos
+            os: macos-latest
+            artifact: ai-blueprint-macos
+            executable: ai-blueprint
+            add-data: "public:public"
+            archive: zip
+          - name: windows
+            os: windows-latest
+            artifact: ai-blueprint-windows
+            executable: ai-blueprint.exe
+            add-data: "public;public"
+            archive: zip
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Build executable
+        run: >
+          pyinstaller
+          --clean
+          --onefile
+          --name ai-blueprint
+          --add-data "${{ matrix.add-data }}"
+          --hidden-import rag.openai_rag
+          --hidden-import rag.llamaindex_rag
+          --hidden-import routes.chats
+          --hidden-import routes.documents
+          --hidden-import routes.councils
+          --hidden-import routes.personas
+          --hidden-import routes.settings
+          main.py
+
+      - name: Add Unix launcher
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p package
+          cp "dist/${{ matrix.executable }}" package/
+          chmod +x "package/${{ matrix.executable }}"
+          cat > package/README.txt <<'EOF'
+          Run ./ai-blueprint, then open http://127.0.0.1:8000 in your browser.
+          Runtime data is created beside the executable.
+          EOF
+
+      - name: Add Windows launcher
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package | Out-Null
+          Copy-Item "dist/${{ matrix.executable }}" package/
+          @"
+          Run ai-blueprint.exe, then open http://127.0.0.1:8000 in your browser.
+          Runtime data is created beside the executable.
+          "@ | Set-Content package/README.txt
+
+      - name: Create tar archive
+        if: matrix.archive == 'tar'
+        run: tar -czf "${{ matrix.artifact }}.tar.gz" -C package .
+
+      - name: Create zip archive
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: Compress-Archive -Path package/* -DestinationPath "${{ matrix.artifact }}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.tar.gz
+            ${{ matrix.artifact }}.zip
+          if-no-files-found: error

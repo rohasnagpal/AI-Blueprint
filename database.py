@@ -19,6 +19,8 @@ DEFAULTS = {
     "xai_api_key": "",
     "cloudflare_api_key": "",
     "together_api_key": "",
+    "brave_search_api_key": "",
+    "searxng_base_url": "",
     "chat_model": "gpt-4o",
     "embedding_model": "text-embedding-3-large",
     "local_embedding_model": "all-MiniLM-L6-v2",
@@ -49,6 +51,7 @@ DEFAULTS = {
 API_KEY_FIELDS = {
     "openai_api_key", "anthropic_api_key", "groq_api_key", "gemini_api_key",
     "mistral_api_key", "cohere_api_key", "xai_api_key", "cloudflare_api_key", "together_api_key",
+    "brave_search_api_key",
 }
 
 
