@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import shutil
 import tempfile
@@ -8,11 +9,22 @@ from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 
 import database
+from pydantic import BaseModel
+from webtools import fetch_page_text
 
 router = APIRouter()
 
 UPLOADS_DIR = Path("uploads")
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".csv", ".xlsx", ".md", ".json", ".html", ".htm"}
+
+
+class UrlIngest(BaseModel):
+    url: str
+
+
+def _safe_index_filename(name: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-")[:120]
+    return f"{safe or 'web-page'}.md"
 
 
 def _get_provider():
@@ -78,6 +90,42 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
     background_tasks.add_task(_ingest_background, doc_id, str(dest), file.filename)
 
     return {"id": doc_id, "original_name": file.filename, "size_bytes": size_bytes, "status": "processing"}
+
+
+@router.post("/web/ingest-url")
+@router.post("/documents/url")
+async def ingest_url_document(body: UrlIngest, background_tasks: BackgroundTasks):
+    max_mb = int(database.get_setting("max_file_size_mb") or 25)
+    try:
+        page = await fetch_page_text(body.url)
+    except Exception as e:
+        raise HTTPException(400, detail=f"Could not read URL: {e}")
+
+    content = f"# {page['title']}\n\nSource: {page['url']}\n\n{page['text']}\n"
+    data = content.encode("utf-8")
+    if len(data) > max_mb * 1024 * 1024:
+        raise HTTPException(413, detail=f"Fetched page exceeds {max_mb} MB limit.")
+
+    UPLOADS_DIR.mkdir(exist_ok=True)
+    doc_id = str(uuid.uuid4())
+    safe_name = f"{doc_id}.md"
+    dest = UPLOADS_DIR / safe_name
+    with open(dest, "wb") as out:
+        out.write(data)
+
+    display_name = f"{page['title']} ({page['url']})"
+    now = datetime.now(timezone.utc).isoformat()
+    conn = database.get_connection()
+    conn.execute(
+        "INSERT INTO documents (id, filename, original_name, size_bytes, page_count, file_type, openai_file_id, uploaded_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (doc_id, safe_name, display_name[:500], len(data), None, "URL", None, now),
+    )
+    conn.commit()
+    conn.close()
+
+    background_tasks.add_task(_ingest_background, doc_id, str(dest), _safe_index_filename(page["title"]))
+    return {"id": doc_id, "original_name": display_name, "size_bytes": len(data), "status": "processing"}
 
 
 async def _ingest_background(doc_id: str, file_path: str, filename: str):

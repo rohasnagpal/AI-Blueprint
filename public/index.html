@@ -806,6 +806,26 @@
   .attach-btn:hover { color: var(--text); border-color: var(--accent); }
   .attach-btn svg { width: 15px; height: 15px; }
 
+  .web-search-btn {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all var(--transition);
+  }
+
+  .web-search-btn:hover,
+  .web-search-btn.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+
+  .web-search-btn svg { width: 15px; height: 15px; }
+
   .send-btn {
     width: 34px; height: 34px;
     border-radius: var(--radius-sm);
@@ -934,6 +954,40 @@
 
   .upload-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(217,119,6,0.4); }
   .upload-btn svg { width: 15px; height: 15px; }
+
+  .url-ingest {
+    max-width: 680px;
+    margin: -8px auto 24px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .url-ingest input {
+    flex: 1;
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13.5px;
+  }
+
+  .url-ingest button {
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .url-ingest button:hover { border-color: var(--accent); color: var(--accent); }
 
   /* Upload progress */
   .upload-queue {
@@ -2113,6 +2167,9 @@
         <div class="input-row">
           <textarea class="chat-textarea" id="chat-input" rows="1" placeholder="Ask anything..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
           <div class="input-actions">
+            <button class="web-search-btn" id="web-search-btn" type="button" onclick="toggleWebSearch()" title="Search web">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>
+            </button>
             <div class="attach-btn" title="Attach file">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </div>
@@ -2309,6 +2366,11 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Choose Files
         </button>
+      </div>
+
+      <div class="url-ingest">
+        <input id="url-ingest-input" type="url" placeholder="Paste a webpage URL to add it as a document"/>
+        <button type="button" onclick="ingestUrl()">Add URL</button>
       </div>
 
       <!-- Upload queue -->
@@ -2580,6 +2642,45 @@
                 <button class="key-toggle" onclick="toggleKey(this)">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Brave Search -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#fff7ed;color:#d97706;">WEB</div>
+              <div>
+                <div class="provider-name">Brave Search</div>
+                <div class="provider-desc">Web search results for cited chat answers — api.search.brave.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="BSA…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- SearXNG -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#e0f2fe;color:#0369a1;">SX</div>
+              <div>
+                <div class="provider-name">SearXNG</div>
+                <div class="provider-desc">Optional free metasearch endpoint. Leave blank to use no-key DuckDuckGo fallback.</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="text" placeholder="https://your-searxng.example"/>
               </div>
               <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
             </div>
@@ -3223,7 +3324,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '' };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '' };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -3326,7 +3427,7 @@ function populateSettingsUI() {
   // Show connected status for API keys
   document.querySelectorAll('.provider-card').forEach(card => {
     const name = card.querySelector('.provider-name')?.textContent?.trim();
-    const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key' };
+    const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
     const k = keyMap[name];
     const status = card.querySelector('.provider-status');
     if (k && status && s[k] && s[k] !== '') { status.textContent = 'Connected'; status.className = 'provider-status connected'; }
@@ -3483,7 +3584,7 @@ function saveApiKey(btn) {
   const val = input.value.trim();
   if (!val || val === '••••••••') return;
   const name = card.querySelector('.provider-name')?.textContent?.trim();
-  const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key' };
+  const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
   const k = keyMap[name];
   if (!k) { showToast('Unknown provider', 'error'); return; }
   saveSettings({[k]: val}).then(() => { input.value = '••••••••'; });
@@ -3608,7 +3709,7 @@ function saveRagProviderSettings() {
 async function resetAllSettings() {
   if (!confirm('Reset all settings to defaults? API keys will be cleared.')) return;
   try {
-    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', app_name:'AI Blueprint', app_intro:'Build, run and chat with AI agents, pipelines and tools. Powered by your documents.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]' };
+    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint', app_intro:'Build, run and chat with AI agents, pipelines and tools. Powered by your documents.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]' };
     await saveSettings(defaults);
   } catch(e) { showToast('Reset failed.', 'error'); }
 }
@@ -3740,6 +3841,15 @@ function newChat() {
   document.getElementById('welcome-screen').style.display = 'flex';
   document.getElementById('chat-input').value = '';
   renderChatHistory();
+}
+
+function toggleWebSearch() {
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before changing web search.', 'warning');
+    return;
+  }
+  App.webSearchEnabled = !App.webSearchEnabled;
+  document.getElementById('web-search-btn')?.classList.toggle('active', App.webSearchEnabled);
 }
 
 // ── DOCUMENTS ─────────────────────────────────────────────────────────────
@@ -3909,7 +4019,7 @@ function renderDocuments(filter = '') {
 
 function docCard(d) {
   const ext = (d.file_type||'TXT').toUpperCase();
-  const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt',JSON:'icon-txt',HTML:'icon-html',HTM:'icon-html'}[ext]||'icon-txt';
+  const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt',JSON:'icon-txt',HTML:'icon-html',HTM:'icon-html',URL:'icon-html'}[ext]||'icon-txt';
   const date = d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
   const pages = d.page_count ? `<div class="dot"></div><span>${d.page_count} pages</span>` : '';
   return `<div class="doc-card">
@@ -4516,6 +4626,36 @@ async function uploadFile(file) {
   setTimeout(() => item.remove(), 4000);
 }
 
+async function ingestUrl() {
+  const input = document.getElementById('url-ingest-input');
+  const url = input?.value.trim();
+  if (!url) return;
+  const title = document.getElementById('upload-queue-title');
+  if (title) title.style.display = 'block';
+  const queueEl = document.getElementById('upload-queue-list');
+  const item = document.createElement('div');
+  item.className = 'upload-item';
+  item.innerHTML = `<div class="upload-item-icon icon-html">URL</div><div class="upload-item-info"><div class="upload-item-name">${esc(url)}</div><div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div></div><div class="upload-item-size">Web</div><div class="upload-item-status status-loading"></div>`;
+  queueEl.appendChild(item);
+  const fill = item.querySelector('.progress-fill');
+  const status = item.querySelector('.upload-item-status');
+  try {
+    const r = await fetch('/api/web/ingest-url', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url})});
+    if (!r.ok) throw new Error(await apiError(r));
+    fill.style.width='100%';
+    status.className='upload-item-status status-done';
+    status.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    input.value = '';
+    showToast('URL added to documents.');
+    await loadDocuments();
+  } catch(e) {
+    fill.style.width='100%'; fill.style.background='var(--danger)';
+    status.className='upload-item-status'; status.textContent='x'; status.style.color='var(--danger)';
+    showToast('URL ingest failed: ' + e.message, 'error');
+  }
+  setTimeout(() => item.remove(), 5000);
+}
+
 // ── CHAT ──────────────────────────────────────────────────────────────────
 async function sendMessage() {
   if (App.isStreaming) return;
@@ -4543,7 +4683,7 @@ async function sendMessage() {
   document.querySelector('.send-btn').style.opacity = '0.5';
   let content = '', sources = [];
   try {
-    const r = await fetch(`/api/chats/${App.currentChatId}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text})});
+    const r = await fetch(`/api/chats/${App.currentChatId}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, web_search:App.webSearchEnabled})});
     const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
     while (true) {
       const {done, value} = await reader.read();
@@ -4587,7 +4727,13 @@ function mkAi(content, sources) {
 
 function mkSources(sources) {
   const d = document.createElement('div'); d.className = 'sources';
-  const items = sources.map(s => `<div class="source-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div><div class="source-doc">${esc(s.filename||'')}</div>${s.excerpt?`<div style="font-size:11.5px;color:var(--text-subtle);margin-top:2px">${esc(s.excerpt.substring(0,120))}</div>`:''}</div>${s.page!=null?`<span class="source-page">Chunk ${s.page}</span>`:''}</div>`).join('');
+  const items = sources.map(s => {
+    const icon = s.kind === 'web'
+      ? '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/>'
+      : '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>';
+    const title = s.url ? `<a class="source-doc" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.filename||s.url)}</a>` : `<div class="source-doc">${esc(s.filename||'')}</div>`;
+    return `<div class="source-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><div>${title}${s.excerpt?`<div style="font-size:11.5px;color:var(--text-subtle);margin-top:2px">${esc(s.excerpt.substring(0,120))}</div>`:''}</div>${s.page!=null?`<span class="source-page">Chunk ${s.page}</span>`:''}</div>`;
+  }).join('');
   d.innerHTML = `<div class="sources-toggle" onclick="toggleSources(this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${sources.length} source${sources.length>1?'s':''}<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg></div><div class="sources-panel">${items}</div>`;
   return d;
 }

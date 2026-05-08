@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 import database
+from webtools import format_search_context, web_search
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ class CreateChat(BaseModel):
 
 class SendMessage(BaseModel):
     message: str
+    web_search: bool = False
 
 
 def _now() -> str:
@@ -194,7 +196,7 @@ async def send_message(chat_id: str, body: SendMessage):
     persona = _get_persona(chat["persona_id"] if "persona_id" in chat.keys() else None)
 
     return StreamingResponse(
-        _stream(chat_id, chat, body.message, settings, provider_name, doc_ids, use_documents, persona),
+        _stream(chat_id, chat, body.message, settings, provider_name, doc_ids, use_documents, persona, body.web_search),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -227,19 +229,37 @@ async def _stream(
     doc_ids: list[str] | None,
     use_documents: bool,
     persona: dict | None,
+    use_web_search: bool,
 ) -> AsyncGenerator[str, None]:
     collected_content = []
     collected_sources = []
+    web_results = []
 
     try:
+        if use_web_search:
+            try:
+                web_results = await web_search(message)
+                for result in web_results:
+                    src = {
+                        "type": "source",
+                        "kind": "web",
+                        "filename": result.get("title") or result.get("url"),
+                        "url": result.get("url"),
+                        "excerpt": result.get("snippet", ""),
+                    }
+                    collected_sources.append(src)
+                    yield f"data: {json.dumps(src)}\n\n"
+            except Exception as e:
+                yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
+                web_results = []
         if not use_documents:
-            async for event in _stream_general(message, settings, persona):
+            async for event in _stream_general(message, settings, persona, web_results):
                 yield event
                 data = _parse_sse(event)
                 if data and data.get("type") == "token":
                     collected_content.append(data.get("content", ""))
         elif provider_name == "openai":
-            async for event in _stream_openai(chat, message, settings, persona):
+            async for event in _stream_openai(chat, message, settings, persona, web_results):
                 yield event
                 data = _parse_sse(event)
                 if data:
@@ -248,7 +268,7 @@ async def _stream(
                     elif data.get("type") == "source":
                         collected_sources.append(data)
         else:
-            async for event in _stream_local(message, settings, doc_ids, persona):
+            async for event in _stream_local(message, settings, doc_ids, persona, web_results):
                 yield event
                 data = _parse_sse(event)
                 if data:
@@ -276,8 +296,11 @@ async def _stream(
     yield f'data: {json.dumps({"type": "done"})}\n\n'
 
 
-async def _stream_general(message: str, settings: dict, persona: dict | None) -> AsyncGenerator[str, None]:
+async def _stream_general(message: str, settings: dict, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
     system_prompt = _apply_persona_prompt(_build_general_system_prompt(settings), persona)
+    if web_results:
+        system_prompt += "\nUse the provided web search results when relevant and cite source titles or URLs in the answer."
+        message = f"Web search results:\n{format_search_context(web_results)}\n\nQuestion: {message}"
     llm_provider = settings.get("local_llm_provider", "openai")
     model = settings.get("chat_model", "gpt-4o")
     temperature = float(settings.get("temperature", 0.2))
@@ -318,7 +341,7 @@ def _parse_sse(event: str) -> dict | None:
     return None
 
 
-async def _stream_openai(chat, message: str, settings: dict, persona: dict | None) -> AsyncGenerator[str, None]:
+async def _stream_openai(chat, message: str, settings: dict, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
     import openai
 
     key = settings.get("openai_api_key", "")
@@ -380,16 +403,21 @@ async def _stream_openai(chat, message: str, settings: dict, persona: dict | Non
 
     # Add message to thread
     try:
+        user_content = message
+        if web_results:
+            user_content = f"Web search results:\n{format_search_context(web_results)}\n\nQuestion: {message}"
         await client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
-            content=message,
+            content=user_content,
         )
     except Exception as e:
         yield f'data: {json.dumps({"type": "error", "content": f"Failed to send message: {e}"})}\n\n'
         return
 
     system_prompt = _apply_persona_prompt(_build_system_prompt(settings), persona)
+    if web_results:
+        system_prompt += "\nWhen web search results are supplied, use them alongside document context and cite source titles or URLs."
     top_k = int(settings.get("top_k", 5))
     temperature = float(settings.get("temperature", 0.2))
     max_tokens = int(settings.get("max_tokens", 2048))
@@ -444,7 +472,7 @@ async def _stream_openai(chat, message: str, settings: dict, persona: dict | Non
         yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
 
 
-async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None, persona: dict | None) -> AsyncGenerator[str, None]:
+async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
     from rag.llamaindex_rag import LlamaIndexRag
 
     provider = LlamaIndexRag()
@@ -466,7 +494,10 @@ async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None,
 
     system_prompt = _apply_persona_prompt(_build_system_prompt(settings), persona)
     llm_provider = settings.get("local_llm_provider", "openai")
-    full_message = f"Document context:\n{context}\n\nQuestion: {message}"
+    web_context = f"\n\nWeb search results:\n{format_search_context(web_results)}" if web_results else ""
+    if web_results:
+        system_prompt += "\nUse the supplied web search results when relevant and cite source titles or URLs."
+    full_message = f"Document context:\n{context}{web_context}\n\nQuestion: {message}"
     model = settings.get("chat_model", "gpt-4o")
     temperature = float(settings.get("temperature", 0.2))
     max_tokens = int(settings.get("max_tokens", 2048))
