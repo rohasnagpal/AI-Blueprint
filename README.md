@@ -1,8 +1,17 @@
 # AI Blueprint
 
-Simple version: AI Blueprint is a local AI platform that runs entirely on your machine. Upload documents, chat with them, search the web, switch between models and providers, define custom personas, and orchestrate multi-agent workflows — all through a single Python server, no cloud required.
+**Simple version:** AI Blueprint is a local AI platform that runs entirely on your machine. Upload documents, chat with them, search the web, switch between models and providers, define custom personas, and orchestrate multi-agent workflows — all through a single Python server, no cloud required.
 
-Geeky version: AI Blueprint is a local-first FastAPI server with a zero-build single-page frontend. It supports document-grounded RAG (OpenAI or ChromaDB+LlamaIndex), SSE-streamed chat, web search, AES-256-encrypted settings, a live model registry, persona definitions, and configurable multi-agent council workflows with ordered execution phases. State lives in SQLite, the filesystem, and optional Chroma vector indexes. One python main.py and you're running.
+**Geeky version:** AI Blueprint is a local-first FastAPI server with a zero-build single-page frontend. It supports document-grounded RAG (OpenAI or ChromaDB+LlamaIndex), SSE-streamed chat, web search, AES-256-encrypted settings, a live model registry, persona definitions, and configurable multi-agent council workflows with ordered execution phases. State lives in SQLite, the filesystem, and optional Chroma vector indexes. One python main.py and you're running.
+
+**Here’s what you can do with AI Blueprint:**
+
+1. Pull unread emails from your inbox, choose a persona to draft the reply, optionally ground it in your documents, review the draft, and send it without leaving the app.
+2. Chat with a folder of PDFs and get cited answers streamed back in real time. Upload files, drop in a URL, or ingest web pages so they become part of your local knowledge base. Toggle web search mid-conversation to combine live results with your documents.
+3. Run an AI council where one participant argues a position, another critiques it, and a third synthesizes the result. Use it for stress-testing decisions, writing both sides of a brief, comparing interpretations, or building structured review pipelines.
+4. Swap personas to change tone, expertise, and behavior without rewriting prompts.
+5. Switch models and providers from the UI without restarting the server.
+6. Manage your local chats, documents, personas, council templates, and model settings from one private workspace.
 
 ## Current Features
 
