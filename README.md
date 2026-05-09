@@ -1,8 +1,8 @@
 # AI Blueprint
 
-AI Blueprint is a local-first FastAPI web app for document-grounded AI chat, web-assisted research, personas, model management, and multi-agent council workflows.
+The simple version: AI Blueprint is a local AI platform for building and running private AI workflows. It lets you chat with documents, research the web, manage models and personas, and coordinate multi-agent tasks, with your data stored on your own machine.
 
-It runs as a single Python server with a single-page HTML frontend. Runtime data is stored locally in SQLite, uploaded files, and optional local vector indexes.
+The geeky version: AI Blueprint is a local-first FastAPI application with a single-page HTML frontend for document-grounded AI chat, web-assisted research, persona orchestration, model/provider management, and configurable multi-agent council workflows. It runs as one Python server and persists runtime state locally via SQLite, uploaded file storage, and optional vector indexes.
 
 ## Current Features
 
