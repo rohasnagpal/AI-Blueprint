@@ -13,6 +13,7 @@ It runs as a single Python server with a single-page HTML frontend. Runtime data
 - **Streaming chat responses** over server-sent events.
 - **Source citations** for document chunks and web results.
 - **Personas** for changing assistant behavior from the chat UI.
+- **Email reply drafting** from imported IMAP messages with selectable persona and RAG scope.
 - **AI Councils** for running multi-agent workflows in phases against an objective and document scope.
 - **Council templates and run history** stored locally.
 - **Model registry** for adding, editing, disabling, and deleting model options.
@@ -102,6 +103,25 @@ You can:
 - scope runs to all documents or selected documents
 - review saved outputs and evidence
 
+### Email Replies
+
+The **Email** view is a review-first workflow for AI-assisted replies.
+
+You can:
+
+- save DreamHost-style IMAP settings for incoming mail
+- save SMTP2GO settings for outgoing mail
+- show saved IMAP and SMTP passwords as masked values in the UI
+- import unread messages into a local review queue
+- choose which persona drafts replies
+- choose no RAG, all documents, or a selected document as drafting context
+- generate an editable AI draft
+- approve and send manually
+
+The app does not auto-send replies. Every draft must be reviewed and sent by the user.
+
+For SMTP2GO, use SMTP credentials from SMTP2GO, not your normal account login. The default SMTP host is `mail.smtp2go.com`; common ports are `2525` and `587`. The from address must be allowed by your SMTP2GO sender/domain settings.
+
 ## RAG Modes
 
 Switch providers in **Settings -> RAG Provider**.
@@ -159,6 +179,10 @@ Important settings:
 | `groq_api_key` | Groq chat |
 | `brave_search_api_key` | Optional Brave Search |
 | `searxng_base_url` | Optional SearXNG endpoint |
+| `email_imap_host`, `email_imap_username` | Incoming email connection |
+| `email_smtp_host`, `email_smtp_username` | SMTP2GO outgoing email connection |
+| `email_smtp_verify_tls` | Whether SMTP STARTTLS certificate verification is enforced |
+| `email_persona_id`, `email_doc_context` | Default email drafting persona and RAG scope |
 | `rag_provider` | `openai` or `llamaindex` |
 | `local_llm_provider` | Chat provider |
 | `chat_model` | Active chat model |
@@ -210,6 +234,7 @@ ai-blueprint/
 ├── routes/
 │   ├── chats.py                  # Chat APIs and streaming responses
 │   ├── documents.py              # Uploads, URL ingestion, document deletion
+│   ├── email.py                  # IMAP import, AI drafts, SMTP sending
 │   ├── councils.py               # Council templates, runs, outputs
 │   ├── personas.py               # Built-in persona listing
 │   └── settings.py               # Settings and model registry APIs
@@ -275,6 +300,14 @@ Start Ollama before sending chat messages:
 ollama serve
 ```
 
+### Email send fails with incorrect authentication data
+
+SMTP2GO rejected the credentials. Use the SMTP username/password from SMTP2GO, not your web dashboard password. Also confirm the from address is a verified sender/domain in SMTP2GO.
+
+### Email send fails with certificate verify failed
+
+Some networks or SMTP paths present a self-signed certificate chain during STARTTLS. In **Email Settings**, set **Verify SMTP TLS certificate** to **No**, save, and retry. Keep it enabled when your SMTP certificate chain validates normally.
+
 ### GitHub release only shows source code
 
 GitHub always adds source archives automatically. To attach app packages, make sure the **Build Installers** workflow has run for that tag or run it manually with `release_tag`.
@@ -284,9 +317,11 @@ GitHub always adds source archives automatically. To attach app packages, make s
 - API keys are encrypted with AES-GCM before storage.
 - The encryption key is stored in `.secret_key`.
 - Settings APIs return masked keys, not plaintext keys.
+- Email passwords are encrypted at rest and shown as masked placeholders in the UI.
 - Local RAG keeps document retrieval local.
 - OpenAI RAG uploads documents to your OpenAI account.
 - Web search and URL ingestion make outbound network requests from the server.
+- Email polling and sending connect to the configured IMAP/SMTP servers.
 
 ## Current Limitations
 
@@ -294,6 +329,7 @@ GitHub always adds source archives automatically. To attach app packages, make s
 - macOS DMG is unsigned and not notarized.
 - URL scraping is lightweight HTML/text extraction; JavaScript-heavy pages may not extract well.
 - DuckDuckGo HTML search is a free fallback, not a guaranteed production API.
+- Email support is a review queue MVP; it does not yet include automated scheduling, attachment-aware drafting, allowlists, blocklists, or threaded conversation reconstruction.
 
 ## License
 
