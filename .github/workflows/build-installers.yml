@@ -70,6 +70,7 @@ jobs:
           --hidden-import rag.llamaindex_rag
           --hidden-import routes.chats
           --hidden-import routes.documents
+          --hidden-import routes.email
           --hidden-import routes.councils
           --hidden-import routes.personas
           --hidden-import routes.settings
