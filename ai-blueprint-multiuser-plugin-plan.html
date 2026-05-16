@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AI Blueprint Server and Blueprint Platform Plan</title>
+<title>AI Blueprint v2 Base Plan — Legal Blueprint Platform</title>
 <style>
   :root {
     --bg: #f7f2e8;
     --paper: #fffaf1;
-    --paper-2: #f2eadc;
-    --paper-3: #eadfcc;
+    --paper-2: #f1e8d9;
+    --paper-3: #e8dac5;
     --ink: #2f261d;
     --muted: #75685b;
     --subtle: #9b8a78;
@@ -20,19 +20,19 @@
     --blue: #516e94;
     --red: #a8473c;
     --gold: #a87324;
+    --purple: #725f91;
     --shadow: 0 18px 54px rgba(52, 40, 28, 0.12);
     --radius: 12px;
   }
 
   * { box-sizing: border-box; }
-
   html { scroll-behavior: smooth; }
 
   body {
     margin: 0;
     background:
       radial-gradient(circle at top left, rgba(200, 100, 50, 0.14), transparent 32rem),
-      radial-gradient(circle at 90% 12%, rgba(81, 110, 148, 0.09), transparent 28rem),
+      radial-gradient(circle at 92% 10%, rgba(81, 110, 148, 0.10), transparent 30rem),
       linear-gradient(180deg, #fbf6ed 0%, var(--bg) 45%, #efe5d6 100%);
     color: var(--ink);
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -40,7 +40,7 @@
   }
 
   .shell {
-    max-width: 1220px;
+    max-width: 1240px;
     margin: 0 auto;
     padding: 42px 24px 80px;
   }
@@ -51,7 +51,7 @@
     gap: 30px;
     align-items: end;
     padding: 34px;
-    background: rgba(255, 250, 241, 0.88);
+    background: rgba(255, 250, 241, 0.90);
     border: 1px solid var(--line);
     border-radius: 16px;
     box-shadow: var(--shadow);
@@ -74,7 +74,7 @@
   }
 
   h1 {
-    max-width: 900px;
+    max-width: 920px;
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(38px, 6vw, 76px);
     font-weight: 500;
@@ -97,15 +97,14 @@
     color: var(--accent-dark);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin: 18px 0 8px;
+    margin: 20px 0 8px;
   }
 
   p { margin: 0 0 14px; }
-
   a { color: var(--accent-dark); }
 
   .summary {
-    max-width: 800px;
+    max-width: 820px;
     margin-top: 20px;
     color: var(--muted);
     font-size: 18px;
@@ -138,9 +137,10 @@
     font-size: 12px;
   }
 
-  .priority { background: var(--accent-dark); border-color: var(--accent-dark); color: #fff7ed; }
+  .now { background: var(--accent-dark); border-color: var(--accent-dark); color: #fff7ed; }
+  .next { background: #eff3fa; color: var(--blue); border-color: #ccd8ea; }
+  .later { background: #f5effa; color: var(--purple); border-color: #dacce7; }
   .core { background: #f0f5eb; color: var(--green); border-color: #cbdcbd; }
-  .plugin { background: #eff3fa; color: var(--blue); border-color: #ccd8ea; }
   .risk-pill { background: #fff0ec; color: var(--red); border-color: #e4beb5; }
 
   .toc {
@@ -170,7 +170,7 @@
   section {
     margin-top: 26px;
     padding: 28px;
-    background: rgba(255, 250, 241, 0.88);
+    background: rgba(255, 250, 241, 0.90);
     border: 1px solid var(--line);
     border-radius: 16px;
     box-shadow: 0 8px 30px rgba(52, 40, 28, 0.06);
@@ -261,7 +261,7 @@
 
   .flow {
     display: grid;
-    grid-template-columns: 1fr 34px 1fr 34px 1fr;
+    grid-template-columns: 1fr 34px 1fr 34px 1fr 34px 1fr;
     gap: 10px;
     margin-top: 16px;
     align-items: stretch;
@@ -324,7 +324,7 @@
     text-align: center;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 920px) {
     header { grid-template-columns: 1fr; }
     .meta { align-items: flex-start; }
     .toc { grid-template-columns: 1fr 1fr; }
@@ -347,383 +347,432 @@
   <main class="shell">
     <header>
       <div>
-        <div class="eyebrow">AI Blueprint Rebuild Plan</div>
-        <h1>Server-mode, multi-user, plugin-powered blueprints</h1>
+        <div class="eyebrow">AI Blueprint v2 Base Plan</div>
+        <h1>Legal blueprint platform for law firms and lawyers</h1>
         <p class="summary">
-          A comprehensive architecture plan for rebuilding AI Blueprint as a local/private server platform where admins enable capabilities, users create blueprints, and each blueprint combines personas, knowledge, credentials, workflows, and activity into one purpose-built AI workspace.
+          Final base plan for rebuilding AI Blueprint as a server-mode, multi-user legal AI platform where law firms configure reusable blueprints from personas, auditable skills, knowledge, rules, credentials, and council workflows.
         </p>
       </div>
       <div class="meta">
-        <span class="badge">Decision: rebuild architecture</span>
-        <span class="badge">Default: server mode</span>
-        <span class="badge">UI: preserve visual design</span>
-        <span class="badge">Primary object: blueprint</span>
+        <span class="badge">First market: law firms</span>
+        <span class="badge">Primary object: legal blueprint</span>
+        <span class="badge">Formula: Persona + Skills + Knowledge</span>
+        <span class="badge">Mode: admin-managed server</span>
       </div>
     </header>
 
     <nav class="toc" aria-label="Plan sections">
       <a href="#decision">Decision</a>
-      <a href="#model">Product Model</a>
-      <a href="#core">Core vs Plugins</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#personas">Personas</a>
+      <a href="#skills">Skills</a>
       <a href="#blueprints">Blueprints</a>
-      <a href="#plugins">Plugin Roadmap</a>
+      <a href="#councils">Councils</a>
       <a href="#data">Data Model</a>
-      <a href="#frontend">Frontend</a>
-      <a href="#phases">Build Phases</a>
+      <a href="#guardrails">Guardrails</a>
+      <a href="#roadmap">Roadmap</a>
     </nav>
 
     <section id="decision">
       <h2>Decision</h2>
       <div class="grid">
         <div class="card span-7">
-          <h3>Rebuild the architecture, not the product idea</h3>
+          <h3>Build v2 for legal work first</h3>
           <p>
-            The current app is a strong prototype for workflows, but its core assumptions are now wrong for the target product: one user, one global workspace, one static HTML file, global settings, global documents, and every feature always present.
-          </p>
-          <p>
-            The new target is a server-mode product from day one: admin setup, multiple users, permissions, plugin enablement, and user-created blueprints.
+            AI Blueprint v2 should start with law firms, lawyers, and legal teams. The current prototype proves the value of documents, chat, councils, personas, email, and model selection, but the v2 product should be rebuilt around legal blueprints, auditable skills, multi-user permissions, and matter-specific knowledge.
           </p>
           <div class="callout good">
-            Keep the visual identity, workflow learnings, prompts, built-in personas, model registry concept, RAG experiments, email flow, and council ideas. Do not keep the current schema or one-page frontend as the foundation.
+            The central product promise: a lawyer does not open a generic chatbot. They open a matter-specific blueprint that contains the right legal persona, the right skills, the right knowledge, the right rules, and the right review workflow.
           </div>
         </div>
         <div class="card span-5">
           <h3>Non-negotiables</h3>
           <ul>
-            <li>Admin and users now, not later.</li>
-            <li>Blueprints are the primary user object.</li>
-            <li>Plugins define blueprint types and capabilities.</li>
-            <li>Personas and knowledge are reusable core modules.</li>
-            <li>UI should look familiar, but implementation must be modular.</li>
-            <li>All data access must be scoped by user, workspace, and blueprint permissions.</li>
+            <li>Admin and multi-user support from day one.</li>
+            <li>Skills are first-class, auditable, versioned task units.</li>
+            <li>Personas are behavioral roles, not task definitions.</li>
+            <li>Knowledge is scoped by workspace, matter, and blueprint.</li>
+            <li>Escalation/human review is a designed output.</li>
+            <li>Citations and evidence mapping are mandatory for legal work product.</li>
+            <li>The UI can preserve the current feel, but the implementation must be modular.</li>
           </ul>
         </div>
       </div>
     </section>
 
-    <section id="model">
-      <h2>Product Model</h2>
+    <section id="architecture">
+      <h2>Architecture</h2>
       <div class="flow">
-        <div class="node">Core Platform</div>
+        <div class="node">Persona</div>
+        <div class="arrow">+</div>
+        <div class="node">Skills</div>
+        <div class="arrow">+</div>
+        <div class="node">Knowledge</div>
         <div class="arrow">→</div>
-        <div class="node">Enabled Plugins</div>
-        <div class="arrow">→</div>
-        <div class="node">User Blueprints</div>
+        <div class="node">Blueprint</div>
       </div>
       <div class="grid" style="margin-top:18px">
-        <div class="card span-4">
-          <h3>Core Platform</h3>
-          <p>Owns identity, permissions, workspaces, plugins, blueprints, model providers, secrets, knowledge, personas, jobs, logs, and billing/cost controls if added later.</p>
+        <div class="card span-3">
+          <h3>Persona</h3>
+          <p>Behavioral role. Controls tone, judgment posture, escalation style, review standard, and communication style.</p>
         </div>
-        <div class="card span-4">
-          <h3>Plugins</h3>
-          <p>Define available capabilities such as Email Automation, AI Council, Document Chat, Legal Review, Support Desk, or Content Generator.</p>
+        <div class="card span-3">
+          <h3>Skills</h3>
+          <p>Discrete task units. Each skill has inputs, outputs, evaluation criteria, citations, versioning, and audit trail.</p>
         </div>
-        <div class="card span-4">
-          <h3>Blueprints</h3>
-          <p>Configured, user-facing AI workspaces created from plugins. A blueprint contains docs, links, personas, credentials, workflow settings, runs, and outputs.</p>
+        <div class="card span-3">
+          <h3>Knowledge</h3>
+          <p>Matter documents, firm playbooks, clause libraries, precedents, statutes, case law notes, policies, and links.</p>
+        </div>
+        <div class="card span-3">
+          <h3>Blueprint</h3>
+          <p>A configured legal workspace that combines persona, skills, knowledge, rules, members, runs, and outputs.</p>
         </div>
       </div>
-      <pre><code>Platform
-  Users
-  Workspaces
-  Permissions
-  Plugins
-  Personas
-  Knowledge
-  Models
-  Secrets
-  Blueprints
-
-Plugin: Email Automation
-  Blueprint: Student Counsellor Inbox
-  Blueprint: Customer Support Replies
-
-Plugin: AI Council
-  Blueprint: Arbitration Review
-  Blueprint: Contract Negotiation Panel</code></pre>
-    </section>
-
-    <section id="core">
-      <h2>Core Modules vs Plugins</h2>
-      <p>
-        Do not make every concept a plugin. Some capabilities are platform primitives used by many plugins. Plugins should compose these primitives into useful blueprint types.
-      </p>
+      <h4>Core platform vs plugins</h4>
       <table>
         <thead>
           <tr>
-            <th>Module</th>
+            <th>Layer</th>
             <th>Type</th>
-            <th>Reason</th>
+            <th>Owns</th>
             <th>Examples</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong>Users / Auth</strong></td>
+            <td>Users, Workspaces, Matters</td>
             <td><span class="pill core">Core</span></td>
-            <td>Every route and object depends on identity.</td>
-            <td>Login, sessions, password reset, invite users.</td>
+            <td>Identity, membership, role assignment, matter containers.</td>
+            <td>Firm Admin, Partner, Associate, Paralegal, Client Workspace.</td>
           </tr>
           <tr>
-            <td><strong>Workspaces</strong></td>
+            <td>Personas</td>
             <td><span class="pill core">Core</span></td>
-            <td>Server installs need shared and private areas.</td>
-            <td>Team workspace, private workspace, membership.</td>
+            <td>Behavioral roles reused across blueprints.</td>
+            <td>Commercial Lawyer, Risk Officer, Presiding Arbitrator.</td>
           </tr>
           <tr>
-            <td><strong>Permissions</strong></td>
+            <td>Skills</td>
             <td><span class="pill core">Core</span></td>
-            <td>Controls plugins, blueprints, and dangerous actions.</td>
-            <td>Admin, editor, runner, viewer.</td>
+            <td>Versioned, auditable task definitions and evaluation contracts.</td>
+            <td>CUAD extraction, issue list generation, citation verification.</td>
           </tr>
           <tr>
-            <td><strong>Personas</strong></td>
+            <td>Knowledge</td>
             <td><span class="pill core">Core</span></td>
-            <td>Reusable behavioral roles across plugins.</td>
-            <td>Student Counsellor, Customer Support, Arbitrator.</td>
+            <td>Documents, links, collections, retrieval, citations, evidence references.</td>
+            <td>Contracts, pleadings, exhibits, playbooks, prior awards.</td>
           </tr>
           <tr>
-            <td><strong>Knowledge / RAG</strong></td>
-            <td><span class="pill core">Core</span></td>
-            <td>Many plugins need docs, links, retrieval, and citations.</td>
-            <td>Uploads, URL ingestion, vector indexes, citations.</td>
+            <td>Legal Review</td>
+            <td><span class="pill now">Plugin</span></td>
+            <td>Structured document review blueprints.</td>
+            <td>Contract Review Workspace, Clause Risk Review.</td>
           </tr>
           <tr>
-            <td><strong>Models / Providers</strong></td>
-            <td><span class="pill core">Core</span></td>
-            <td>All AI workflows need provider/model selection.</td>
-            <td>OpenAI, Anthropic, Groq, Ollama, local models.</td>
+            <td>AI Council</td>
+            <td><span class="pill now">Plugin</span></td>
+            <td>Multi-agent legal reasoning and pressure-testing workflows.</td>
+            <td>Arbitration Preparation Council, Deal Risk Council.</td>
           </tr>
           <tr>
-            <td><strong>Secrets</strong></td>
-            <td><span class="pill core">Core</span></td>
-            <td>Credentials need uniform encryption, scoping, and access rules.</td>
-            <td>API keys, IMAP password, SMTP password, webhook secrets.</td>
+            <td>Legal Research</td>
+            <td><span class="pill now">Plugin</span></td>
+            <td>Research, authority mapping, memo generation, citation packs.</td>
+            <td>Case Law Research, Statutory Interpretation, Research Memo.</td>
           </tr>
           <tr>
-            <td><strong>Email Automation</strong></td>
-            <td><span class="pill plugin">Plugin</span></td>
-            <td>A specific workflow built from secrets, personas, knowledge, models, and runs.</td>
-            <td>Email blueprints for student counselling or support.</td>
-          </tr>
-          <tr>
-            <td><strong>AI Council</strong></td>
-            <td><span class="pill plugin">Plugin</span></td>
-            <td>A specific multi-agent workflow builder.</td>
-            <td>Arbitration, contract review, investment committee.</td>
+            <td>Email / Client Comms</td>
+            <td><span class="pill next">Plugin</span></td>
+            <td>Legal email drafting and intake workflows.</td>
+            <td>Client Intake Inbox, Notice Reply Drafting.</td>
           </tr>
         </tbody>
       </table>
     </section>
 
-    <section id="blueprints">
-      <h2>Blueprints</h2>
+    <section id="reference">
+      <h2>Reference Standard</h2>
+      <p>
+        MIRA is the reference shape for legal coverage: a catalogue of legal skills organised into functional groups and composed into legal teams or workflows. AI Blueprint should not copy another product, but it should use the same architectural insight: legal AI should be a process of defined skills, not a single open-ended chat box.
+      </p>
       <div class="grid">
-        <div class="card span-7">
-          <h3>Definition</h3>
+        <div class="card span-6">
+          <h3>Functional group target</h3>
           <p>
-            A blueprint is a configured AI workspace created from a plugin. It is not just a template. It is the place where the user configures the workflow, adds knowledge, selects personas, stores credentials if needed, runs the automation, and reviews outputs.
+            The long-term legal skill map should cover the 24 functional areas identified by Lexlegis/MIRA: research, drafting, review, analysis, chronology and bundling, compliance, tax, litigation strategy, transactional support, due diligence, translation, document comparison, contract management, regulatory tracking, judicial preparation, corporate governance, competition, employment, real estate, startup advisory, litigation finance, investigations, not-for-profit, and legal education.
           </p>
-          <pre><code>Blueprint = {
-  plugin type,
-  name,
-  workspace,
-  members and permissions,
-  personas,
-  documents and links,
-  credentials or secrets,
-  workflow configuration,
-  model settings,
-  activity history,
-  outputs and audit events
-}</code></pre>
-        </div>
-        <div class="card span-5">
-          <h3>Blueprint permissions</h3>
-          <ul>
-            <li><code>blueprint.view</code></li>
-            <li><code>blueprint.edit</code></li>
-            <li><code>blueprint.run</code></li>
-            <li><code>blueprint.manage_members</code></li>
-            <li><code>blueprint.delete</code></li>
-            <li>Plugin-specific actions such as <code>email.send</code> or <code>council.edit_flow</code>.</li>
-          </ul>
-        </div>
-      </div>
-
-      <h4>Email Blueprint Example</h4>
-      <div class="grid">
-        <div class="card span-6">
-          <h3>Student Counsellor Inbox</h3>
-          <ul>
-            <li>Plugin: Email Automation.</li>
-            <li>Persona: Student Counsellor.</li>
-            <li>Credentials: user's IMAP/SMTP secret records.</li>
-            <li>Knowledge: admissions docs, scholarship docs, visa FAQ links.</li>
-            <li>Rules: draft only by default, escalate sensitive issues, never invent policy.</li>
-            <li>Activity: imported messages, generated drafts, sent replies, audit trail.</li>
-          </ul>
         </div>
         <div class="card span-6">
-          <h3>Customer Support Inbox</h3>
+          <h3>Skill type target</h3>
           <ul>
-            <li>Plugin: Email Automation.</li>
-            <li>Persona: Customer Support Agent.</li>
-            <li>Knowledge: product docs, pricing, refund policy, known issues.</li>
-            <li>Rules: require approval before refunds or discounts.</li>
-            <li>Categories: billing, bug report, login issue, cancellation, feature request.</li>
-            <li>Activity: triage labels, drafts, send status, unresolved escalations.</li>
-          </ul>
-        </div>
-      </div>
-
-      <h4>Council Blueprint Example</h4>
-      <div class="grid">
-        <div class="card span-6">
-          <h3>Arbitration Blueprint</h3>
-          <ul>
-            <li>Plugin: AI Council.</li>
-            <li>Personas: Claimant Advocate, Respondent Advocate, Neutral Arbitrator, Award Drafter.</li>
-            <li>Knowledge: pleadings, contract, exhibits, procedural orders, links.</li>
-            <li>Flow: summary, argument, rebuttal, evidence weighing, draft award.</li>
-            <li>Output: issue list, evidence map, risk analysis, proposed award memo.</li>
-          </ul>
-        </div>
-        <div class="card span-6">
-          <h3>Contract Review Council</h3>
-          <ul>
-            <li>Personas: Commercial Lawyer, Risk Officer, Negotiator, Plain-English Summarizer.</li>
-            <li>Knowledge: contract, playbook, fallback clauses, prior agreements.</li>
-            <li>Flow: red flags, business impact, negotiation strategy, markup memo.</li>
-            <li>Output: clause table, recommended edits, questions for client.</li>
+            <li><strong>Output skills:</strong> defined artefact generation such as tables, memos, drafts, summaries, chronologies.</li>
+            <li><strong>Hybrid skills:</strong> guided legal working sessions where the user supplies inputs iteratively.</li>
+            <li><strong>Conversational skill:</strong> limited fallback mode, not the default legal architecture.</li>
+            <li><strong>Meta-reasoning skills:</strong> citation verification, adversarial review, evidence mapping, confidence calibration.</li>
           </ul>
         </div>
       </div>
     </section>
 
     <section id="personas">
-      <h2>Personas as Behavioral Roles</h2>
+      <h2>Legal Personas</h2>
       <p>
-        Personas should be reusable behavioral roles, not only chat styles. A persona can power email drafting, council agents, document chat responses, content generation, and support workflows.
+        Personas define legal posture and communication behavior. They should not contain long task workflows. If a persona currently performs a task like contract review, split that task into skills and keep the persona as the role that supervises or applies judgment.
       </p>
-      <div class="grid">
-        <div class="card span-6">
-          <h3>Persona fields</h3>
-          <ul>
-            <li>Name and description.</li>
-            <li>Role identity and responsibilities.</li>
-            <li>Tone and response style.</li>
-            <li>Categories or routing labels.</li>
-            <li>Approval and escalation rules.</li>
-            <li>Knowledge-use rules.</li>
-            <li>Forbidden claims/actions.</li>
-            <li>Output format preferences.</li>
-          </ul>
-        </div>
-        <div class="card span-6">
-          <h3>Student Counsellor persona</h3>
-          <pre><code>Tone:
-Warm, reassuring, clear, non-judgmental.
-
-Categories:
-Admissions, deadlines, visa concerns, course selection,
-financial aid, housing, emotional distress.
-
-Approval rules:
-- Draft only; never auto-send unless explicitly allowed.
-- Escalate self-harm, legal, medical, or immigration-risk messages.
-- Human review before deadline, fee, scholarship, or policy claims.
-
-Knowledge rules:
-- Use uploaded university policy docs first.
-- If policy is missing, say a staff member should verify.
-- Never invent admissions requirements.</code></pre>
-        </div>
-      </div>
-    </section>
-
-    <section id="plugins">
-      <h2>Plugin Roadmap</h2>
-      <div class="callout info">
-        MVP should include a small number of plugins, but the platform should be designed so future plugins are natural. Core modules should remain reusable across plugin types.
-      </div>
       <table>
         <thead>
           <tr>
             <th>Priority</th>
-            <th>Plugin</th>
-            <th>Blueprint Examples</th>
-            <th>Why It Matters</th>
+            <th>Persona</th>
+            <th>Use</th>
+            <th>Guardrails</th>
           </tr>
         </thead>
         <tbody>
+          <tr><td><span class="pill now">Immediate</span></td><td>Commercial Lawyer</td><td>Contract review, commercial advice, negotiation memos.</td><td>Flag uncertainty, avoid overclaiming, distinguish legal risk from business risk.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Risk Officer</td><td>Exposure analysis, liability review, red flag scoring.</td><td>Conservative risk posture, cite source clauses, separate likelihood and impact.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Plain-English Summarizer</td><td>Client memos, board summaries, executive explanations.</td><td>No legal nuance lost; no invented simplification.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Litigation Associate</td><td>Pleadings analysis, issue list, authority pack, evidence matrix.</td><td>Strict citation discipline and procedural posture awareness.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Devil's Advocate</td><td>Challenge conclusions, identify weaknesses, test arguments.</td><td>Adversarial but evidence-grounded; no speculative attacks without basis.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Evidence Analyst</td><td>Map facts, documents, exhibits, dates, and claims.</td><td>Every assertion tied to source material or marked unsupported.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Claimant Counsel</td><td>Arbitration/litigation simulation from claimant side.</td><td>Argue strongest case within record; disclose evidentiary gaps.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Respondent Counsel</td><td>Arbitration/litigation simulation from respondent side.</td><td>Argue strongest defense within record; disclose evidentiary gaps.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Presiding Arbitrator</td><td>Award simulation and neutral weighing of evidence.</td><td>Neutral tone, issue-by-issue reasoning, explicit uncertainty flags.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Transactional Partner</td><td>Deal strategy, negotiation prioritisation, closing risk.</td><td>Commercially pragmatic; focus on leverage and client objectives.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Due Diligence Lead</td><td>Review request lists, issue summaries, diligence reports.</td><td>Escalate material exceptions and missing documents.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Regulatory Counsel</td><td>Compliance mapping, regulatory advice, filing support.</td><td>Current-law caveats and regulator-specific format discipline.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Tax Counsel</td><td>Tax issue spotting and advisory memo support.</td><td>Jurisdiction/date sensitivity; never provide final opinion without review.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Employment Counsel</td><td>Employment agreements, disputes, policy review.</td><td>Region-specific law checks and human review for termination advice.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Competition Counsel</td><td>Antitrust/competition assessment and filings.</td><td>Market definition caveats and economic evidence separation.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Real Estate Counsel</td><td>Lease review, title diligence, property transaction support.</td><td>Local law dependency and document completeness checks.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Investigation Lead</td><td>Internal investigations, interviews, reports.</td><td>Privilege sensitivity, chain of custody, non-accusatory language.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Legal Project Manager</td><td>Deadline tracking, work allocation, matter status.</td><td>Operational only; no substantive legal conclusions.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="skills">
+      <h2>Legal Skills Layer</h2>
+      <p>
+        A skill is a discrete, auditable unit of legal work. It has a defined purpose, inputs, outputs, evaluation criteria, citations, version, and permission requirements. Skills are composed into blueprints and councils.
+      </p>
+      <h4>Skill definition contract</h4>
+      <pre><code>SkillDefinition:
+  id
+  name
+  group
+  priority              # immediate | next | later
+  skill_type            # output | hybrid | conversational | meta
+  input_schema
+  output_schema
+  required_knowledge
+  citation_policy
+  evaluation_criteria
+  escalation_triggers
+  allowed_personas
+  version
+  audit_events</code></pre>
+
+      <h4>24 legal skill groups</h4>
+      <table>
+        <thead>
           <tr>
-            <td><span class="pill priority">MVP</span></td>
-            <td><strong>Email Automation</strong></td>
-            <td>Student Counsellor Inbox, Customer Support Replies, Sales Follow-Up, Legal Notice Reply.</td>
-            <td>Proves credentials, personas, docs, links, permissions, activity, and human review.</td>
+            <th>Priority</th>
+            <th>Group</th>
+            <th>Initial AI Blueprint scope</th>
           </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="pill now">Immediate</span></td><td>Research</td><td>Authority finding, case treatment, statute lookup, research memo.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Drafting</td><td>Legal memo, client summary, clause drafting, submission outlines.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Review</td><td>Contract review, pleading review, red flag detection.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Analysis</td><td>Issue analysis, risk scoring, legal test application.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Chronology and Bundling</td><td>Event chronology, evidence bundle index, document map.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Litigation Strategy</td><td>Issue list, adversarial testing, weakness analysis.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Transactional Support</td><td>Deal document review, negotiation memo, clause alternatives.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Due Diligence</td><td>Document extraction, exceptions summary, issue report.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Document Comparison</td><td>Version comparison, clause variance, playbook deviation.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Contract Management</td><td>Obligation extraction, renewal traps, notice dates.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Compliance</td><td>Policy gap review, compliance checklist, controls mapping.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Regulatory Tracking</td><td>Regulatory updates, impact summaries, action trackers.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Corporate Governance</td><td>Board memo, resolutions, governance checklist.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Tax</td><td>Tax issue spotting, authority matrix, advisory note support.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Investigations</td><td>Fact extraction, interview prep, investigation report.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Employment</td><td>Employment contract review, policy review, dispute summary.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Translation</td><td>Legal translation, bilingual clause comparison, terminology consistency.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Judicial Preparation</td><td>Bench memo, hearing prep, draft order support.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Competition</td><td>Market definition checklist, antitrust risk review.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Real Estate</td><td>Lease review, title issue extraction, closing checklist.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Startup Advisory</td><td>Founder agreement review, fundraising checklist, ESOP review.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Litigation Finance</td><td>Case merits summary, damages review, funding memo.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Not-for-Profit Sector</td><td>Governance, compliance, donor agreement review.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Legal Education</td><td>Case brief generator, issue spotting tutor, drafting coach.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Immediate legal skills</h4>
+      <table>
+        <thead>
           <tr>
-            <td><span class="pill priority">MVP</span></td>
-            <td><strong>AI Council</strong></td>
-            <td>Arbitration Review, Contract Negotiation Panel, Investment Committee, Strategy Debate.</td>
-            <td>Proves multi-agent workflow configuration and evidence-grounded outputs.</td>
+            <th>Group</th>
+            <th>Skill</th>
+            <th>Output</th>
+            <th>Used by</th>
           </tr>
+        </thead>
+        <tbody>
+          <tr><td>Contract Review</td><td>CUAD 41-parameter extraction</td><td>Structured clause table with found/not found/ambiguous status and evidence.</td><td>Contract Review Workspace</td></tr>
+          <tr><td>Contract Review</td><td>One-sided clause detection</td><td>List of clauses that materially favor counterparty.</td><td>Contract Review, Deal Council</td></tr>
+          <tr><td>Contract Review</td><td>Auto-renewal trap identification</td><td>Renewal/termination notice risk summary.</td><td>Contract Review</td></tr>
+          <tr><td>Contract Review</td><td>Missing protections analysis</td><td>Expected but absent protections by contract type.</td><td>Contract Review</td></tr>
+          <tr><td>Contract Review</td><td>Playbook comparison</td><td>Deviation table against firm/client standard positions.</td><td>Contract Review</td></tr>
+          <tr><td>Contract Review</td><td>Red flag scoring</td><td>Low/Medium/High/Critical risk matrix.</td><td>Contract Review</td></tr>
+          <tr><td>Contract Review</td><td>Negotiation priority ranking</td><td>Ranked negotiation points with suggested fallback language.</td><td>Contract Review</td></tr>
+          <tr><td>Contract Review</td><td>Plain-English client summary</td><td>Client-facing explanation of practical consequences.</td><td>Contract Review</td></tr>
+          <tr><td>Research</td><td>Authority finder</td><td>Relevant cases/statutes with jurisdiction and treatment notes.</td><td>Research Memo</td></tr>
+          <tr><td>Research</td><td>Case treatment check</td><td>Positive/negative/neutral treatment summary.</td><td>Research Memo</td></tr>
+          <tr><td>Research</td><td>Legal test extraction</td><td>Elements of applicable legal test with source citations.</td><td>Research, Litigation</td></tr>
+          <tr><td>Research</td><td>Research memo generation</td><td>Issue, rule, application, conclusion, authorities.</td><td>Research Memo</td></tr>
+          <tr><td>Research</td><td>Citation verification</td><td>Verified citation list with mismatch flags.</td><td>All legal outputs</td></tr>
+          <tr><td>Litigation</td><td>Pleadings analysis</td><td>Claims, defenses, admissions, denials, key dates.</td><td>Litigation Pod, Arbitration Council</td></tr>
+          <tr><td>Litigation</td><td>Issue list generation</td><td>Procedural and substantive issue list.</td><td>Litigation Pod</td></tr>
+          <tr><td>Litigation</td><td>Evidence mapping</td><td>Claim/defense-to-document matrix.</td><td>Arbitration Council</td></tr>
+          <tr><td>Litigation</td><td>Timeline reconstruction</td><td>Chronology with source references and disputed facts.</td><td>Litigation, Investigations</td></tr>
+          <tr><td>Litigation</td><td>Weakness identification</td><td>Top vulnerabilities by issue and evidence gap.</td><td>Devil's Advocate Council</td></tr>
+          <tr><td>Litigation</td><td>Cross-examination simulation</td><td>Likely questions, risky answers, preparation notes.</td><td>Arbitration Prep</td></tr>
+          <tr><td>Litigation</td><td>Written submission outline</td><td>Argument structure with authorities and evidence hooks.</td><td>Litigation Pod</td></tr>
+          <tr><td>Arbitration</td><td>Award drafting</td><td>Findings, reasons, dispositif, uncertainty flags.</td><td>Arbitration Council</td></tr>
+          <tr><td>Due Diligence</td><td>Document request list mapping</td><td>Checklist of received/missing diligence documents.</td><td>DD Workspace</td></tr>
+          <tr><td>Due Diligence</td><td>Material contract extraction</td><td>Key terms, change of control, assignment, termination.</td><td>DD Workspace</td></tr>
+          <tr><td>Due Diligence</td><td>Exception summary</td><td>Issues requiring senior review.</td><td>DD Workspace</td></tr>
+          <tr><td>Document Comparison</td><td>Clause variance comparison</td><td>Side-by-side variation report.</td><td>Contract Review</td></tr>
+          <tr><td>Contract Management</td><td>Obligation extraction</td><td>Party obligations, deadlines, notice requirements.</td><td>Contract Lifecycle</td></tr>
+          <tr><td>Meta</td><td>Evidence trace checker</td><td>Output assertion-to-source mapping.</td><td>All outputs</td></tr>
+          <tr><td>Meta</td><td>Adversarial review</td><td>Challenge memo and confidence calibration.</td><td>Councils, Legal Review</td></tr>
+          <tr><td>Meta</td><td>Confidence calibration</td><td>High/medium/low confidence with reason codes.</td><td>All outputs</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Next-wave legal skills</h4>
+      <table>
+        <thead>
           <tr>
-            <td><span class="pill priority">MVP</span></td>
-            <td><strong>Document Chat / Research</strong></td>
-            <td>Case Research Assistant, Policy QA, Internal Knowledge Assistant.</td>
-            <td>Proves knowledge/RAG as a reusable core module.</td>
+            <th>Group</th>
+            <th>Skills</th>
+            <th>Why next</th>
           </tr>
+        </thead>
+        <tbody>
+          <tr><td>Compliance</td><td>Compliance checklist generation, policy gap review, controls mapping, recurring obligation tracker.</td><td>Strong for in-house/legal ops and law firm retainers.</td></tr>
+          <tr><td>Regulatory</td><td>Regulatory update monitor, impact memo, filing checklist, regulator correspondence draft.</td><td>Natural extension of research plus client-specific knowledge.</td></tr>
+          <tr><td>Corporate Governance</td><td>Board pack review, resolution drafting, minutes summarization, governance compliance matrix.</td><td>Useful for corporate practices and company secretarial workflows.</td></tr>
+          <tr><td>Tax</td><td>Tax issue spotting, authority matrix, circular/notification summary, advisory memo skeleton.</td><td>High-value but jurisdiction-sensitive.</td></tr>
+          <tr><td>Investigations</td><td>Interview outline, document review coding, fact chronology, investigation report drafting.</td><td>Combines evidence mapping and legal judgment.</td></tr>
+          <tr><td>Employment</td><td>Employment agreement review, policy review, termination risk checklist, dispute chronology.</td><td>Recurring firm workload with clear templates.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="blueprints">
+      <h2>Legal Blueprints</h2>
+      <p>
+        A blueprint is a configured legal workspace. One plugin can create many blueprints. Each blueprint has its own persona set, skill set, knowledge sources, rules, members, runs, and outputs.
+      </p>
+      <h4>Immediate blueprint catalogue</h4>
+      <table>
+        <thead>
           <tr>
-            <td><span class="pill">Next</span></td>
-            <td><strong>Support Desk Assistant</strong></td>
-            <td>Ticket Triage, Policy-Grounded Replies, Escalation Assistant.</td>
-            <td>Close sibling of email but with ticketing concepts.</td>
+            <th>Priority</th>
+            <th>Blueprint</th>
+            <th>Plugin</th>
+            <th>Personas</th>
+            <th>Core skills</th>
           </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="pill now">Immediate</span></td><td>Contract Review Workspace</td><td>Legal Review</td><td>Commercial Lawyer, Risk Officer, Plain-English Summarizer</td><td>CUAD extraction, playbook comparison, red flag scoring, negotiation priorities.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Arbitration Preparation Council</td><td>AI Council</td><td>Claimant Counsel, Respondent Counsel, Devil's Advocate, Evidence Analyst, Presiding Arbitrator</td><td>Pleadings analysis, evidence mapping, risk scoring, award drafting.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Legal Research Memo</td><td>Legal Research</td><td>Litigation Associate, Plain-English Summarizer</td><td>Authority finder, legal test extraction, citation verification, memo generation.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Litigation Matter Pod</td><td>Legal Workflow</td><td>Litigation Associate, Evidence Analyst, Devil's Advocate</td><td>Issue list, chronology, evidence matrix, weakness identification, submission outline.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Due Diligence Workspace</td><td>Transactional Support</td><td>Due Diligence Lead, Risk Officer, Commercial Lawyer</td><td>Request list mapping, term extraction, exception summary, diligence report.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Deal Negotiation Desk</td><td>Transactional Support</td><td>Transactional Partner, Commercial Lawyer, Risk Officer</td><td>Clause comparison, negotiation priority, fallback drafting, issue tracker.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Client Intake and Triage</td><td>Email / Intake</td><td>Client Intake Lawyer, Legal Project Manager</td><td>Inquiry classification, conflict info checklist, document checklist, escalation routing.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Compliance Factory</td><td>Compliance</td><td>Regulatory Counsel, Risk Officer</td><td>Regulatory tracking, policy gap review, controls mapping, action tracker.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Investigation Unit</td><td>Investigations</td><td>Investigation Lead, Evidence Analyst, Devil's Advocate</td><td>Fact extraction, interview prep, chronology, report drafting.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Tax Advisory Pod</td><td>Tax</td><td>Tax Counsel, Research Lawyer, Plain-English Summarizer</td><td>Issue spotting, authority matrix, advisory memo, compliance checklist.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Contract Review Workspace output package</h4>
+      <ul class="checklist">
+        <li>CUAD-style structured extraction table.</li>
+        <li>Clause risk matrix.</li>
+        <li>Playbook deviation table.</li>
+        <li>Missing protections list.</li>
+        <li>Negotiation priority memo.</li>
+        <li>Suggested fallback wording.</li>
+        <li>Plain-English client summary.</li>
+        <li>Citation/evidence appendix.</li>
+        <li>Confidence and uncertainty report.</li>
+        <li>Partner review checklist.</li>
+      </ul>
+    </section>
+
+    <section id="councils">
+      <h2>Legal Councils</h2>
+      <p>
+        Councils are blueprint workflows where multiple personas/agents execute ordered skills against scoped knowledge. Councils should be used for high-stakes work that benefits from adversarial reasoning, role separation, and synthesis.
+      </p>
+      <table>
+        <thead>
           <tr>
-            <td><span class="pill">Next</span></td>
-            <td><strong>Legal / Contract Review</strong></td>
-            <td>Clause Risk Review, NDA Review, Vendor Agreement Review.</td>
-            <td>Strong blueprint use case with docs, personas, structured output, and review workflows.</td>
+            <th>Priority</th>
+            <th>Council</th>
+            <th>Agents</th>
+            <th>Phases</th>
+            <th>Output</th>
           </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="pill now">Immediate</span></td><td>Arbitration Preparation Council</td><td>Evidence Analyst, Claimant Counsel, Respondent Counsel, Devil's Advocate, Presiding Arbitrator</td><td>Case Analysis → Openings → Challenge → Rebuttal → Award</td><td>Evidence matrix, risk scoring, simulated award, prep notes.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Contract Risk Council</td><td>Commercial Lawyer, Risk Officer, Devil's Advocate, Client Summarizer</td><td>Extraction → Risk Review → Adversarial Challenge → Synthesis</td><td>Risk matrix, negotiation priorities, client memo.</td></tr>
+          <tr><td><span class="pill now">Immediate</span></td><td>Litigation Strategy Council</td><td>Litigation Associate, Research Lawyer, Devil's Advocate, Partner Synthesizer</td><td>Issue Map → Authority Review → Weakness Review → Strategy Memo</td><td>Issue list, authorities, weaknesses, recommended strategy.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Due Diligence Review Council</td><td>DD Lead, Commercial Lawyer, Risk Officer, Deal Partner</td><td>Extraction → Exceptions → Materiality → Deal Recommendations</td><td>Diligence report, exceptions schedule, senior review list.</td></tr>
+          <tr><td><span class="pill next">Next</span></td><td>Regulatory Impact Council</td><td>Regulatory Counsel, Business Analyst, Risk Officer, Action Planner</td><td>Change Summary → Applicability → Risk → Action Plan</td><td>Impact memo and compliance action tracker.</td></tr>
+          <tr><td><span class="pill later">Later</span></td><td>Investigation Council</td><td>Evidence Analyst, Interview Planner, Devil's Advocate, Investigation Lead</td><td>Document Review → Chronology → Interview Plan → Findings</td><td>Investigation report and interview pack.</td></tr>
+        </tbody>
+      </table>
+      <h4>Council run controls</h4>
+      <ul class="checklist">
+        <li>Every phase stores inputs, outputs, evidence, model, persona, and skill versions.</li>
+        <li>Parallel phases are allowed only where role independence matters.</li>
+        <li>All legal conclusions run through citation verification and adversarial review where applicable.</li>
+        <li>Runs stream status over SSE and persist job events for audit.</li>
+        <li>Every council output is review-first, never automatically sent to a client.</li>
+      </ul>
+    </section>
+
+    <section id="escalation">
+      <h2>Escalation and Human Review</h2>
+      <p>
+        Escalation is a first-class platform concept. A skill can produce an escalation event instead of, or in addition to, a normal output.
+      </p>
+      <table>
+        <thead>
           <tr>
-            <td><span class="pill">Next</span></td>
-            <td><strong>Content Generator</strong></td>
-            <td>LinkedIn Writer, Newsletter Builder, Landing Page Copy, Brand Voice Assistant.</td>
-            <td>Uses personas and knowledge with lower operational risk.</td>
+            <th>Trigger</th>
+            <th>Examples</th>
+            <th>Required action</th>
           </tr>
-          <tr>
-            <td><span class="pill">Later</span></td>
-            <td><strong>Meeting / Call Notes</strong></td>
-            <td>Transcript Summarizer, Action Item Tracker, Follow-Up Email Generator.</td>
-            <td>Useful for teams and connects naturally to email and docs.</td>
-          </tr>
-          <tr>
-            <td><span class="pill">Later</span></td>
-            <td><strong>CRM / Lead Assistant</strong></td>
-            <td>Lead Intake, Qualification, Objection Handling, Follow-Up Sequences.</td>
-            <td>Combines forms, email, knowledge, and workflow automation.</td>
-          </tr>
-          <tr>
-            <td><span class="pill">Later</span></td>
-            <td><strong>Knowledge Base Builder</strong></td>
-            <td>FAQ Generator, Documentation Gap Finder, Source-Linked Help Center.</td>
-            <td>Turns uploaded knowledge into usable support assets.</td>
-          </tr>
-          <tr>
-            <td><span class="pill">Later</span></td>
-            <td><strong>Form / Intake Builder</strong></td>
-            <td>Client Intake, Student Intake, Legal Matter Intake, Support Request Intake.</td>
-            <td>Creates structured inputs for other plugins.</td>
-          </tr>
-          <tr>
-            <td><span class="pill">Future</span></td>
-            <td><strong>External Channels</strong></td>
-            <td>Slack, WhatsApp, SMS, Calendar, Browser Automation.</td>
-            <td>High value, but requires stronger security and external integration controls.</td>
-          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Low evidence confidence</td><td>No document supports a key conclusion; conflicting evidence.</td><td>Flag to reviewer, block final output until acknowledged.</td></tr>
+          <tr><td>High legal risk</td><td>Uncapped liability, regulatory complaint, limitation issue, privilege concern.</td><td>Partner/senior lawyer review required.</td></tr>
+          <tr><td>Missing knowledge</td><td>No playbook, no jurisdiction setting, missing exhibits.</td><td>Request missing source or mark limitation in output.</td></tr>
+          <tr><td>External communication</td><td>Client email, counterparty response, regulatory filing.</td><td>Human approval before send/export.</td></tr>
+          <tr><td>Ethical/professional concern</td><td>Conflict issue, confidentiality issue, misleading statement risk.</td><td>Escalate to supervising lawyer.</td></tr>
         </tbody>
       </table>
     </section>
@@ -732,479 +781,320 @@ Knowledge rules:
       <h2>Data Model</h2>
       <div class="grid">
         <div class="card span-6">
-          <h3>Platform tables</h3>
+          <h3>Core tables</h3>
           <pre><code>users
 workspaces
 workspace_members
+matters
 roles
 permissions
-role_permissions
-user_roles
 plugins
 plugin_enablements
-blueprints
+blueprint_instances
 blueprint_members
 personas
+skills
+skill_versions
+skill_runs
+knowledge_sources
+knowledge_collections
 documents
 document_links
-knowledge_collections
-model_providers
-models
 secrets
 jobs
-audit_events</code></pre>
+job_events
+audit_events
+escalations</code></pre>
         </div>
         <div class="card span-6">
-          <h3>Plugin tables</h3>
-          <pre><code>email_blueprint_configs
-email_accounts
-email_messages
-email_drafts
-email_send_events
+          <h3>Legal plugin tables</h3>
+          <pre><code>contract_review_configs
+contract_review_outputs
+clause_extractions
+risk_matrices
+playbook_comparisons
 
-council_blueprint_configs
+council_configs
 council_agents
 council_phases
 council_runs
 council_outputs
 council_evidence
 
-research_sessions
-research_findings
-research_exports</code></pre>
+research_memos
+authority_matrices
+litigation_chronologies
+evidence_maps</code></pre>
         </div>
       </div>
-
-      <h4>Core blueprint schema</h4>
-      <pre><code>blueprints:
-  id
-  workspace_id
-  plugin_id
-  name
-  description
-  status              # active | archived | disabled
-  created_by_user_id
-  config_json         # lightweight cross-plugin metadata only
-  created_at
-  updated_at
-  archived_at
-
-blueprint_members:
-  blueprint_id
-  user_id
-  role                # owner | editor | runner | viewer
-  created_at
-
-blueprint_personas:
-  blueprint_id
-  persona_id
-  purpose             # primary | reviewer | agent | drafter
-  config_json
-
-blueprint_knowledge_sources:
-  blueprint_id
-  source_type         # document | link | collection
-  source_id
-  created_by_user_id
-  created_at</code></pre>
-
-      <h4>Ownership and isolation rules</h4>
-      <ul class="checklist">
-        <li>Every user-created object stores <code>workspace_id</code>.</li>
-        <li>Every user-created object stores <code>created_by_user_id</code>.</li>
-        <li>Blueprint data is always filtered by blueprint membership or workspace role.</li>
-        <li>Secrets are never returned in plaintext to the frontend.</li>
-        <li>Knowledge retrieval must filter by blueprint/workspace scope.</li>
-        <li>OpenAI vector stores should be per workspace or per blueprint, not global.</li>
-        <li>Local vector collections should be per workspace or per blueprint.</li>
-        <li>Audit events record sensitive actions: sends, deletes, plugin enables, permission changes.</li>
-      </ul>
-    </section>
-
-    <section id="backend">
-      <h2>Backend Architecture</h2>
-      <div class="grid">
-        <div class="card span-7">
-          <h3>Recommended structure</h3>
-          <pre><code>backend/
-  app/
-    main.py
-    core/
-      config.py
-      db.py
-      migrations.py
-      auth.py
-      sessions.py
-      permissions.py
-      plugins.py
-      blueprints.py
-      navigation.py
-      secrets.py
-      storage.py
-      knowledge.py
-      models.py
-      jobs.py
-      audit.py
-    plugins/
-      email/
-        manifest.py
-        routes.py
-        schemas.py
-        service.py
-      council/
-        manifest.py
-        routes.py
-        schemas.py
-        service.py
-      research/
-        manifest.py
-        routes.py
-        schemas.py
-        service.py
-    tests/</code></pre>
-        </div>
-        <div class="card span-5">
-          <h3>Backend principles</h3>
-          <ul>
-            <li>Use explicit migrations from the beginning.</li>
-            <li>Protect every non-login API route.</li>
-            <li>Keep plugin manifests declarative.</li>
-            <li>Keep service logic separate from route handlers.</li>
-            <li>Use dependency-injected permission checks.</li>
-            <li>Centralize secret encryption/decryption.</li>
-            <li>Centralize audit logging for sensitive operations.</li>
-            <li>Add background job lifecycle state from day one.</li>
-          </ul>
-        </div>
-      </div>
-
-      <h4>Plugin manifest</h4>
-      <pre><code>PLUGIN = {
-  "id": "email",
-  "name": "Email Automation",
-  "version": "0.1.0",
-  "blueprint_type_name": "Email Blueprint",
-  "description": "Build AI-assisted inbox workflows with credentials, knowledge, personas, drafts, and send controls.",
-  "routes": router,
-  "permissions": [
-    "email.view",
-    "email.configure",
-    "email.poll",
-    "email.draft",
-    "email.send",
-    "email.delete"
-  ],
-  "blueprint_permissions": [
-    "blueprint.view",
-    "blueprint.edit",
-    "blueprint.run",
-    "blueprint.manage_members"
-  ],
-  "navigation": {
-    "group": "blueprints",
-    "icon": "mail"
-  },
-  "admin_settings_schema": {...},
-  "blueprint_config_schema": {...}
-}</code></pre>
-    </section>
-
-    <section id="frontend">
-      <h2>Frontend Plan</h2>
-      <div class="callout gold">
-        Do not redesign the UI. Preserve the current visual language, but stop putting everything in one HTML file. The HTML should become a shell and the app should be modular.
-      </div>
-      <div class="grid" style="margin-top:18px">
-        <div class="card span-6">
-          <h3>What changes</h3>
-          <ul>
-            <li><code>index.html</code> becomes an app shell.</li>
-            <li>CSS moves to standalone files.</li>
-            <li>Each view becomes a JS/TS module.</li>
-            <li>Navigation comes from the backend.</li>
-            <li>Blueprint pages render based on plugin type.</li>
-            <li>Login and admin views are added.</li>
-          </ul>
-        </div>
-        <div class="card span-6">
-          <h3>What stays the same</h3>
-          <ul>
-            <li>Sidebar look and interaction model.</li>
-            <li>Cards, forms, buttons, tables, and spacing style.</li>
-            <li>Chat layout and document upload feel.</li>
-            <li>Settings visual pattern.</li>
-            <li>Council and email workflow concepts.</li>
-            <li>Claude-like warm, restrained visual direction.</li>
-          </ul>
-        </div>
-      </div>
-      <pre><code>frontend/
-  index.html
-  src/
-    main.ts
-    api.ts
-    auth.ts
-    state.ts
-    router.ts
-    navigation.ts
-    styles/
-      app.css
-    components/
-      Sidebar.ts
-      Modal.ts
-      Toast.ts
-      FormField.ts
-      KnowledgePicker.ts
-      PersonaPicker.ts
-    views/
-      LoginView.ts
-      BlueprintListView.ts
-      BlueprintCreateView.ts
-      BlueprintDetailView.ts
-      AdminUsersView.ts
-      AdminPluginsView.ts
-      AdminModelsView.ts
-    plugins/
-      email/
-        EmailBlueprintView.ts
-        EmailConfigPanel.ts
-        EmailQueuePanel.ts
-      council/
-        CouncilBlueprintView.ts
-        CouncilFlowBuilder.ts
-        CouncilRunPanel.ts
-      research/
-        ResearchBlueprintView.ts</code></pre>
-
-      <h4>Navigation response</h4>
-      <pre><code>GET /api/me/navigation
-
-{
-  "user": {
-    "id": "u_123",
-    "name": "Sam",
-    "is_admin": true
-  },
-  "items": [
-    {"type": "page", "label": "Blueprints", "icon": "layout-dashboard", "path": "/blueprints"},
-    {"type": "admin", "label": "Admin", "icon": "shield", "path": "/admin"},
-    {"type": "blueprint", "label": "Student Counsellor Inbox", "icon": "mail", "path": "/blueprints/bp_1"},
-    {"type": "blueprint", "label": "Arbitration Review", "icon": "scale", "path": "/blueprints/bp_2"}
-  ]
-}</code></pre>
-    </section>
-
-    <section id="admin">
-      <h2>Admin Mode</h2>
-      <div class="grid">
-        <div class="card span-4">
-          <h3>Users</h3>
-          <ul>
-            <li>Create users.</li>
-            <li>Invite users.</li>
-            <li>Disable users.</li>
-            <li>Reset passwords.</li>
-            <li>Assign workspace roles.</li>
-          </ul>
-        </div>
-        <div class="card span-4">
-          <h3>Plugins</h3>
-          <ul>
-            <li>Enable or disable plugins.</li>
-            <li>Set plugin-wide limits.</li>
-            <li>Grant plugin access to users/roles.</li>
-            <li>Choose which plugins can create blueprints.</li>
-          </ul>
-        </div>
-        <div class="card span-4">
-          <h3>System</h3>
-          <ul>
-            <li>Configure model providers.</li>
-            <li>Manage global secrets.</li>
-            <li>View audit logs.</li>
-            <li>Run backups.</li>
-            <li>Export diagnostics.</li>
-          </ul>
-        </div>
-      </div>
-      <div class="callout risk" style="margin-top:16px">
-        Admins should be able to enable Email Automation globally without seeing a user's IMAP or SMTP password. Secret ownership and secret visibility must be separate concepts.
-      </div>
-    </section>
-
-    <section id="security">
-      <h2>Security and Operational Requirements</h2>
+      <h4>Config split rule</h4>
       <table>
         <thead>
           <tr>
-            <th>Area</th>
-            <th>Requirement</th>
-            <th>Notes</th>
+            <th>Belongs in core blueprint instance</th>
+            <th>Belongs in plugin config</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>Authentication</td>
-            <td>Required for all app APIs.</td>
-            <td>Use secure session cookies for browser users. Add API tokens later if needed.</td>
-          </tr>
-          <tr>
-            <td>Authorization</td>
-            <td>Every query and action checks workspace, blueprint, and plugin permissions.</td>
-            <td>Test cross-user denial explicitly.</td>
-          </tr>
-          <tr>
-            <td>Secrets</td>
-            <td>Encrypted at rest and scoped to owner/workspace/plugin.</td>
-            <td>Never return plaintext secrets to frontend.</td>
-          </tr>
-          <tr>
-            <td>RAG isolation</td>
-            <td>Vector indexes must not mix unauthorized documents.</td>
-            <td>Use per-blueprint or per-workspace collections/stores.</td>
-          </tr>
-          <tr>
-            <td>URL ingestion</td>
-            <td>Block internal, private, loopback, link-local, multicast, and metadata IPs.</td>
-            <td>Validate redirect targets too.</td>
-          </tr>
-          <tr>
-            <td>Email sending</td>
-            <td>Permissioned, audited, rate-limited, and admin-controllable.</td>
-            <td>Draft-only should be a safe default.</td>
-          </tr>
-          <tr>
-            <td>Audit</td>
-            <td>Record plugin enablement, permission changes, sends, deletes, and exports.</td>
-            <td>Useful for local server admins and debugging.</td>
-          </tr>
-          <tr>
-            <td>Backups</td>
-            <td>Documented backup/restore for DB, uploads, vector stores, and secret key material.</td>
-            <td>Cannot launch server mode without this.</td>
-          </tr>
+          <tr><td>Name, description, workspace, matter, plugin id, status, owner, timestamps.</td><td>Contract output format, CUAD fields enabled, default jurisdiction, review depth.</td></tr>
+          <tr><td>Members, roles, high-level visibility, archive state.</td><td>Council phases, agent assignments, email send mode, escalation thresholds.</td></tr>
+          <tr><td>Links to personas, skills, and knowledge sources.</td><td>Plugin-specific interpretation of how those personas and skills are used.</td></tr>
         </tbody>
       </table>
     </section>
 
-    <section id="phases">
-      <h2>Build Phases</h2>
+    <section id="ui">
+      <h2>UI and Navigation</h2>
+      <div class="callout gold">
+        Keep the current visual style, but rebuild the frontend as a modular app. Users should land on legal blueprints and matters, not a generic feature menu.
+      </div>
+      <h4>Primary navigation</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Menu</th>
+            <th>Who sees it</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Matters</td><td>All lawyers with workspace access.</td><td>Open matter workspaces and related blueprints.</td></tr>
+          <tr><td>Blueprints</td><td>All permitted users.</td><td>Create/open Contract Review, Research, Council, DD, Intake blueprints.</td></tr>
+          <tr><td>Skills</td><td>Admins and power users.</td><td>Browse skill catalogue, versions, inputs, outputs, audit status.</td></tr>
+          <tr><td>Personas</td><td>Admins and blueprint editors.</td><td>Create or manage legal roles.</td></tr>
+          <tr><td>Knowledge</td><td>Users with document permissions.</td><td>Manage firm playbooks, matter docs, clause libraries, precedents.</td></tr>
+          <tr><td>Admin</td><td>Admins only.</td><td>Users, plugins, provider settings, audit, backups.</td></tr>
+        </tbody>
+      </table>
+    </section>
 
+    <section id="guardrails">
+      <h2>Engineering Guardrails</h2>
+      <p>
+        These rules are build requirements for v2. They are not suggestions. Codex should treat this section as the implementation contract before writing application code.
+      </p>
+
+      <h4>Database and persistence</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>Implementation requirement</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Migrations</td><td>Use Alembic from day one. Every schema change has upgrade and downgrade. No ad-hoc <code>PRAGMA table_info</code> migrations in application startup.</td></tr>
+          <tr><td>SQLite WAL</td><td>Enable <code>PRAGMA journal_mode=WAL</code> and <code>PRAGMA synchronous=NORMAL</code> on SQLite connections.</td></tr>
+          <tr><td>Connections</td><td>Use context managers or session-scoped dependencies. No scattered open/close pairs.</td></tr>
+          <tr><td>Config</td><td>Deployment config such as DB path, port, secret key location comes from env/config file, not DB.</td></tr>
+          <tr><td>Settings</td><td>Runtime settings use an allowlisted settings table with declared key, type, scope, default, and write permission.</td></tr>
+          <tr><td>Secrets</td><td>Credentials live in a dedicated encrypted secrets table with ownership and access columns. Never mix secrets into settings.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Authentication and authorization</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Concern</th>
+            <th>Rule</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Auth</td><td>Authentication is middleware. Default route state is protected. Public routes such as login, setup, and health opt out explicitly.</td></tr>
+          <tr><td>Authorization</td><td>Authorization is an explicit route dependency checking workspace, blueprint, plugin, and action permissions.</td></tr>
+          <tr><td>Sessions</td><td>Use HttpOnly cookies, SameSite=Strict, Secure in production. Store hashed session tokens server-side with expiry. Do not use localStorage for session tokens.</td></tr>
+          <tr><td>Current user</td><td><code>/api/auth/me</code> returns the current user and initializes frontend state.</td></tr>
+          <tr><td>Bootstrap</td><td>Admin setup is one-time. After admin creation, setup closes permanently. No hardcoded backdoor credentials.</td></tr>
+          <tr><td>Roles</td><td>Use workspace roles and blueprint roles separately. A workspace admin is not automatically a blueprint owner.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Plugin and blueprint architecture</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>Requirement</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Manifest vs module</td><td>Manifest is JSON-serializable data. Module is Python code containing routes, services, and skills. Never conflate them.</td></tr>
+          <tr><td>Dependency direction</td><td>Plugins import from core. Core reads plugin manifests but must not depend on plugin internals at runtime.</td></tr>
+          <tr><td>Enablement chain</td><td>Plugin use requires global enablement, workspace enablement, and user permission.</td></tr>
+          <tr><td>Config split</td><td>Generic blueprint table holds cross-plugin metadata only. Plugin-specific fields go in plugin config tables.</td></tr>
+          <tr><td>Disable behavior</td><td>Disabling a plugin suspends active blueprints, preserves data, and sends cancellation signals to active jobs.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Skills architecture</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>Requirement</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Typed unit</td><td>A skill has id, name, description, category, owner plugin/core, input schema, output schema, prompt template, required knowledge tags, and output validation.</td></tr>
+          <tr><td>Composable</td><td>Skills do not directly call other skills. Blueprint orchestration passes outputs between skills.</td></tr>
+          <tr><td>Testable</td><td>Skills must be testable without an LLM by validating prompt construction and output parsing against mock model responses.</td></tr>
+          <tr><td>Legal specificity</td><td>Legal skills use real legal workflow schemas: CUAD parameters, pleadings structures, evidence matrices, authority tables.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Isolation and multi-tenancy</h4>
+      <ul class="checklist">
+        <li>Every user-created object includes indexed <code>workspace_id</code> and <code>created_by_user_id</code>.</li>
+        <li>Every query touching user data requires explicit workspace or blueprint scope.</li>
+        <li>Repository/query helpers should enforce scope instead of relying on route authors to remember filters.</li>
+        <li>RAG collections are scoped by blueprint or workspace. Never use a global collection.</li>
+        <li>Collection names follow <code>bp_{blueprint_id}</code> or <code>ws_{workspace_id}</code>.</li>
+        <li>Documents follow blueprint membership and explicit sharing rules.</li>
+        <li>Cross-user denial tests are required for blueprints, documents, runs, secrets, and skill outputs.</li>
+      </ul>
+
+      <h4>Secrets and security</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Area</th>
+            <th>Rule</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Secrets table</td><td>Use <code>secrets(id, workspace_id, owner_user_id, name, encrypted_value, scope, created_at)</code>. Scope is user, workspace, or admin.</td></tr>
+          <tr><td>Plaintext</td><td>APIs never return decrypted secret values, even to admins. Admins can see existence, revoke, or rotate.</td></tr>
+          <tr><td>Encryption key</td><td>Key comes from <code>SECRET_KEY</code> or a dedicated path outside the project directory. Document backup requirements.</td></tr>
+          <tr><td>URL ingestion</td><td>Resolve hostnames and block loopback, private, link-local, multicast, unspecified, and metadata IPs before fetch and after redirects.</td></tr>
+          <tr><td>Uploads</td><td>Validate MIME type server-side. Store files by content hash, not original filename. Original filename is metadata only.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Background jobs and async</h4>
+      <ul class="checklist">
+        <li>Long-running council and skill workflows use a DB-backed job state machine: pending, running, completed, failed, cancelled.</li>
+        <li>FastAPI <code>BackgroundTasks</code> alone is not a durable job queue.</li>
+        <li>Every job has timeout, heartbeat, cancellation, and failure state.</li>
+        <li>Use <code>asyncio.get_running_loop()</code>, not deprecated <code>get_event_loop()</code>.</li>
+        <li>Blocking file, SQLite, embedding, and vector operations run in explicit executors.</li>
+        <li>Parallel agent outputs are serialized through a lock or written in one batch after gather completes.</li>
+      </ul>
+
+      <h4>API and frontend rules</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Area</th>
+            <th>Rule</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Error schema</td><td>All errors use <code>{"error": "...", "code": "SNAKE_CASE_CODE", "details": {}}</code>.</td></tr>
+          <tr><td>SSE schema</td><td>All streams use <code>{"type": "token|source|error|done|status|progress", "content": "...", "metadata": {}}</code>.</td></tr>
+          <tr><td>Pagination</td><td>List endpoints return <code>{items, total, page, page_size}</code>. No hardcoded <code>LIMIT 100</code>.</td></tr>
+          <tr><td>URLs</td><td>Resource ownership is in the URL, e.g. <code>POST /workspaces/{workspace_id}/blueprints</code>.</td></tr>
+          <tr><td>Navigation</td><td>Navigation is server-driven from <code>/api/me/navigation</code>. No hardcoded permission-sensitive nav.</td></tr>
+          <tr><td>Frontend auth</td><td>Router checks auth on every transition. Unauthorized resource access shows 403.</td></tr>
+          <tr><td>Plugin UI</td><td>Blueprint views load dynamically by plugin type. Config forms are generated from plugin JSON schemas.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Audit, observability, and testing</h4>
+      <ul class="checklist">
+        <li>Audit log is append-only: <code>audit_events(id, workspace_id, user_id, action, resource_type, resource_id, metadata_json, created_at)</code>.</li>
+        <li>Audit plugin enable/disable, permission changes, secret create/rotate/delete, email send, blueprint delete, document delete, council run start, and all admin actions.</li>
+        <li>Use structured JSON logs with request ID, user ID, workspace ID, level, event, and duration.</li>
+        <li>Every HTTP response includes <code>X-Request-Id</code>.</li>
+        <li>Unit tests cover skills, encryption, and permission logic.</li>
+        <li>Integration tests use a real fresh SQLite test DB.</li>
+        <li>Isolation tests prove cross-user and cross-workspace denial.</li>
+        <li>Every permission boundary has a denial test that asserts 403.</li>
+      </ul>
+
+      <h4>Operations</h4>
+      <ul class="checklist">
+        <li>Backup surface: SQLite DB, uploads directory, vector index directory, encryption key.</li>
+        <li>LAN deployment works with configurable CORS origins or same-origin deployment.</li>
+        <li>Dependencies are pinned with exact versions or managed by a lock file.</li>
+        <li><code>/api/health</code> reports DB reachability, migration state, disk space, and encryption key loaded.</li>
+      </ul>
+    </section>
+
+    <section id="roadmap">
+      <h2>Build Roadmap</h2>
       <div class="phase">
         <div class="phase-id">1</div>
         <div>
-          <h3>Foundation App Shell</h3>
-          <span class="pill priority">Start here</span>
-          <span class="pill">1 week</span>
+          <h3>Legal Platform Foundation</h3>
+          <span class="pill now">Immediate</span><span class="pill">2-3 weeks</span>
           <ul>
-            <li>Create new backend/frontend structure.</li>
-            <li>Add explicit migrations.</li>
-            <li>Add users, sessions, admin bootstrap, and login/logout.</li>
-            <li>Add workspaces and membership.</li>
-            <li>Add permission service and route dependencies.</li>
-            <li>Create modular frontend shell that preserves existing visual style.</li>
+            <li>New backend/frontend structure.</li>
+            <li>Auth, admin bootstrap, users, workspaces, matters, permissions.</li>
+            <li>Explicit migrations and Postgres-ready schema.</li>
+            <li>Modular frontend shell with current visual style.</li>
+            <li>Audit events, jobs, SSE job status.</li>
           </ul>
         </div>
       </div>
-
       <div class="phase">
         <div class="phase-id">2</div>
         <div>
-          <h3>Plugins and Blueprints Core</h3>
-          <span class="pill priority">Platform core</span>
-          <span class="pill">1 week</span>
+          <h3>Personas, Skills, Knowledge Core</h3>
+          <span class="pill now">Immediate</span><span class="pill">2-3 weeks</span>
           <ul>
-            <li>Add plugin manifest loader.</li>
-            <li>Add plugin enablement and admin plugin screen.</li>
-            <li>Add blueprints table, blueprint members, and blueprint list/detail routes.</li>
-            <li>Add backend-driven navigation.</li>
-            <li>Add blueprint create flow based on enabled plugins.</li>
-            <li>Add audit events for plugin and blueprint management.</li>
+            <li>Persona registry and editor.</li>
+            <li>Skill registry, skill versions, skill run audit records.</li>
+            <li>Knowledge sources, document upload, links, retrieval isolation.</li>
+            <li>Meta skills: citation verification, evidence trace, confidence calibration.</li>
           </ul>
         </div>
       </div>
-
       <div class="phase">
         <div class="phase-id">3</div>
         <div>
-          <h3>Core Personas, Knowledge, Models, and Secrets</h3>
-          <span class="pill priority">Shared capabilities</span>
-          <span class="pill">1-2 weeks</span>
+          <h3>Contract Review Workspace</h3>
+          <span class="pill now">Immediate</span><span class="pill">2-3 weeks</span>
           <ul>
-            <li>Implement reusable persona module.</li>
-            <li>Implement documents, links, and knowledge collections with blueprint scoping.</li>
-            <li>Implement RAG provider abstraction with isolated vector stores.</li>
-            <li>Implement model provider registry.</li>
-            <li>Implement encrypted secrets with ownership and access checks.</li>
-            <li>Add tests for scoping, retrieval isolation, and secret visibility.</li>
+            <li>Contract Review plugin.</li>
+            <li>CUAD extraction, risk matrix, playbook comparison, client summary.</li>
+            <li>Partner review workflow and exportable output package.</li>
           </ul>
         </div>
       </div>
-
       <div class="phase">
         <div class="phase-id">4</div>
         <div>
-          <h3>Email Automation Plugin</h3>
-          <span class="pill priority">First real plugin</span>
-          <span class="pill">1-2 weeks</span>
+          <h3>Arbitration and Litigation Councils</h3>
+          <span class="pill now">Immediate</span><span class="pill">2-3 weeks</span>
           <ul>
-            <li>Create Email Blueprint configuration page.</li>
-            <li>Add IMAP/SMTP credential setup using core secrets.</li>
-            <li>Add knowledge upload/link panel on the blueprint page.</li>
-            <li>Add persona selection and rules panel.</li>
-            <li>Add poll/import queue, draft generation, review, and send controls.</li>
-            <li>Add admin controls for draft-only mode, send permission, and rate limits.</li>
-            <li>Add audit events for imports, drafts, sends, deletes, and config changes.</li>
+            <li>AI Council plugin.</li>
+            <li>Arbitration Preparation Council and Litigation Strategy Council templates.</li>
+            <li>Evidence matrix, issue list, adversarial review, simulated award/memo.</li>
           </ul>
         </div>
       </div>
-
       <div class="phase">
         <div class="phase-id">5</div>
         <div>
-          <h3>AI Council Plugin</h3>
-          <span class="pill">Second real plugin</span>
-          <span class="pill">1-2 weeks</span>
+          <h3>Legal Research and Memo Workspace</h3>
+          <span class="pill next">Next</span><span class="pill">1-2 weeks</span>
           <ul>
-            <li>Create Council Blueprint builder.</li>
-            <li>Add agent/persona configuration.</li>
-            <li>Add phase and workflow builder.</li>
-            <li>Add blueprint-scoped docs/links.</li>
-            <li>Add run execution, evidence retrieval, outputs, and history.</li>
-            <li>Add cost/rate limits for parallel model calls.</li>
+            <li>Authority finder, case treatment, legal test extraction, memo generation.</li>
+            <li>Citation packs and research trail audit.</li>
           </ul>
         </div>
       </div>
-
       <div class="phase">
         <div class="phase-id">6</div>
         <div>
-          <h3>Research / Document Chat Plugin</h3>
-          <span class="pill">MVP completion</span>
-          <span class="pill">1 week</span>
+          <h3>Beta Hardening</h3>
+          <span class="pill now">Before beta</span><span class="pill">2 weeks</span>
           <ul>
-            <li>Create Research Blueprint type.</li>
-            <li>Add focused document/link knowledge workspace.</li>
-            <li>Add chat with citations and saved findings.</li>
-            <li>Add export of answers, sources, and notes.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="phase">
-        <div class="phase-id">7</div>
-        <div>
-          <h3>Server Beta Hardening</h3>
-          <span class="pill priority">Before beta</span>
-          <span class="pill">1 week</span>
-          <ul>
-            <li>Backups and restore guide.</li>
-            <li>Diagnostics export.</li>
-            <li>Structured logs.</li>
-            <li>Admin audit log viewer.</li>
-            <li>Smoke and integration tests in CI.</li>
-            <li>LAN deployment guide with reverse proxy/TLS notes.</li>
-            <li>Dependency lock file and release packaging.</li>
+            <li>Cross-user/matter isolation tests.</li>
+            <li>Skill evaluation tests and golden-output fixtures.</li>
+            <li>Backup/restore, diagnostics, admin audit viewer.</li>
+            <li>Deployment guide for local server/private network.</li>
           </ul>
         </div>
       </div>
@@ -1213,101 +1103,53 @@ blueprint_knowledge_sources:
     <section id="mvp">
       <h2>MVP Acceptance Criteria</h2>
       <ul class="checklist">
-        <li>Admin can complete first-run setup.</li>
-        <li>Admin can create users and assign roles.</li>
-        <li>Admin can enable Email, Council, and Research plugins.</li>
-        <li>User only sees plugins and blueprints they can access.</li>
-        <li>User can create an Email Blueprint with credentials, persona, docs, links, and drafting rules.</li>
-        <li>User can import email, generate a draft, review it, and send only if permitted.</li>
-        <li>User can create a Council Blueprint with agents, personas, phases, docs, and links.</li>
-        <li>User can run a Council Blueprint and review evidence and outputs.</li>
-        <li>User can create a Research Blueprint and chat with scoped docs/links.</li>
-        <li>Cross-user data access is denied by automated tests.</li>
-        <li>Blueprint-level permissions are enforced by automated tests.</li>
-        <li>Secrets are encrypted and never returned as plaintext.</li>
-        <li>RAG retrieval cannot leak documents across blueprints/workspaces.</li>
-        <li>Admin can view audit events for sensitive actions.</li>
-        <li>Backup and restore steps are documented and tested manually.</li>
+        <li>Admin can create firm workspace, users, matters, and roles.</li>
+        <li>Admin can enable Legal Review, AI Council, and Legal Research plugins.</li>
+        <li>Admins can browse personas and skills separately.</li>
+        <li>Skills are versioned and every skill run is auditable.</li>
+        <li>User can create a Contract Review Workspace for a matter.</li>
+        <li>User can upload contract, playbook, precedent clauses, and client risk notes.</li>
+        <li>Contract Review produces structured extraction, risk matrix, negotiation memo, and client summary.</li>
+        <li>User can create Arbitration Preparation Council with scoped pleadings/exhibits.</li>
+        <li>Council runs stream status and persist phase outputs/evidence.</li>
+        <li>All legal outputs include citations or explicit unsupported flags.</li>
+        <li>Escalations are visible with reason, severity, and required reviewer.</li>
+        <li>Cross-user, cross-workspace, and cross-matter data leaks are blocked by tests.</li>
+        <li>No final client communication is sent without human approval.</li>
+        <li>Alembic migrations are the only schema-change mechanism.</li>
+        <li>Auth is middleware and authorization is dependency-based.</li>
+        <li>All settings are allowlisted and all secrets are stored in the secrets table.</li>
+        <li>All list endpoints are paginated.</li>
+        <li>Every sensitive action is in the append-only audit log.</li>
+        <li>Dependency versions are pinned or locked.</li>
+        <li>Backup and restore instructions cover DB, uploads, vector index, and encryption key.</li>
       </ul>
     </section>
 
-    <section id="do-not">
-      <h2>Do Not Do Yet</h2>
-      <div class="grid">
-        <div class="card span-4">
-          <h3>Do not build a plugin marketplace</h3>
-          <p>Start with first-party internal plugins. Third-party plugins require sandboxing, signed manifests, dependency isolation, and security review.</p>
-        </div>
-        <div class="card span-4">
-          <h3>Do not redesign the UI</h3>
-          <p>The user's requirement is explicit: keep the UI. Improve architecture and modularity without changing the visual product unnecessarily.</p>
-        </div>
-        <div class="card span-4">
-          <h3>Do not skip data isolation tests</h3>
-          <p>Multi-user server mode lives or dies on permission boundaries. Tests must prove isolation.</p>
-        </div>
-        <div class="card span-4">
-          <h3>Do not make RAG global</h3>
-          <p>Knowledge should be scoped to blueprint/workspace unless explicitly shared.</p>
-        </div>
-        <div class="card span-4">
-          <h3>Do not expose plaintext secrets</h3>
-          <p>Even admins should not casually view user-owned mail credentials or provider keys.</p>
-        </div>
-        <div class="card span-4">
-          <h3>Do not start with every plugin</h3>
-          <p>Email, Council, and Research are enough to prove the platform. Add more after the core model works.</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="open-questions">
-      <h2>Open Product Decisions</h2>
+    <section id="legacy">
+      <h2>Legacy Prototype Notes</h2>
+      <p>
+        The existing legal personas, especially The Contract Reviewer, are valuable prototype material but should not remain personas in v2. They should be decomposed into a legal persona plus discrete skills.
+      </p>
       <table>
         <thead>
           <tr>
-            <th>Question</th>
-            <th>Recommended default</th>
-            <th>Why</th>
+            <th>Current concept</th>
+            <th>v2 refactor</th>
+            <th>Reason</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>Are blueprints private by default?</td>
-            <td>Yes.</td>
-            <td>Least surprising and safest for email, legal, and documents.</td>
-          </tr>
-          <tr>
-            <td>Can admins see user blueprint contents?</td>
-            <td>Only with explicit workspace/admin policy.</td>
-            <td>Local server admin power is useful, but privacy expectations must be clear.</td>
-          </tr>
-          <tr>
-            <td>Can plugins be enabled per workspace?</td>
-            <td>Yes, after global enablement.</td>
-            <td>Admin may enable Email globally but restrict it to specific teams.</td>
-          </tr>
-          <tr>
-            <td>Can users bring personal API keys?</td>
-            <td>Allow both admin-provided and user-provided provider credentials.</td>
-            <td>Local deployments vary. Some admins centralize billing; some users bring keys.</td>
-          </tr>
-          <tr>
-            <td>Should email support auto-send?</td>
-            <td>No for MVP. Draft and manual send only.</td>
-            <td>Auto-send raises operational, reputational, and permission risks.</td>
-          </tr>
-          <tr>
-            <td>SQLite or Postgres?</td>
-            <td>SQLite for early local server beta, Postgres-ready schema and migrations.</td>
-            <td>SQLite is simpler, but avoid choices that block Postgres later.</td>
-          </tr>
+          <tr><td>The Contract Reviewer persona</td><td>Commercial Lawyer persona + contract review skill set.</td><td>Task workflow belongs in skills; tone/judgment belongs in persona.</td></tr>
+          <tr><td>General document chat</td><td>Legal Research Blueprint or Matter Knowledge Chat.</td><td>Legal use needs citations, scoped knowledge, and audit trail.</td></tr>
+          <tr><td>AI Council templates</td><td>Legal Council blueprints with skill-defined phases.</td><td>Phases should invoke auditable legal skills.</td></tr>
+          <tr><td>Global documents/RAG</td><td>Matter and blueprint-scoped knowledge collections.</td><td>Law firm data must be isolated by matter and permission.</td></tr>
         </tbody>
       </table>
     </section>
 
     <footer>
-      AI Blueprint rebuild roadmap. Single-file HTML planning artifact.
+      AI Blueprint v2 base plan. Legal-first blueprint platform. Sources consulted include Lexlegis/MIRA public materials for skill-catalogue shape and functional-group reference.
     </footer>
   </main>
 </body>
