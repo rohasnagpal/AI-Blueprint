@@ -1,6 +1,6 @@
 # AI Blueprint
 
-**Simple version:** AI Blueprint is a local AI platform that runs entirely on your machine. Upload documents, chat with them, search the web, switch between models and providers, define custom personas, and orchestrate multi-agent workflows — all through a single Python server, no cloud required.
+**Simple version:** AI Blueprint is a free, open source AI platform with local document intelligence, multi-agent councils, purpose-built personas, and email automation, all running privately on your machine.
 
 **Geeky version:** AI Blueprint is a local-first FastAPI server with a zero-build single-page frontend. It supports document-grounded RAG (OpenAI or ChromaDB+LlamaIndex), SSE-streamed chat, web search, AES-256-encrypted settings, a live model registry, persona definitions, and configurable multi-agent council workflows with ordered execution phases. State lives in SQLite, the filesystem, and optional Chroma vector indexes. One python main.py and you're running.
 
