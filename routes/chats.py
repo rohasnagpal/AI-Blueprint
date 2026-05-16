@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
@@ -220,6 +221,47 @@ def _openai_vector_stores(client):
     )
 
 
+async def _ensure_openai_indexed_documents(rows) -> tuple[list[str], list[str]]:
+    from rag.openai_rag import OpenAIRag
+
+    indexed_file_ids = []
+    failed_names = []
+    provider = OpenAIRag()
+
+    for row in rows:
+        if row["openai_file_id"]:
+            indexed_file_ids.append(row["openai_file_id"])
+            continue
+
+        upload_path = Path("uploads") / row["filename"]
+        if not upload_path.exists():
+            failed_names.append(f"{row['original_name']} (uploaded file missing)")
+            continue
+
+        try:
+            meta = await provider.ingest(str(upload_path), row["id"], row["original_name"])
+            openai_file_id = meta.get("openai_file_id")
+            if not openai_file_id:
+                failed_names.append(row["original_name"])
+                continue
+
+            conn = database.get_connection()
+            updates = ["openai_file_id = ?"]
+            params = [openai_file_id]
+            if "page_count" in meta:
+                updates.append("page_count = ?")
+                params.append(meta["page_count"])
+            params.append(row["id"])
+            conn.execute(f"UPDATE documents SET {', '.join(updates)} WHERE id = ?", params)
+            conn.commit()
+            conn.close()
+            indexed_file_ids.append(openai_file_id)
+        except Exception as e:
+            failed_names.append(f"{row['original_name']} ({e})")
+
+    return indexed_file_ids, failed_names
+
+
 async def _stream(
     chat_id: str,
     chat,
@@ -259,7 +301,7 @@ async def _stream(
                 if data and data.get("type") == "token":
                     collected_content.append(data.get("content", ""))
         elif provider_name == "openai":
-            async for event in _stream_openai(chat, message, settings, persona, web_results):
+            async for event in _stream_openai(chat, message, settings, doc_ids, persona, web_results):
                 yield event
                 data = _parse_sse(event)
                 if data:
@@ -307,7 +349,7 @@ async def _stream_general(message: str, settings: dict, persona: dict | None, we
     max_tokens = int(settings.get("max_tokens", 2048))
 
     if llm_provider == "ollama":
-        async for token in _stream_ollama(system_prompt, message, model, temperature, max_tokens):
+        async for token in _stream_ollama(system_prompt, message, model, temperature, max_tokens, settings):
             yield token
     elif llm_provider == "anthropic":
         anthropic_key = settings.get("anthropic_api_key", "")
@@ -341,7 +383,26 @@ def _parse_sse(event: str) -> dict | None:
     return None
 
 
-async def _stream_openai(chat, message: str, settings: dict, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
+def _ollama_endpoint(settings: dict, path: str) -> str:
+    base_url = (settings.get("ollama_base_url") or "http://localhost:11434").strip().rstrip("/")
+    if base_url.endswith("/api"):
+        return f"{base_url}{path}"
+    return f"{base_url}/api{path}"
+
+
+def _ollama_headers(settings: dict) -> dict[str, str]:
+    api_key = (settings.get("ollama_api_key") or "").strip()
+    return {"Authorization": f"Bearer {api_key}"} if api_key else {}
+
+
+async def _stream_openai(
+    chat,
+    message: str,
+    settings: dict,
+    doc_ids: list[str] | None,
+    persona: dict | None,
+    web_results: list[dict] | None = None,
+) -> AsyncGenerator[str, None]:
     import openai
 
     key = settings.get("openai_api_key", "")
@@ -356,35 +417,80 @@ async def _stream_openai(chat, message: str, settings: dict, persona: dict | Non
         yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
         return
 
-    # Ensure vector store and assistant
-    vs_id = settings.get("vector_store_id", "")
-    asst_id = settings.get("assistant_id", "")
+    asst_id = None
+    scoped_vs_id = None
+    scoped_asst_id = None
 
-    if not vs_id:
-        try:
-            vs = await vector_stores.create(name="AI Blueprint")
-            vs_id = vs.id
-            database.set_setting("vector_store_id", vs_id)
-            settings["vector_store_id"] = vs_id
-        except Exception as e:
-            yield f'data: {json.dumps({"type": "error", "content": f"Failed to create vector store: {e}"})}\n\n'
-            return
+    async def cleanup_scoped_resources():
+        if scoped_asst_id:
+            try:
+                await client.beta.assistants.delete(scoped_asst_id)
+            except Exception:
+                pass
+        if scoped_vs_id:
+            try:
+                await vector_stores.delete(scoped_vs_id)
+            except Exception:
+                pass
 
-    if not asst_id:
-        try:
-            model = settings.get("chat_model", "gpt-4o")
-            asst = await client.beta.assistants.create(
-                name="AI Blueprint Assistant",
-                model=model,
-                tools=[{"type": "file_search"}],
-                tool_resources={"file_search": {"vector_store_ids": [vs_id]}},
-            )
-            asst_id = asst.id
-            database.set_setting("assistant_id", asst_id)
-            settings["assistant_id"] = asst_id
-        except Exception as e:
-            yield f'data: {json.dumps({"type": "error", "content": f"Failed to create assistant: {e}"})}\n\n'
+    try:
+        conn = database.get_connection()
+        if doc_ids is None:
+            rows = conn.execute(
+                "SELECT id, filename, original_name, openai_file_id FROM documents ORDER BY uploaded_at DESC"
+            ).fetchall()
+        else:
+            placeholders = ",".join("?" for _ in doc_ids)
+            rows = conn.execute(
+                f"SELECT id, filename, original_name, openai_file_id FROM documents WHERE id IN ({placeholders})",
+                doc_ids,
+            ).fetchall()
+        conn.close()
+    except Exception as e:
+        yield f'data: {json.dumps({"type": "error", "content": f"Failed to read selected documents: {e}"})}\n\n'
+        return
+
+    if not rows:
+        yield f'data: {json.dumps({"type": "error", "content": "No current documents are available for OpenAI RAG."})}\n\n'
+        return
+
+    try:
+        file_ids, failed_indexing = await _ensure_openai_indexed_documents(rows)
+        if not file_ids:
+            detail = f": {', '.join(failed_indexing)}" if failed_indexing else "."
+            msg = f"No current documents could be indexed for OpenAI RAG{detail}"
+            yield f'data: {json.dumps({"type": "error", "content": msg})}\n\n'
             return
+        if failed_indexing:
+            msg = f"Some selected documents could not be indexed and were skipped: {', '.join(failed_indexing)}"
+            yield f'data: {json.dumps({"type": "error", "content": msg})}\n\n'
+
+        scoped_vs = await vector_stores.create(name=f"AI Blueprint scoped chat {chat['id']}")
+        scoped_vs_id = scoped_vs.id
+        for file_id in file_ids:
+            await vector_stores.files.create(vector_store_id=scoped_vs_id, file_id=file_id)
+        for file_id in file_ids:
+            for _ in range(30):
+                vsf = await vector_stores.files.retrieve(vector_store_id=scoped_vs_id, file_id=file_id)
+                if vsf.status == "completed":
+                    break
+                if vsf.status == "failed":
+                    raise RuntimeError("OpenAI vector store indexing failed for a selected document")
+                import asyncio
+                await asyncio.sleep(1)
+        model = settings.get("chat_model", "gpt-4o")
+        scoped_asst = await client.beta.assistants.create(
+            name="AI Blueprint Scoped Assistant",
+            model=model,
+            tools=[{"type": "file_search"}],
+            tool_resources={"file_search": {"vector_store_ids": [scoped_vs_id]}},
+        )
+        scoped_asst_id = scoped_asst.id
+        asst_id = scoped_asst_id
+    except Exception as e:
+        await cleanup_scoped_resources()
+        yield f'data: {json.dumps({"type": "error", "content": f"Failed to prepare selected document search: {e}"})}\n\n'
+        return
 
     # Get or create thread
     chat_id = chat["id"]
@@ -398,6 +504,7 @@ async def _stream_openai(chat, message: str, settings: dict, persona: dict | Non
             conn.commit()
             conn.close()
         except Exception as e:
+            await cleanup_scoped_resources()
             yield f'data: {json.dumps({"type": "error", "content": f"Failed to create thread: {e}"})}\n\n'
             return
 
@@ -412,6 +519,7 @@ async def _stream_openai(chat, message: str, settings: dict, persona: dict | Non
             content=user_content,
         )
     except Exception as e:
+        await cleanup_scoped_resources()
         yield f'data: {json.dumps({"type": "error", "content": f"Failed to send message: {e}"})}\n\n'
         return
 
@@ -424,11 +532,11 @@ async def _stream_openai(chat, message: str, settings: dict, persona: dict | Non
 
     try:
         model = settings.get("chat_model", "gpt-4o")
-        await client.beta.assistants.update(
-            asst_id,
-            model=model,
-            tools=[{"type": "file_search", "file_search": {"max_num_results": top_k}}],
-        )
+        update_args = {
+            "model": model,
+            "tools": [{"type": "file_search", "file_search": {"max_num_results": top_k}}],
+        }
+        await client.beta.assistants.update(asst_id, **update_args)
     except Exception:
         pass
 
@@ -470,6 +578,8 @@ async def _stream_openai(chat, message: str, settings: dict, persona: dict | Non
                 pass
     except Exception as e:
         yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
+    finally:
+        await cleanup_scoped_resources()
 
 
 async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
@@ -503,7 +613,7 @@ async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None,
     max_tokens = int(settings.get("max_tokens", 2048))
 
     if llm_provider == "ollama":
-        async for token in _stream_ollama(system_prompt, full_message, model, temperature, max_tokens):
+        async for token in _stream_ollama(system_prompt, full_message, model, temperature, max_tokens, settings):
             yield token
     elif llm_provider == "anthropic":
         anthropic_key = settings.get("anthropic_api_key", "")
@@ -625,22 +735,22 @@ async def _stream_anthropic(
 
 
 async def _stream_ollama(
-    system: str, user: str, model: str, temperature: float, max_tokens: int
+    system: str, user: str, model: str, temperature: float, max_tokens: int, settings: dict | None = None
 ) -> AsyncGenerator[str, None]:
     import httpx
+    settings = settings or {}
     ollama_model = model if model else "llama3"
+    chat_url = _ollama_endpoint(settings, "/chat")
+    headers = _ollama_headers(settings)
+    if "ollama.com" in chat_url and not headers:
+        yield f'data: {json.dumps({"type": "error", "content": "Ollama API key is not configured. Add it in Settings -> API Keys -> Ollama."})}\n\n'
+        return
     try:
         async with httpx.AsyncClient(timeout=120) as client:
-            # Check Ollama is reachable
-            try:
-                await client.get("http://localhost:11434")
-            except Exception:
-                yield f'data: {json.dumps({"type": "error", "content": "Ollama is not running. Start it with: ollama serve"})}\n\n'
-                return
-
             async with client.stream(
                 "POST",
-                "http://localhost:11434/api/chat",
+                chat_url,
+                headers=headers,
                 json={
                     "model": ollama_model,
                     "messages": [
@@ -651,6 +761,11 @@ async def _stream_ollama(
                     "options": {"temperature": temperature, "num_predict": max_tokens},
                 },
             ) as resp:
+                if resp.status_code >= 400:
+                    error_body = await resp.aread()
+                    detail = error_body.decode("utf-8", errors="replace") or resp.reason_phrase
+                    yield f'data: {json.dumps({"type": "error", "content": f"Ollama request failed ({resp.status_code}): {detail}"})}\n\n'
+                    return
                 async for line in resp.aiter_lines():
                     if not line:
                         continue
@@ -662,7 +777,9 @@ async def _stream_ollama(
                     except Exception:
                         pass
     except Exception as e:
-        yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
+        base_url = (settings.get("ollama_base_url") or "http://localhost:11434").strip()
+        local_hint = " Start local Ollama with: ollama serve" if "localhost" in base_url or "127.0.0.1" in base_url else ""
+        yield f'data: {json.dumps({"type": "error", "content": f"Ollama request failed: {e}.{local_hint}"})}\n\n'
 
 
 @router.delete("/chats/{chat_id}")

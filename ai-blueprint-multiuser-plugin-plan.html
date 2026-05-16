@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Blueprint Server and Blueprint Platform Plan</title>
+<style>
+  :root {
+    --bg: #f7f2e8;
+    --paper: #fffaf1;
+    --paper-2: #f2eadc;
+    --paper-3: #eadfcc;
+    --ink: #2f261d;
+    --muted: #75685b;
+    --subtle: #9b8a78;
+    --line: #ddcfbb;
+    --accent: #c86432;
+    --accent-dark: #8c3f21;
+    --green: #4e7a48;
+    --blue: #516e94;
+    --red: #a8473c;
+    --gold: #a87324;
+    --shadow: 0 18px 54px rgba(52, 40, 28, 0.12);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at top left, rgba(200, 100, 50, 0.14), transparent 32rem),
+      radial-gradient(circle at 90% 12%, rgba(81, 110, 148, 0.09), transparent 28rem),
+      linear-gradient(180deg, #fbf6ed 0%, var(--bg) 45%, #efe5d6 100%);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.55;
+  }
+
+  .shell {
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 42px 24px 80px;
+  }
+
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 30px;
+    align-items: end;
+    padding: 34px;
+    background: rgba(255, 250, 241, 0.88);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+  }
+
+  .eyebrow {
+    color: var(--accent-dark);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  h1, h2, h3, h4 {
+    margin: 0;
+    letter-spacing: 0;
+    line-height: 1.08;
+  }
+
+  h1 {
+    max-width: 900px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(38px, 6vw, 76px);
+    font-weight: 500;
+  }
+
+  h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 34px;
+    font-weight: 500;
+    margin-bottom: 18px;
+  }
+
+  h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+
+  h4 {
+    font-size: 14px;
+    color: var(--accent-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 18px 0 8px;
+  }
+
+  p { margin: 0 0 14px; }
+
+  a { color: var(--accent-dark); }
+
+  .summary {
+    max-width: 800px;
+    margin-top: 20px;
+    color: var(--muted);
+    font-size: 18px;
+  }
+
+  .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+  }
+
+  .badge, .pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 31px;
+    padding: 5px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper-2);
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .pill {
+    min-height: 26px;
+    padding: 3px 9px;
+    margin: 3px 5px 3px 0;
+    font-size: 12px;
+  }
+
+  .priority { background: var(--accent-dark); border-color: var(--accent-dark); color: #fff7ed; }
+  .core { background: #f0f5eb; color: var(--green); border-color: #cbdcbd; }
+  .plugin { background: #eff3fa; color: var(--blue); border-color: #ccd8ea; }
+  .risk-pill { background: #fff0ec; color: var(--red); border-color: #e4beb5; }
+
+  .toc {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .toc a {
+    display: block;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 250, 241, 0.78);
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 18px;
+  }
+
+  section {
+    margin-top: 26px;
+    padding: 28px;
+    background: rgba(255, 250, 241, 0.88);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(52, 40, 28, 0.06);
+  }
+
+  .card {
+    padding: 20px;
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  .span-3 { grid-column: span 3; }
+  .span-4 { grid-column: span 4; }
+  .span-5 { grid-column: span 5; }
+  .span-6 { grid-column: span 6; }
+  .span-7 { grid-column: span 7; }
+  .span-8 { grid-column: span 8; }
+  .span-12 { grid-column: span 12; }
+
+  .callout {
+    border-left: 4px solid var(--accent);
+    padding: 16px 18px;
+    background: #fff5e9;
+    border-radius: 8px;
+    color: var(--ink);
+  }
+
+  .risk { border-left-color: var(--red); background: #fff0ec; }
+  .good { border-left-color: var(--green); background: #f1f7ed; }
+  .info { border-left-color: var(--blue); background: #eff3fa; }
+  .gold { border-left-color: var(--gold); background: #fff6df; }
+
+  ul, ol {
+    margin: 10px 0 0;
+    padding-left: 22px;
+  }
+
+  li { margin: 7px 0; }
+
+  code {
+    background: #efe3d1;
+    color: #4a3829;
+    border: 1px solid #e1d2bd;
+    border-radius: 5px;
+    padding: 1px 5px;
+    font-size: 0.92em;
+  }
+
+  pre {
+    overflow-x: auto;
+    margin: 14px 0 0;
+    padding: 16px;
+    background: #2f261d;
+    color: #f9efe1;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  pre code {
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    border: 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 14px;
+  }
+
+  th, td {
+    vertical-align: top;
+    text-align: left;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  th {
+    color: var(--accent-dark);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .flow {
+    display: grid;
+    grid-template-columns: 1fr 34px 1fr 34px 1fr;
+    gap: 10px;
+    margin-top: 16px;
+    align-items: stretch;
+  }
+
+  .node {
+    min-height: 92px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fffdf8;
+    font-weight: 800;
+  }
+
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--subtle);
+    font-size: 24px;
+  }
+
+  .phase {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 18px;
+    padding: 20px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .phase:first-of-type { border-top: 0; padding-top: 0; }
+
+  .phase-id {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--ink);
+    color: #fff5e8;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 22px;
+  }
+
+  .checklist {
+    columns: 2;
+    column-gap: 30px;
+  }
+
+  .checklist li { break-inside: avoid; }
+
+  footer {
+    margin-top: 24px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  @media (max-width: 900px) {
+    header { grid-template-columns: 1fr; }
+    .meta { align-items: flex-start; }
+    .toc { grid-template-columns: 1fr 1fr; }
+    .span-3, .span-4, .span-5, .span-6, .span-7, .span-8 { grid-column: span 12; }
+    .flow { grid-template-columns: 1fr; }
+    .arrow { transform: rotate(90deg); }
+    .phase { grid-template-columns: 1fr; }
+    .checklist { columns: 1; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .shell { padding: 0; max-width: none; }
+    header, section { box-shadow: none; break-inside: avoid; }
+    .toc { display: none; }
+  }
+</style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">AI Blueprint Rebuild Plan</div>
+        <h1>Server-mode, multi-user, plugin-powered blueprints</h1>
+        <p class="summary">
+          A comprehensive architecture plan for rebuilding AI Blueprint as a local/private server platform where admins enable capabilities, users create blueprints, and each blueprint combines personas, knowledge, credentials, workflows, and activity into one purpose-built AI workspace.
+        </p>
+      </div>
+      <div class="meta">
+        <span class="badge">Decision: rebuild architecture</span>
+        <span class="badge">Default: server mode</span>
+        <span class="badge">UI: preserve visual design</span>
+        <span class="badge">Primary object: blueprint</span>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="Plan sections">
+      <a href="#decision">Decision</a>
+      <a href="#model">Product Model</a>
+      <a href="#core">Core vs Plugins</a>
+      <a href="#blueprints">Blueprints</a>
+      <a href="#plugins">Plugin Roadmap</a>
+      <a href="#data">Data Model</a>
+      <a href="#frontend">Frontend</a>
+      <a href="#phases">Build Phases</a>
+    </nav>
+
+    <section id="decision">
+      <h2>Decision</h2>
+      <div class="grid">
+        <div class="card span-7">
+          <h3>Rebuild the architecture, not the product idea</h3>
+          <p>
+            The current app is a strong prototype for workflows, but its core assumptions are now wrong for the target product: one user, one global workspace, one static HTML file, global settings, global documents, and every feature always present.
+          </p>
+          <p>
+            The new target is a server-mode product from day one: admin setup, multiple users, permissions, plugin enablement, and user-created blueprints.
+          </p>
+          <div class="callout good">
+            Keep the visual identity, workflow learnings, prompts, built-in personas, model registry concept, RAG experiments, email flow, and council ideas. Do not keep the current schema or one-page frontend as the foundation.
+          </div>
+        </div>
+        <div class="card span-5">
+          <h3>Non-negotiables</h3>
+          <ul>
+            <li>Admin and users now, not later.</li>
+            <li>Blueprints are the primary user object.</li>
+            <li>Plugins define blueprint types and capabilities.</li>
+            <li>Personas and knowledge are reusable core modules.</li>
+            <li>UI should look familiar, but implementation must be modular.</li>
+            <li>All data access must be scoped by user, workspace, and blueprint permissions.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="model">
+      <h2>Product Model</h2>
+      <div class="flow">
+        <div class="node">Core Platform</div>
+        <div class="arrow">→</div>
+        <div class="node">Enabled Plugins</div>
+        <div class="arrow">→</div>
+        <div class="node">User Blueprints</div>
+      </div>
+      <div class="grid" style="margin-top:18px">
+        <div class="card span-4">
+          <h3>Core Platform</h3>
+          <p>Owns identity, permissions, workspaces, plugins, blueprints, model providers, secrets, knowledge, personas, jobs, logs, and billing/cost controls if added later.</p>
+        </div>
+        <div class="card span-4">
+          <h3>Plugins</h3>
+          <p>Define available capabilities such as Email Automation, AI Council, Document Chat, Legal Review, Support Desk, or Content Generator.</p>
+        </div>
+        <div class="card span-4">
+          <h3>Blueprints</h3>
+          <p>Configured, user-facing AI workspaces created from plugins. A blueprint contains docs, links, personas, credentials, workflow settings, runs, and outputs.</p>
+        </div>
+      </div>
+      <pre><code>Platform
+  Users
+  Workspaces
+  Permissions
+  Plugins
+  Personas
+  Knowledge
+  Models
+  Secrets
+  Blueprints
+
+Plugin: Email Automation
+  Blueprint: Student Counsellor Inbox
+  Blueprint: Customer Support Replies
+
+Plugin: AI Council
+  Blueprint: Arbitration Review
+  Blueprint: Contract Negotiation Panel</code></pre>
+    </section>
+
+    <section id="core">
+      <h2>Core Modules vs Plugins</h2>
+      <p>
+        Do not make every concept a plugin. Some capabilities are platform primitives used by many plugins. Plugins should compose these primitives into useful blueprint types.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Module</th>
+            <th>Type</th>
+            <th>Reason</th>
+            <th>Examples</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Users / Auth</strong></td>
+            <td><span class="pill core">Core</span></td>
+            <td>Every route and object depends on identity.</td>
+            <td>Login, sessions, password reset, invite users.</td>
+          </tr>
+          <tr>
+            <td><strong>Workspaces</strong></td>
+            <td><span class="pill core">Core</span></td>
+            <td>Server installs need shared and private areas.</td>
+            <td>Team workspace, private workspace, membership.</td>
+          </tr>
+          <tr>
+            <td><strong>Permissions</strong></td>
+            <td><span class="pill core">Core</span></td>
+            <td>Controls plugins, blueprints, and dangerous actions.</td>
+            <td>Admin, editor, runner, viewer.</td>
+          </tr>
+          <tr>
+            <td><strong>Personas</strong></td>
+            <td><span class="pill core">Core</span></td>
+            <td>Reusable behavioral roles across plugins.</td>
+            <td>Student Counsellor, Customer Support, Arbitrator.</td>
+          </tr>
+          <tr>
+            <td><strong>Knowledge / RAG</strong></td>
+            <td><span class="pill core">Core</span></td>
+            <td>Many plugins need docs, links, retrieval, and citations.</td>
+            <td>Uploads, URL ingestion, vector indexes, citations.</td>
+          </tr>
+          <tr>
+            <td><strong>Models / Providers</strong></td>
+            <td><span class="pill core">Core</span></td>
+            <td>All AI workflows need provider/model selection.</td>
+            <td>OpenAI, Anthropic, Groq, Ollama, local models.</td>
+          </tr>
+          <tr>
+            <td><strong>Secrets</strong></td>
+            <td><span class="pill core">Core</span></td>
+            <td>Credentials need uniform encryption, scoping, and access rules.</td>
+            <td>API keys, IMAP password, SMTP password, webhook secrets.</td>
+          </tr>
+          <tr>
+            <td><strong>Email Automation</strong></td>
+            <td><span class="pill plugin">Plugin</span></td>
+            <td>A specific workflow built from secrets, personas, knowledge, models, and runs.</td>
+            <td>Email blueprints for student counselling or support.</td>
+          </tr>
+          <tr>
+            <td><strong>AI Council</strong></td>
+            <td><span class="pill plugin">Plugin</span></td>
+            <td>A specific multi-agent workflow builder.</td>
+            <td>Arbitration, contract review, investment committee.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="blueprints">
+      <h2>Blueprints</h2>
+      <div class="grid">
+        <div class="card span-7">
+          <h3>Definition</h3>
+          <p>
+            A blueprint is a configured AI workspace created from a plugin. It is not just a template. It is the place where the user configures the workflow, adds knowledge, selects personas, stores credentials if needed, runs the automation, and reviews outputs.
+          </p>
+          <pre><code>Blueprint = {
+  plugin type,
+  name,
+  workspace,
+  members and permissions,
+  personas,
+  documents and links,
+  credentials or secrets,
+  workflow configuration,
+  model settings,
+  activity history,
+  outputs and audit events
+}</code></pre>
+        </div>
+        <div class="card span-5">
+          <h3>Blueprint permissions</h3>
+          <ul>
+            <li><code>blueprint.view</code></li>
+            <li><code>blueprint.edit</code></li>
+            <li><code>blueprint.run</code></li>
+            <li><code>blueprint.manage_members</code></li>
+            <li><code>blueprint.delete</code></li>
+            <li>Plugin-specific actions such as <code>email.send</code> or <code>council.edit_flow</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h4>Email Blueprint Example</h4>
+      <div class="grid">
+        <div class="card span-6">
+          <h3>Student Counsellor Inbox</h3>
+          <ul>
+            <li>Plugin: Email Automation.</li>
+            <li>Persona: Student Counsellor.</li>
+            <li>Credentials: user's IMAP/SMTP secret records.</li>
+            <li>Knowledge: admissions docs, scholarship docs, visa FAQ links.</li>
+            <li>Rules: draft only by default, escalate sensitive issues, never invent policy.</li>
+            <li>Activity: imported messages, generated drafts, sent replies, audit trail.</li>
+          </ul>
+        </div>
+        <div class="card span-6">
+          <h3>Customer Support Inbox</h3>
+          <ul>
+            <li>Plugin: Email Automation.</li>
+            <li>Persona: Customer Support Agent.</li>
+            <li>Knowledge: product docs, pricing, refund policy, known issues.</li>
+            <li>Rules: require approval before refunds or discounts.</li>
+            <li>Categories: billing, bug report, login issue, cancellation, feature request.</li>
+            <li>Activity: triage labels, drafts, send status, unresolved escalations.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h4>Council Blueprint Example</h4>
+      <div class="grid">
+        <div class="card span-6">
+          <h3>Arbitration Blueprint</h3>
+          <ul>
+            <li>Plugin: AI Council.</li>
+            <li>Personas: Claimant Advocate, Respondent Advocate, Neutral Arbitrator, Award Drafter.</li>
+            <li>Knowledge: pleadings, contract, exhibits, procedural orders, links.</li>
+            <li>Flow: summary, argument, rebuttal, evidence weighing, draft award.</li>
+            <li>Output: issue list, evidence map, risk analysis, proposed award memo.</li>
+          </ul>
+        </div>
+        <div class="card span-6">
+          <h3>Contract Review Council</h3>
+          <ul>
+            <li>Personas: Commercial Lawyer, Risk Officer, Negotiator, Plain-English Summarizer.</li>
+            <li>Knowledge: contract, playbook, fallback clauses, prior agreements.</li>
+            <li>Flow: red flags, business impact, negotiation strategy, markup memo.</li>
+            <li>Output: clause table, recommended edits, questions for client.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="personas">
+      <h2>Personas as Behavioral Roles</h2>
+      <p>
+        Personas should be reusable behavioral roles, not only chat styles. A persona can power email drafting, council agents, document chat responses, content generation, and support workflows.
+      </p>
+      <div class="grid">
+        <div class="card span-6">
+          <h3>Persona fields</h3>
+          <ul>
+            <li>Name and description.</li>
+            <li>Role identity and responsibilities.</li>
+            <li>Tone and response style.</li>
+            <li>Categories or routing labels.</li>
+            <li>Approval and escalation rules.</li>
+            <li>Knowledge-use rules.</li>
+            <li>Forbidden claims/actions.</li>
+            <li>Output format preferences.</li>
+          </ul>
+        </div>
+        <div class="card span-6">
+          <h3>Student Counsellor persona</h3>
+          <pre><code>Tone:
+Warm, reassuring, clear, non-judgmental.
+
+Categories:
+Admissions, deadlines, visa concerns, course selection,
+financial aid, housing, emotional distress.
+
+Approval rules:
+- Draft only; never auto-send unless explicitly allowed.
+- Escalate self-harm, legal, medical, or immigration-risk messages.
+- Human review before deadline, fee, scholarship, or policy claims.
+
+Knowledge rules:
+- Use uploaded university policy docs first.
+- If policy is missing, say a staff member should verify.
+- Never invent admissions requirements.</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="plugins">
+      <h2>Plugin Roadmap</h2>
+      <div class="callout info">
+        MVP should include a small number of plugins, but the platform should be designed so future plugins are natural. Core modules should remain reusable across plugin types.
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Priority</th>
+            <th>Plugin</th>
+            <th>Blueprint Examples</th>
+            <th>Why It Matters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="pill priority">MVP</span></td>
+            <td><strong>Email Automation</strong></td>
+            <td>Student Counsellor Inbox, Customer Support Replies, Sales Follow-Up, Legal Notice Reply.</td>
+            <td>Proves credentials, personas, docs, links, permissions, activity, and human review.</td>
+          </tr>
+          <tr>
+            <td><span class="pill priority">MVP</span></td>
+            <td><strong>AI Council</strong></td>
+            <td>Arbitration Review, Contract Negotiation Panel, Investment Committee, Strategy Debate.</td>
+            <td>Proves multi-agent workflow configuration and evidence-grounded outputs.</td>
+          </tr>
+          <tr>
+            <td><span class="pill priority">MVP</span></td>
+            <td><strong>Document Chat / Research</strong></td>
+            <td>Case Research Assistant, Policy QA, Internal Knowledge Assistant.</td>
+            <td>Proves knowledge/RAG as a reusable core module.</td>
+          </tr>
+          <tr>
+            <td><span class="pill">Next</span></td>
+            <td><strong>Support Desk Assistant</strong></td>
+            <td>Ticket Triage, Policy-Grounded Replies, Escalation Assistant.</td>
+            <td>Close sibling of email but with ticketing concepts.</td>
+          </tr>
+          <tr>
+            <td><span class="pill">Next</span></td>
+            <td><strong>Legal / Contract Review</strong></td>
+            <td>Clause Risk Review, NDA Review, Vendor Agreement Review.</td>
+            <td>Strong blueprint use case with docs, personas, structured output, and review workflows.</td>
+          </tr>
+          <tr>
+            <td><span class="pill">Next</span></td>
+            <td><strong>Content Generator</strong></td>
+            <td>LinkedIn Writer, Newsletter Builder, Landing Page Copy, Brand Voice Assistant.</td>
+            <td>Uses personas and knowledge with lower operational risk.</td>
+          </tr>
+          <tr>
+            <td><span class="pill">Later</span></td>
+            <td><strong>Meeting / Call Notes</strong></td>
+            <td>Transcript Summarizer, Action Item Tracker, Follow-Up Email Generator.</td>
+            <td>Useful for teams and connects naturally to email and docs.</td>
+          </tr>
+          <tr>
+            <td><span class="pill">Later</span></td>
+            <td><strong>CRM / Lead Assistant</strong></td>
+            <td>Lead Intake, Qualification, Objection Handling, Follow-Up Sequences.</td>
+            <td>Combines forms, email, knowledge, and workflow automation.</td>
+          </tr>
+          <tr>
+            <td><span class="pill">Later</span></td>
+            <td><strong>Knowledge Base Builder</strong></td>
+            <td>FAQ Generator, Documentation Gap Finder, Source-Linked Help Center.</td>
+            <td>Turns uploaded knowledge into usable support assets.</td>
+          </tr>
+          <tr>
+            <td><span class="pill">Later</span></td>
+            <td><strong>Form / Intake Builder</strong></td>
+            <td>Client Intake, Student Intake, Legal Matter Intake, Support Request Intake.</td>
+            <td>Creates structured inputs for other plugins.</td>
+          </tr>
+          <tr>
+            <td><span class="pill">Future</span></td>
+            <td><strong>External Channels</strong></td>
+            <td>Slack, WhatsApp, SMS, Calendar, Browser Automation.</td>
+            <td>High value, but requires stronger security and external integration controls.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="data">
+      <h2>Data Model</h2>
+      <div class="grid">
+        <div class="card span-6">
+          <h3>Platform tables</h3>
+          <pre><code>users
+workspaces
+workspace_members
+roles
+permissions
+role_permissions
+user_roles
+plugins
+plugin_enablements
+blueprints
+blueprint_members
+personas
+documents
+document_links
+knowledge_collections
+model_providers
+models
+secrets
+jobs
+audit_events</code></pre>
+        </div>
+        <div class="card span-6">
+          <h3>Plugin tables</h3>
+          <pre><code>email_blueprint_configs
+email_accounts
+email_messages
+email_drafts
+email_send_events
+
+council_blueprint_configs
+council_agents
+council_phases
+council_runs
+council_outputs
+council_evidence
+
+research_sessions
+research_findings
+research_exports</code></pre>
+        </div>
+      </div>
+
+      <h4>Core blueprint schema</h4>
+      <pre><code>blueprints:
+  id
+  workspace_id
+  plugin_id
+  name
+  description
+  status              # active | archived | disabled
+  created_by_user_id
+  config_json         # lightweight cross-plugin metadata only
+  created_at
+  updated_at
+  archived_at
+
+blueprint_members:
+  blueprint_id
+  user_id
+  role                # owner | editor | runner | viewer
+  created_at
+
+blueprint_personas:
+  blueprint_id
+  persona_id
+  purpose             # primary | reviewer | agent | drafter
+  config_json
+
+blueprint_knowledge_sources:
+  blueprint_id
+  source_type         # document | link | collection
+  source_id
+  created_by_user_id
+  created_at</code></pre>
+
+      <h4>Ownership and isolation rules</h4>
+      <ul class="checklist">
+        <li>Every user-created object stores <code>workspace_id</code>.</li>
+        <li>Every user-created object stores <code>created_by_user_id</code>.</li>
+        <li>Blueprint data is always filtered by blueprint membership or workspace role.</li>
+        <li>Secrets are never returned in plaintext to the frontend.</li>
+        <li>Knowledge retrieval must filter by blueprint/workspace scope.</li>
+        <li>OpenAI vector stores should be per workspace or per blueprint, not global.</li>
+        <li>Local vector collections should be per workspace or per blueprint.</li>
+        <li>Audit events record sensitive actions: sends, deletes, plugin enables, permission changes.</li>
+      </ul>
+    </section>
+
+    <section id="backend">
+      <h2>Backend Architecture</h2>
+      <div class="grid">
+        <div class="card span-7">
+          <h3>Recommended structure</h3>
+          <pre><code>backend/
+  app/
+    main.py
+    core/
+      config.py
+      db.py
+      migrations.py
+      auth.py
+      sessions.py
+      permissions.py
+      plugins.py
+      blueprints.py
+      navigation.py
+      secrets.py
+      storage.py
+      knowledge.py
+      models.py
+      jobs.py
+      audit.py
+    plugins/
+      email/
+        manifest.py
+        routes.py
+        schemas.py
+        service.py
+      council/
+        manifest.py
+        routes.py
+        schemas.py
+        service.py
+      research/
+        manifest.py
+        routes.py
+        schemas.py
+        service.py
+    tests/</code></pre>
+        </div>
+        <div class="card span-5">
+          <h3>Backend principles</h3>
+          <ul>
+            <li>Use explicit migrations from the beginning.</li>
+            <li>Protect every non-login API route.</li>
+            <li>Keep plugin manifests declarative.</li>
+            <li>Keep service logic separate from route handlers.</li>
+            <li>Use dependency-injected permission checks.</li>
+            <li>Centralize secret encryption/decryption.</li>
+            <li>Centralize audit logging for sensitive operations.</li>
+            <li>Add background job lifecycle state from day one.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h4>Plugin manifest</h4>
+      <pre><code>PLUGIN = {
+  "id": "email",
+  "name": "Email Automation",
+  "version": "0.1.0",
+  "blueprint_type_name": "Email Blueprint",
+  "description": "Build AI-assisted inbox workflows with credentials, knowledge, personas, drafts, and send controls.",
+  "routes": router,
+  "permissions": [
+    "email.view",
+    "email.configure",
+    "email.poll",
+    "email.draft",
+    "email.send",
+    "email.delete"
+  ],
+  "blueprint_permissions": [
+    "blueprint.view",
+    "blueprint.edit",
+    "blueprint.run",
+    "blueprint.manage_members"
+  ],
+  "navigation": {
+    "group": "blueprints",
+    "icon": "mail"
+  },
+  "admin_settings_schema": {...},
+  "blueprint_config_schema": {...}
+}</code></pre>
+    </section>
+
+    <section id="frontend">
+      <h2>Frontend Plan</h2>
+      <div class="callout gold">
+        Do not redesign the UI. Preserve the current visual language, but stop putting everything in one HTML file. The HTML should become a shell and the app should be modular.
+      </div>
+      <div class="grid" style="margin-top:18px">
+        <div class="card span-6">
+          <h3>What changes</h3>
+          <ul>
+            <li><code>index.html</code> becomes an app shell.</li>
+            <li>CSS moves to standalone files.</li>
+            <li>Each view becomes a JS/TS module.</li>
+            <li>Navigation comes from the backend.</li>
+            <li>Blueprint pages render based on plugin type.</li>
+            <li>Login and admin views are added.</li>
+          </ul>
+        </div>
+        <div class="card span-6">
+          <h3>What stays the same</h3>
+          <ul>
+            <li>Sidebar look and interaction model.</li>
+            <li>Cards, forms, buttons, tables, and spacing style.</li>
+            <li>Chat layout and document upload feel.</li>
+            <li>Settings visual pattern.</li>
+            <li>Council and email workflow concepts.</li>
+            <li>Claude-like warm, restrained visual direction.</li>
+          </ul>
+        </div>
+      </div>
+      <pre><code>frontend/
+  index.html
+  src/
+    main.ts
+    api.ts
+    auth.ts
+    state.ts
+    router.ts
+    navigation.ts
+    styles/
+      app.css
+    components/
+      Sidebar.ts
+      Modal.ts
+      Toast.ts
+      FormField.ts
+      KnowledgePicker.ts
+      PersonaPicker.ts
+    views/
+      LoginView.ts
+      BlueprintListView.ts
+      BlueprintCreateView.ts
+      BlueprintDetailView.ts
+      AdminUsersView.ts
+      AdminPluginsView.ts
+      AdminModelsView.ts
+    plugins/
+      email/
+        EmailBlueprintView.ts
+        EmailConfigPanel.ts
+        EmailQueuePanel.ts
+      council/
+        CouncilBlueprintView.ts
+        CouncilFlowBuilder.ts
+        CouncilRunPanel.ts
+      research/
+        ResearchBlueprintView.ts</code></pre>
+
+      <h4>Navigation response</h4>
+      <pre><code>GET /api/me/navigation
+
+{
+  "user": {
+    "id": "u_123",
+    "name": "Sam",
+    "is_admin": true
+  },
+  "items": [
+    {"type": "page", "label": "Blueprints", "icon": "layout-dashboard", "path": "/blueprints"},
+    {"type": "admin", "label": "Admin", "icon": "shield", "path": "/admin"},
+    {"type": "blueprint", "label": "Student Counsellor Inbox", "icon": "mail", "path": "/blueprints/bp_1"},
+    {"type": "blueprint", "label": "Arbitration Review", "icon": "scale", "path": "/blueprints/bp_2"}
+  ]
+}</code></pre>
+    </section>
+
+    <section id="admin">
+      <h2>Admin Mode</h2>
+      <div class="grid">
+        <div class="card span-4">
+          <h3>Users</h3>
+          <ul>
+            <li>Create users.</li>
+            <li>Invite users.</li>
+            <li>Disable users.</li>
+            <li>Reset passwords.</li>
+            <li>Assign workspace roles.</li>
+          </ul>
+        </div>
+        <div class="card span-4">
+          <h3>Plugins</h3>
+          <ul>
+            <li>Enable or disable plugins.</li>
+            <li>Set plugin-wide limits.</li>
+            <li>Grant plugin access to users/roles.</li>
+            <li>Choose which plugins can create blueprints.</li>
+          </ul>
+        </div>
+        <div class="card span-4">
+          <h3>System</h3>
+          <ul>
+            <li>Configure model providers.</li>
+            <li>Manage global secrets.</li>
+            <li>View audit logs.</li>
+            <li>Run backups.</li>
+            <li>Export diagnostics.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout risk" style="margin-top:16px">
+        Admins should be able to enable Email Automation globally without seeing a user's IMAP or SMTP password. Secret ownership and secret visibility must be separate concepts.
+      </div>
+    </section>
+
+    <section id="security">
+      <h2>Security and Operational Requirements</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Area</th>
+            <th>Requirement</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Authentication</td>
+            <td>Required for all app APIs.</td>
+            <td>Use secure session cookies for browser users. Add API tokens later if needed.</td>
+          </tr>
+          <tr>
+            <td>Authorization</td>
+            <td>Every query and action checks workspace, blueprint, and plugin permissions.</td>
+            <td>Test cross-user denial explicitly.</td>
+          </tr>
+          <tr>
+            <td>Secrets</td>
+            <td>Encrypted at rest and scoped to owner/workspace/plugin.</td>
+            <td>Never return plaintext secrets to frontend.</td>
+          </tr>
+          <tr>
+            <td>RAG isolation</td>
+            <td>Vector indexes must not mix unauthorized documents.</td>
+            <td>Use per-blueprint or per-workspace collections/stores.</td>
+          </tr>
+          <tr>
+            <td>URL ingestion</td>
+            <td>Block internal, private, loopback, link-local, multicast, and metadata IPs.</td>
+            <td>Validate redirect targets too.</td>
+          </tr>
+          <tr>
+            <td>Email sending</td>
+            <td>Permissioned, audited, rate-limited, and admin-controllable.</td>
+            <td>Draft-only should be a safe default.</td>
+          </tr>
+          <tr>
+            <td>Audit</td>
+            <td>Record plugin enablement, permission changes, sends, deletes, and exports.</td>
+            <td>Useful for local server admins and debugging.</td>
+          </tr>
+          <tr>
+            <td>Backups</td>
+            <td>Documented backup/restore for DB, uploads, vector stores, and secret key material.</td>
+            <td>Cannot launch server mode without this.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="phases">
+      <h2>Build Phases</h2>
+
+      <div class="phase">
+        <div class="phase-id">1</div>
+        <div>
+          <h3>Foundation App Shell</h3>
+          <span class="pill priority">Start here</span>
+          <span class="pill">1 week</span>
+          <ul>
+            <li>Create new backend/frontend structure.</li>
+            <li>Add explicit migrations.</li>
+            <li>Add users, sessions, admin bootstrap, and login/logout.</li>
+            <li>Add workspaces and membership.</li>
+            <li>Add permission service and route dependencies.</li>
+            <li>Create modular frontend shell that preserves existing visual style.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id">2</div>
+        <div>
+          <h3>Plugins and Blueprints Core</h3>
+          <span class="pill priority">Platform core</span>
+          <span class="pill">1 week</span>
+          <ul>
+            <li>Add plugin manifest loader.</li>
+            <li>Add plugin enablement and admin plugin screen.</li>
+            <li>Add blueprints table, blueprint members, and blueprint list/detail routes.</li>
+            <li>Add backend-driven navigation.</li>
+            <li>Add blueprint create flow based on enabled plugins.</li>
+            <li>Add audit events for plugin and blueprint management.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id">3</div>
+        <div>
+          <h3>Core Personas, Knowledge, Models, and Secrets</h3>
+          <span class="pill priority">Shared capabilities</span>
+          <span class="pill">1-2 weeks</span>
+          <ul>
+            <li>Implement reusable persona module.</li>
+            <li>Implement documents, links, and knowledge collections with blueprint scoping.</li>
+            <li>Implement RAG provider abstraction with isolated vector stores.</li>
+            <li>Implement model provider registry.</li>
+            <li>Implement encrypted secrets with ownership and access checks.</li>
+            <li>Add tests for scoping, retrieval isolation, and secret visibility.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id">4</div>
+        <div>
+          <h3>Email Automation Plugin</h3>
+          <span class="pill priority">First real plugin</span>
+          <span class="pill">1-2 weeks</span>
+          <ul>
+            <li>Create Email Blueprint configuration page.</li>
+            <li>Add IMAP/SMTP credential setup using core secrets.</li>
+            <li>Add knowledge upload/link panel on the blueprint page.</li>
+            <li>Add persona selection and rules panel.</li>
+            <li>Add poll/import queue, draft generation, review, and send controls.</li>
+            <li>Add admin controls for draft-only mode, send permission, and rate limits.</li>
+            <li>Add audit events for imports, drafts, sends, deletes, and config changes.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id">5</div>
+        <div>
+          <h3>AI Council Plugin</h3>
+          <span class="pill">Second real plugin</span>
+          <span class="pill">1-2 weeks</span>
+          <ul>
+            <li>Create Council Blueprint builder.</li>
+            <li>Add agent/persona configuration.</li>
+            <li>Add phase and workflow builder.</li>
+            <li>Add blueprint-scoped docs/links.</li>
+            <li>Add run execution, evidence retrieval, outputs, and history.</li>
+            <li>Add cost/rate limits for parallel model calls.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id">6</div>
+        <div>
+          <h3>Research / Document Chat Plugin</h3>
+          <span class="pill">MVP completion</span>
+          <span class="pill">1 week</span>
+          <ul>
+            <li>Create Research Blueprint type.</li>
+            <li>Add focused document/link knowledge workspace.</li>
+            <li>Add chat with citations and saved findings.</li>
+            <li>Add export of answers, sources, and notes.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-id">7</div>
+        <div>
+          <h3>Server Beta Hardening</h3>
+          <span class="pill priority">Before beta</span>
+          <span class="pill">1 week</span>
+          <ul>
+            <li>Backups and restore guide.</li>
+            <li>Diagnostics export.</li>
+            <li>Structured logs.</li>
+            <li>Admin audit log viewer.</li>
+            <li>Smoke and integration tests in CI.</li>
+            <li>LAN deployment guide with reverse proxy/TLS notes.</li>
+            <li>Dependency lock file and release packaging.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="mvp">
+      <h2>MVP Acceptance Criteria</h2>
+      <ul class="checklist">
+        <li>Admin can complete first-run setup.</li>
+        <li>Admin can create users and assign roles.</li>
+        <li>Admin can enable Email, Council, and Research plugins.</li>
+        <li>User only sees plugins and blueprints they can access.</li>
+        <li>User can create an Email Blueprint with credentials, persona, docs, links, and drafting rules.</li>
+        <li>User can import email, generate a draft, review it, and send only if permitted.</li>
+        <li>User can create a Council Blueprint with agents, personas, phases, docs, and links.</li>
+        <li>User can run a Council Blueprint and review evidence and outputs.</li>
+        <li>User can create a Research Blueprint and chat with scoped docs/links.</li>
+        <li>Cross-user data access is denied by automated tests.</li>
+        <li>Blueprint-level permissions are enforced by automated tests.</li>
+        <li>Secrets are encrypted and never returned as plaintext.</li>
+        <li>RAG retrieval cannot leak documents across blueprints/workspaces.</li>
+        <li>Admin can view audit events for sensitive actions.</li>
+        <li>Backup and restore steps are documented and tested manually.</li>
+      </ul>
+    </section>
+
+    <section id="do-not">
+      <h2>Do Not Do Yet</h2>
+      <div class="grid">
+        <div class="card span-4">
+          <h3>Do not build a plugin marketplace</h3>
+          <p>Start with first-party internal plugins. Third-party plugins require sandboxing, signed manifests, dependency isolation, and security review.</p>
+        </div>
+        <div class="card span-4">
+          <h3>Do not redesign the UI</h3>
+          <p>The user's requirement is explicit: keep the UI. Improve architecture and modularity without changing the visual product unnecessarily.</p>
+        </div>
+        <div class="card span-4">
+          <h3>Do not skip data isolation tests</h3>
+          <p>Multi-user server mode lives or dies on permission boundaries. Tests must prove isolation.</p>
+        </div>
+        <div class="card span-4">
+          <h3>Do not make RAG global</h3>
+          <p>Knowledge should be scoped to blueprint/workspace unless explicitly shared.</p>
+        </div>
+        <div class="card span-4">
+          <h3>Do not expose plaintext secrets</h3>
+          <p>Even admins should not casually view user-owned mail credentials or provider keys.</p>
+        </div>
+        <div class="card span-4">
+          <h3>Do not start with every plugin</h3>
+          <p>Email, Council, and Research are enough to prove the platform. Add more after the core model works.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="open-questions">
+      <h2>Open Product Decisions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Recommended default</th>
+            <th>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Are blueprints private by default?</td>
+            <td>Yes.</td>
+            <td>Least surprising and safest for email, legal, and documents.</td>
+          </tr>
+          <tr>
+            <td>Can admins see user blueprint contents?</td>
+            <td>Only with explicit workspace/admin policy.</td>
+            <td>Local server admin power is useful, but privacy expectations must be clear.</td>
+          </tr>
+          <tr>
+            <td>Can plugins be enabled per workspace?</td>
+            <td>Yes, after global enablement.</td>
+            <td>Admin may enable Email globally but restrict it to specific teams.</td>
+          </tr>
+          <tr>
+            <td>Can users bring personal API keys?</td>
+            <td>Allow both admin-provided and user-provided provider credentials.</td>
+            <td>Local deployments vary. Some admins centralize billing; some users bring keys.</td>
+          </tr>
+          <tr>
+            <td>Should email support auto-send?</td>
+            <td>No for MVP. Draft and manual send only.</td>
+            <td>Auto-send raises operational, reputational, and permission risks.</td>
+          </tr>
+          <tr>
+            <td>SQLite or Postgres?</td>
+            <td>SQLite for early local server beta, Postgres-ready schema and migrations.</td>
+            <td>SQLite is simpler, but avoid choices that block Postgres later.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      AI Blueprint rebuild roadmap. Single-file HTML planning artifact.
+    </footer>
+  </main>
+</body>
+</html>

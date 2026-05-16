@@ -37,6 +37,18 @@ def _format_model(row) -> dict:
     }
 
 
+def _ollama_endpoint(path: str) -> str:
+    base_url = (database.get_setting("ollama_base_url") or "http://localhost:11434").strip().rstrip("/")
+    if base_url.endswith("/api"):
+        return f"{base_url}{path}"
+    return f"{base_url}/api{path}"
+
+
+def _ollama_headers() -> dict[str, str]:
+    api_key = (database.get_setting("ollama_api_key") or "").strip()
+    return {"Authorization": f"Bearer {api_key}"} if api_key else {}
+
+
 @router.get("/settings")
 async def get_settings():
     return database.get_all_settings()
@@ -69,6 +81,21 @@ async def test_connection():
             return {"ok": True, "message": "Local RAG (ChromaDB) is available."}
         except ImportError:
             return {"ok": False, "error": "chromadb is not installed. Run: pip install chromadb"}
+
+
+@router.get("/settings/test-ollama")
+async def test_ollama():
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(_ollama_endpoint("/tags"), headers=_ollama_headers())
+            response.raise_for_status()
+            data = response.json()
+        models = data.get("models") or []
+        return {"ok": True, "message": f"Connected to Ollama. {len(models)} models available."}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 @router.get("/models")

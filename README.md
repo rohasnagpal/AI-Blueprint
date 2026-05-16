@@ -309,6 +309,13 @@ Start Ollama before sending chat messages:
 ollama serve
 ```
 
+For the hosted Ollama API, set **Settings -> API Keys -> Ollama**:
+
+- Base URL: `https://ollama.com`
+- API key: your Ollama API key
+
+For local Ollama, keep the base URL as `http://localhost:11434` and leave the key blank.
+
 ### Email send fails with incorrect authentication data
 
 SMTP2GO rejected the credentials. Use the SMTP username/password from SMTP2GO, not your web dashboard password. Also confirm the from address is a verified sender/domain in SMTP2GO.
