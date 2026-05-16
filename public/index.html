@@ -553,6 +553,7 @@
     max-width: 85%;
     line-height: 1.65;
     font-size: 14px;
+    overflow-x: hidden;
   }
 
   .msg.user .bubble {
@@ -568,6 +569,66 @@
     border-bottom-left-radius: 4px;
     box-shadow: var(--shadow-sm);
   }
+
+  .msg.ai .bubble:has(.md-table-wrap) {
+    max-width: min(96%, 1120px);
+  }
+
+  .md-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    margin: 12px 0 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+
+  .md-table {
+    width: 100%;
+    min-width: 860px;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+
+  .md-table th,
+  .md-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .md-table th {
+    position: sticky;
+    top: 0;
+    background: var(--badge-bg);
+    color: var(--text);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .md-table td:first-child,
+  .md-table th:first-child {
+    width: 42px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .md-table td:nth-child(2) {
+    min-width: 170px;
+    font-weight: 600;
+  }
+
+  .md-table td:nth-child(3) {
+    width: 108px;
+    white-space: nowrap;
+  }
+
+  .md-table tr:last-child td { border-bottom: none; }
+  .md-table th:last-child,
+  .md-table td:last-child { border-right: none; }
 
   /* Sources */
   .sources {
@@ -2680,6 +2741,36 @@
             </div>
           </div>
 
+          <!-- Ollama -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#eef2ff;color:#4338ca;">OLL</div>
+              <div>
+                <div class="provider-name">Ollama</div>
+                <div class="provider-desc">Local Ollama or ollama.com API. Local use does not need a key.</div>
+              </div>
+              <span class="provider-status not-connected">Local default</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" id="ollama-api-key-input" type="password" placeholder="ollama api key"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveOllamaSettings()">Save</button>
+            </div>
+            <div class="provider-key-row" style="margin-top:8px">
+              <div class="key-input-wrap">
+                <input class="key-input" id="ollama-base-url-input" type="text" placeholder="http://localhost:11434"/>
+              </div>
+              <button class="key-save-btn" onclick="saveOllamaSettings()">Save URL</button>
+            </div>
+            <div class="provider-key-row" style="margin-top:8px;justify-content:flex-end">
+              <button class="btn-secondary" onclick="testOllamaConnection()">Test Ollama</button>
+            </div>
+          </div>
+
           <!-- xAI Grok -->
           <div class="provider-card">
             <div class="provider-header">
@@ -3521,11 +3612,13 @@ function populateSettingsUI() {
   set('sel-auto-delete', s.auto_delete_days);
   const ragSel = document.getElementById('rag-provider-select');
   if (ragSel && s.rag_provider) { ragSel.value = s.rag_provider; onRagProviderChange(s.rag_provider); }
+  set('ollama-base-url-input', s.ollama_base_url || 'http://localhost:11434');
+  set('ollama-api-key-input', s.ollama_api_key ? '••••••••' : '');
   renderEmailControls();
   // Show connected status for API keys
   document.querySelectorAll('.provider-card').forEach(card => {
     const name = card.querySelector('.provider-name')?.textContent?.trim();
-    const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
+    const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
     const k = keyMap[name];
     const status = card.querySelector('.provider-status');
     if (k && status && s[k] && s[k] !== '') { status.textContent = 'Connected'; status.className = 'provider-status connected'; }
@@ -3682,10 +3775,28 @@ function saveApiKey(btn) {
   const val = input.value.trim();
   if (!val || val === '••••••••') return;
   const name = card.querySelector('.provider-name')?.textContent?.trim();
-  const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
+  const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
   const k = keyMap[name];
   if (!k) { showToast('Unknown provider', 'error'); return; }
   saveSettings({[k]: val}).then(() => { input.value = '••••••••'; });
+}
+
+function saveOllamaSettings() {
+  const keyInput = document.getElementById('ollama-api-key-input');
+  const urlInput = document.getElementById('ollama-base-url-input');
+  const key = keyInput?.value.trim() || '';
+  let baseUrl = urlInput?.value.trim() || '';
+  if (!baseUrl) {
+    showToast('Ollama base URL is required.', 'error');
+    return;
+  }
+  if (key && key !== '••••••••' && (baseUrl === 'http://localhost:11434' || baseUrl === 'http://127.0.0.1:11434')) {
+    baseUrl = 'https://ollama.com';
+    if (urlInput) urlInput.value = baseUrl;
+  }
+  const settings = { ollama_base_url: baseUrl };
+  if (key && key !== '••••••••') settings.ollama_api_key = key;
+  saveSettings(settings).then(() => { if (keyInput && key && key !== '••••••••') keyInput.value = '••••••••'; });
 }
 
 async function testConnection() {
@@ -3694,6 +3805,14 @@ async function testConnection() {
     const d = await r.json();
     if (d.ok) showToast(d.message, 'success'); else showToast(d.error, 'error');
   } catch(e) { showToast('Test failed: ' + e.message, 'error'); }
+}
+
+async function testOllamaConnection() {
+  try {
+    const r = await fetch('/api/settings/test-ollama');
+    const d = await r.json();
+    if (d.ok) showToast(d.message, 'success'); else showToast(d.error, 'error');
+  } catch(e) { showToast('Ollama test failed: ' + e.message, 'error'); }
 }
 
 function saveModelSettings() {
@@ -3807,7 +3926,7 @@ function saveRagProviderSettings() {
 async function resetAllSettings() {
   if (!confirm('Reset all settings to defaults? API keys will be cleared.')) return;
   try {
-    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint', app_intro:'Build, run and chat with AI agents, pipelines and tools. Powered by your documents.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]' };
+    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint', app_intro:'Build, run and chat with AI agents, pipelines and tools. Powered by your documents.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]' };
     await saveSettings(defaults);
   } catch(e) { showToast('Reset failed.', 'error'); }
 }
@@ -4867,11 +4986,17 @@ async function uploadFile(file) {
       status.className='upload-item-status'; status.textContent='✕'; status.style.color='var(--danger)';
       showToast(err.detail || 'Upload failed.', 'error');
     } else {
+      const uploaded = await r.json();
       fill.style.width='100%';
       status.className='upload-item-status status-done';
       status.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
       showToast(`${file.name} uploaded.`);
       await loadDocuments();
+      if (!App.currentChatId && !App.isStreaming && uploaded.id) {
+        App.chatMode = 'documents';
+        App.selectedDocIds = [uploaded.id];
+        updateChatModeUI();
+      }
     }
   } catch(e) { clearInterval(iv); showToast('Upload failed: ' + e.message, 'error'); }
   setTimeout(() => item.remove(), 4000);
@@ -5002,13 +5127,49 @@ function mdRender(t) {
   const lines = esc(t || '').split('\n');
   let html = '';
   let inList = false;
+  const isTableSep = s => /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(s.trim());
+  const isTableRow = s => {
+    const trimmed = s.trim();
+    return trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.split('|').length >= 4;
+  };
+  const cells = s => s.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
   const inline = s => s
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/`(.+?)`/g, `<code style="${codeStyle}">$1</code>`);
   const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
-  for (const line of lines) {
+  const renderTable = (tableLines) => {
+    if (tableLines.length < 2 || !isTableSep(tableLines[1])) return null;
+    const head = cells(tableLines[0]);
+    const body = tableLines.slice(2).filter(isTableRow).map(cells);
+    if (!head.length || !body.length) return null;
+    const colCount = head.length;
+    const thead = `<thead><tr>${head.map(c => `<th>${inline(c)}</th>`).join('')}</tr></thead>`;
+    const tbody = `<tbody>${body.map(row => {
+      const normalized = row.slice(0, colCount);
+      while (normalized.length < colCount) normalized.push('');
+      return `<tr>${normalized.map(c => `<td>${inline(c)}</td>`).join('')}</tr>`;
+    }).join('')}</tbody>`;
+    return `<div class="md-table-wrap"><table class="md-table">${thead}${tbody}</table></div>`;
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const trimmed = line.trim();
     if (!trimmed) { closeList(); html += '<br>'; continue; }
+    if (isTableRow(trimmed) && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+      closeList();
+      const tableLines = [trimmed, lines[i + 1].trim()];
+      i += 2;
+      while (i < lines.length && isTableRow(lines[i])) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      i--;
+      const table = renderTable(tableLines);
+      if (table) {
+        html += table;
+        continue;
+      }
+    }
     const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
     if (heading) {
       closeList();

@@ -203,7 +203,7 @@ async def draft_email(message_id: str, body: DraftIn):
         if not use_documents:
             stream = _stream_general(prompt, settings, persona)
         elif provider_name == "openai":
-            stream = _stream_openai({"id": message_id, "thread_id": None}, prompt, settings, persona)
+            stream = _stream_openai({"id": message_id, "thread_id": None}, prompt, settings, doc_ids, persona)
         else:
             stream = _stream_local(prompt, settings, doc_ids, persona)
         async for event in stream:

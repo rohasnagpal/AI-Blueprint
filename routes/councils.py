@@ -39,6 +39,18 @@ def _json_loads(value: str | None, fallback):
         return fallback
 
 
+def _ollama_endpoint(settings: dict, path: str) -> str:
+    base_url = (settings.get("ollama_base_url") or "http://localhost:11434").strip().rstrip("/")
+    if base_url.endswith("/api"):
+        return f"{base_url}{path}"
+    return f"{base_url}/api{path}"
+
+
+def _ollama_headers(settings: dict) -> dict[str, str]:
+    api_key = (settings.get("ollama_api_key") or "").strip()
+    return {"Authorization": f"Bearer {api_key}"} if api_key else {}
+
+
 def _format_template(row) -> dict:
     return {
         "id": row["id"],
@@ -432,7 +444,7 @@ async def _run_agent(
     elif provider == "groq":
         content = await _complete_groq(settings.get("groq_api_key", ""), system, user, model, temperature, max_tokens)
     elif provider == "ollama":
-        content = await _complete_ollama(system, user, model, temperature, max_tokens)
+        content = await _complete_ollama(system, user, model, temperature, max_tokens, settings)
     elif settings.get("rag_provider") == "openai" and settings.get("vector_store_id"):
         content = await _complete_openai_file_search(settings.get("openai_api_key", ""), settings["vector_store_id"], system, user, model, temperature, max_tokens)
     else:
@@ -650,16 +662,18 @@ async def _complete_anthropic(key: str, system: str, user: str, model: str, temp
         return "".join(block.get("text", "") for block in data.get("content", []) if block.get("type") == "text")
 
 
-async def _complete_ollama(system: str, user: str, model: str, temperature: float, max_tokens: int) -> str:
+async def _complete_ollama(system: str, user: str, model: str, temperature: float, max_tokens: int, settings: dict) -> str:
     import httpx
 
+    chat_url = _ollama_endpoint(settings, "/chat")
+    headers = _ollama_headers(settings)
+    if "ollama.com" in chat_url and not headers:
+        raise RuntimeError("Ollama API key is not configured. Add it in Settings -> API Keys -> Ollama.")
+
     async with httpx.AsyncClient(timeout=180) as client:
-        try:
-            await client.get("http://localhost:11434")
-        except Exception:
-            raise RuntimeError("Ollama is not running. Start it with: ollama serve")
         response = await client.post(
-            "http://localhost:11434/api/chat",
+            chat_url,
+            headers=headers,
             json={
                 "model": model or "llama3",
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
