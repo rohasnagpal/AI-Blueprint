@@ -10,7 +10,7 @@
 # Python 3.12 or earlier: pip install chromadb && pip install -r requirements-local.txt
 
 llama-index-core>=0.12.0
-llama-index-vector-stores-chroma>=0.4.0
+llama-index-vector-stores-chroma>=0.5.5
 llama-index-embeddings-huggingface>=0.1.0
 sentence-transformers>=2.2.0
 torch
