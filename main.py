@@ -1,13 +1,19 @@
+import json
+import time
 import sys
+import uuid
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 import database
+from app.api.router import router as v2_router
+from app.core.database import run_migrations
 from routes.documents import router as doc_router
 from routes.chats import router as chat_router
 from routes.councils import router as council_router
@@ -26,9 +32,62 @@ app.add_middleware(
 )
 
 
+def _error_code(status_code: int, default: str = "REQUEST_ERROR") -> str:
+    return {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        409: "CONFLICT",
+        422: "VALIDATION_ERROR",
+        500: "INTERNAL_SERVER_ERROR",
+    }.get(status_code, default)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(_request: Request, exc: HTTPException):
+    detail = exc.detail if isinstance(exc.detail, str) else "Request failed"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": detail, "code": _error_code(exc.status_code), "details": {}},
+        headers=exc.headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(_request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation failed", "code": "VALIDATION_ERROR", "details": {"errors": exc.errors()}},
+    )
+
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    started = time.perf_counter()
+    response = await call_next(request)
+    response.headers["X-Request-Id"] = request_id
+    duration_ms = round((time.perf_counter() - started) * 1000, 2)
+    print(
+        json.dumps(
+            {
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code,
+                "duration_ms": duration_ms,
+            },
+            sort_keys=True,
+        )
+    )
+    return response
+
+
 @app.on_event("startup")
 async def startup():
     database.init_db()
+    run_migrations()
 
 
 @app.get("/api/health")
@@ -42,6 +101,7 @@ app.include_router(council_router, prefix="/api")
 app.include_router(email_router, prefix="/api")
 app.include_router(persona_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(v2_router)
 
 BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 app.mount("/", StaticFiles(directory=BASE_DIR / "public", html=True), name="static")
