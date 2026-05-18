@@ -3511,7 +3511,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '' };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', v2: { enabled: false, user: null, workspaceId: null, workspaces: [], documents: [], personas: [], secrets: [] } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -3526,10 +3526,95 @@ function showToast(msg, type = 'success') {
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init() {
+  await initV2();
   await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadPersonas(), loadCouncils(), loadEmailMessages()]);
   updateChatModeUI();
   renderEmailControls();
   checkFirstRun();
+}
+
+// ── V2 BACKEND BRIDGE ─────────────────────────────────────────────────────
+async function initV2() {
+  try {
+    const me = await fetch('/api/v2/auth/me');
+    if (!me.ok) return;
+    const user = await me.json();
+    const nav = await fetch('/api/v2/me/navigation');
+    if (!nav.ok) return;
+    const navData = await nav.json();
+    const workspaces = navData.items || [];
+    App.v2 = {
+      ...App.v2,
+      enabled: !!workspaces.length,
+      user,
+      workspaceId: workspaces[0]?.workspace_id || null,
+      workspaces
+    };
+    if (App.v2.enabled) {
+      await Promise.all([loadV2Documents(), loadV2Personas(), loadV2Secrets()]);
+    }
+  } catch(e) {
+    App.v2.enabled = false;
+  }
+}
+
+function v2WorkspacePath(path) {
+  if (!App.v2.workspaceId) return null;
+  return `/api/v2/workspaces/${encodeURIComponent(App.v2.workspaceId)}${path}`;
+}
+
+async function v2Fetch(path, options = {}) {
+  if (!App.v2.enabled) return null;
+  const url = path.startsWith('/api/v2/') ? path : v2WorkspacePath(path);
+  if (!url) return null;
+  const r = await fetch(url, options);
+  if (r.status === 401 || r.status === 403) App.v2.enabled = false;
+  return r;
+}
+
+async function loadV2Documents() {
+  const r = await v2Fetch('/documents?page_size=200');
+  if (!r || !r.ok) return;
+  const data = await r.json();
+  App.v2.documents = data.items || [];
+}
+
+async function loadV2Personas() {
+  const r = await v2Fetch('/personas?page_size=200');
+  if (!r || !r.ok) return;
+  const data = await r.json();
+  App.v2.personas = data.items || [];
+}
+
+async function loadV2Secrets() {
+  const r = await v2Fetch('/secrets?page_size=200');
+  if (!r || !r.ok) return;
+  const data = await r.json();
+  App.v2.secrets = data.items || [];
+}
+
+async function mirrorUploadToV2(file) {
+  if (!App.v2.enabled) return;
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('scope', 'workspace');
+    const r = await v2Fetch('/documents/upload', {method:'POST', body:fd});
+    if (r && r.ok) await loadV2Documents();
+  } catch(e) {}
+}
+
+async function upsertV2Secret(name, value) {
+  if (!App.v2.enabled || !value || value === '••••••••') return;
+  try {
+    await loadV2Secrets();
+    const existing = App.v2.secrets.find(s => s.name === name);
+    const payload = {name, value, scope:'workspace'};
+    const r = existing
+      ? await v2Fetch(`/secrets/${encodeURIComponent(existing.id)}/rotate`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+      : await v2Fetch('/secrets', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    if (r && r.ok) await loadV2Secrets();
+  } catch(e) {}
 }
 
 async function checkFirstRun() {
@@ -3778,7 +3863,10 @@ function saveApiKey(btn) {
   const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
   const k = keyMap[name];
   if (!k) { showToast('Unknown provider', 'error'); return; }
-  saveSettings({[k]: val}).then(() => { input.value = '••••••••'; });
+  saveSettings({[k]: val}).then(() => {
+    upsertV2Secret(k.toUpperCase(), val);
+    input.value = '••••••••';
+  });
 }
 
 function saveOllamaSettings() {
@@ -3796,7 +3884,10 @@ function saveOllamaSettings() {
   }
   const settings = { ollama_base_url: baseUrl };
   if (key && key !== '••••••••') settings.ollama_api_key = key;
-  saveSettings(settings).then(() => { if (keyInput && key && key !== '••••••••') keyInput.value = '••••••••'; });
+  saveSettings(settings).then(() => {
+    if (key && key !== '••••••••') upsertV2Secret('OLLAMA_API_KEY', key);
+    if (keyInput && key && key !== '••••••••') keyInput.value = '••••••••';
+  });
 }
 
 async function testConnection() {
@@ -4991,6 +5082,7 @@ async function uploadFile(file) {
       status.className='upload-item-status status-done';
       status.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
       showToast(`${file.name} uploaded.`);
+      mirrorUploadToV2(file);
       await loadDocuments();
       if (!App.currentChatId && !App.isStreaming && uploaded.id) {
         App.chatMode = 'documents';
