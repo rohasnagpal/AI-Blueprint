@@ -11,7 +11,7 @@
 
 llama-index-core>=0.12.0
 llama-index-vector-stores-chroma>=0.4.0
-llama-index-embeddings-huggingface>=0.1.0
+llama-index-embeddings-huggingface>=0.7.0
 sentence-transformers>=2.2.0
 torch
 transformers
