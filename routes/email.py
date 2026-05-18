@@ -27,6 +27,7 @@ class DraftIn(BaseModel):
 
 class SendIn(BaseModel):
     draft_body: str | None = None
+    approved: bool = False
 
 
 def _now() -> str:
@@ -242,6 +243,8 @@ async def draft_email(message_id: str, body: DraftIn):
 
 @router.post("/email/messages/{message_id}/send")
 async def send_email(message_id: str, body: SendIn):
+    if not body.approved:
+        raise HTTPException(400, detail="Human approval is required before sending email.")
     settings = _settings()
     smtp_host = settings.get("email_smtp_host", "mail.smtp2go.com").strip()
     smtp_port = int(settings.get("email_smtp_port") or 2525)

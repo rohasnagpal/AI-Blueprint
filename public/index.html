@@ -4356,7 +4356,7 @@ async function sendEmailReply(id) {
     const r = await fetch(`/api/email/messages/${id}/send`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({draft_body: draft})
+      body:JSON.stringify({draft_body: draft, approved: true})
     });
     if (!r.ok) throw new Error(await apiError(r));
     await loadEmailMessages();
