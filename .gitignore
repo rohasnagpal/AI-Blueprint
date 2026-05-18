@@ -21,14 +21,18 @@ ENV/
 # ── DocTalk runtime data ──────────────────────────────────────────────────────
 # Secret key used to encrypt API keys — never commit this
 .secret_key
+.secret_key_v2
 
 # SQLite database (contains chat history and encrypted API keys)
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 
 # Uploaded documents
 uploads/
+uploads_v2/
 
 # ChromaDB vector store (local RAG mode)
 chroma_db/
