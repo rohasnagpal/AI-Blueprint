@@ -260,6 +260,22 @@ jobs:
               assert updated_blueprint_member.json()["role"] == "editor"
               removed_blueprint_member = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/members/{second_user_id}")
               assert removed_blueprint_member.status_code == 200, removed_blueprint_member.text
+              temporary_blueprint = client.post(
+                  f"/api/v2/workspaces/{workspace_id}/blueprints",
+                  json={"name": "Temporary Delete Blueprint", "plugin_id": "contract_review", "matter_id": matter.json()["id"]},
+              )
+              assert temporary_blueprint.status_code == 201, temporary_blueprint.text
+              temporary_blueprint_id = temporary_blueprint.json()["id"]
+              temporary_link = client.post(
+                  f"/api/v2/workspaces/{workspace_id}/documents/{document_id}/links",
+                  json={"blueprint_id": temporary_blueprint_id, "link_type": "contract"},
+              )
+              assert temporary_link.status_code == 201, temporary_link.text
+              deleted_blueprint = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{temporary_blueprint_id}")
+              assert deleted_blueprint.status_code == 200, deleted_blueprint.text
+              remaining_blueprints = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints")
+              assert remaining_blueprints.status_code == 200, remaining_blueprints.text
+              assert all(item["id"] != temporary_blueprint_id for item in remaining_blueprints.json()["items"])
 
               assert client.post("/api/v2/auth/logout").status_code == 200
               login = client.post("/api/v2/auth/login", json={"email": "second@example.com", "password": "0123456789ab"})
