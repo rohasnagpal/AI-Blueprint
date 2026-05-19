@@ -544,3 +544,14 @@ jobs:
               assert workspaces.status_code == 200, workspaces.text
               assert all(item["id"] != workspace_id for item in workspaces.json()["items"])
           PY
+
+      - name: Smoke test v2 hardening
+        env:
+          AI_BLUEPRINT_DATABASE_URL: sqlite:////tmp/ai_blueprint_v2_hardening_ci.db
+          AI_BLUEPRINT_UPLOADS_DIR: /tmp/ai_blueprint_v2_hardening_uploads
+          AI_BLUEPRINT_SECRET_KEY_FILE: /tmp/ai_blueprint_v2_hardening_secret.key
+        run: |
+          rm -f /tmp/ai_blueprint_v2_hardening_ci.db*
+          rm -f /tmp/ai_blueprint_v2_hardening_secret.key
+          rm -rf /tmp/ai_blueprint_v2_hardening_uploads
+          python scripts/v2_hardening_smoke.py
