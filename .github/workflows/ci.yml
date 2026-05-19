@@ -60,7 +60,7 @@ jobs:
               health = client.get("/api/v2/health")
               assert health.status_code == 200, health.text
               assert health.headers["x-request-id"]
-              assert health.json()["database"]["migration_revision"] == "0013_v2_legal_research"
+              assert health.json()["database"]["migration_revision"] == "0014_workspace_soft_delete"
               assert client.get("/api/v2/auth/setup-state").json()["setup_required"] is True
               setup = client.post(
                   "/api/v2/auth/setup",
@@ -523,4 +523,11 @@ jobs:
               assert deleted_research_run.status_code == 200, deleted_research_run.text
               missing_research_run = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{research_blueprint_id}/legal-research/runs/{research_run_id}")
               assert missing_research_run.status_code == 404, missing_research_run.text
+              deleted_workspace = client.delete(f"/api/v2/workspaces/{workspace_id}")
+              assert deleted_workspace.status_code == 200, deleted_workspace.text
+              hidden_workspace = client.get(f"/api/v2/workspaces/{workspace_id}")
+              assert hidden_workspace.status_code == 404, hidden_workspace.text
+              workspaces = client.get("/api/v2/workspaces")
+              assert workspaces.status_code == 200, workspaces.text
+              assert all(item["id"] != workspace_id for item in workspaces.json()["items"])
           PY
