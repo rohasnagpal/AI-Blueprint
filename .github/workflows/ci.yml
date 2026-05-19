@@ -489,4 +489,16 @@ jobs:
               research_skill_runs = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{research_blueprint_id}/skill-runs")
               assert research_skill_runs.status_code == 200, research_skill_runs.text
               assert research_skill_runs.json()["total"] == 4
+              deleted_council_run = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{council_blueprint_id}/council/runs/{council_run_id}")
+              assert deleted_council_run.status_code == 200, deleted_council_run.text
+              missing_council_run = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{council_blueprint_id}/council/runs/{council_run_id}")
+              assert missing_council_run.status_code == 404, missing_council_run.text
+              deleted_contract_run = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{contract_blueprint_id}/contract-review/runs/{contract_run_id}")
+              assert deleted_contract_run.status_code == 200, deleted_contract_run.text
+              missing_contract_run = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{contract_blueprint_id}/contract-review/runs/{contract_run_id}")
+              assert missing_contract_run.status_code == 404, missing_contract_run.text
+              deleted_research_run = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{research_blueprint_id}/legal-research/runs/{research_run_id}")
+              assert deleted_research_run.status_code == 200, deleted_research_run.text
+              missing_research_run = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{research_blueprint_id}/legal-research/runs/{research_run_id}")
+              assert missing_research_run.status_code == 404, missing_research_run.text
           PY
