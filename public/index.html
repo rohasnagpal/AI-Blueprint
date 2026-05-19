@@ -3764,6 +3764,25 @@ async function upsertV2Secret(name, value) {
   } catch(e) {}
 }
 
+async function updateV2Setting(key, value) {
+  if (!App.v2.enabled) return;
+  try {
+    await v2Fetch(`/settings/${encodeURIComponent(key)}`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({value})
+    });
+  } catch(e) {}
+}
+
+async function syncV2RuntimeSettings(settings) {
+  if (!App.v2.enabled) return;
+  if (settings.max_file_size_mb != null) {
+    const maxUploadSize = parseInt(settings.max_file_size_mb, 10);
+    if (!Number.isNaN(maxUploadSize)) await updateV2Setting('max_upload_size_mb', maxUploadSize);
+  }
+}
+
 async function checkFirstRun() {
   try {
     const r = await fetch('/api/health');
@@ -4108,7 +4127,7 @@ function saveDocsSettings() {
   const s = {};
   if (mf) s.max_file_size_mb = mf;
   if (ad != null) s.auto_delete_days = ad;
-  saveSettings(s);
+  saveSettings(s).then(() => syncV2RuntimeSettings(s));
 }
 
 function saveAppearanceSettings() {
