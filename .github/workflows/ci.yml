@@ -152,6 +152,22 @@ jobs:
               assert deleted_document.status_code == 200, deleted_document.text
               missing_document = client.get(f"/api/v2/workspaces/{workspace_id}/documents/{temporary_document.json()['id']}")
               assert missing_document.status_code == 404, missing_document.text
+              temporary_matter = client.post(f"/api/v2/workspaces/{workspace_id}/matters", json={"name": "Temporary Matter"})
+              assert temporary_matter.status_code == 201, temporary_matter.text
+              temporary_matter_id = temporary_matter.json()["id"]
+              temporary_matter_document = client.post(
+                  f"/api/v2/workspaces/{workspace_id}/documents",
+                  json={"original_name": "matter-note.txt", "matter_id": temporary_matter_id, "scope": "matter", "status": "registered"},
+              )
+              assert temporary_matter_document.status_code == 201, temporary_matter_document.text
+              deleted_matter = client.delete(f"/api/v2/workspaces/{workspace_id}/matters/{temporary_matter_id}")
+              assert deleted_matter.status_code == 200, deleted_matter.text
+              remaining_matters = client.get(f"/api/v2/workspaces/{workspace_id}/matters")
+              assert remaining_matters.status_code == 200, remaining_matters.text
+              assert all(item["id"] != temporary_matter_id for item in remaining_matters.json()["items"])
+              detached_document = client.get(f"/api/v2/workspaces/{workspace_id}/documents/{temporary_matter_document.json()['id']}")
+              assert detached_document.status_code == 200, detached_document.text
+              assert detached_document.json()["matter_id"] is None
               personas = client.get(f"/api/v2/workspaces/{workspace_id}/personas")
               assert personas.status_code == 200, personas.text
               assert personas.json()["total"] >= 2
