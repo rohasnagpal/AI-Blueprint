@@ -179,6 +179,11 @@ jobs:
               assert blueprint_personas.status_code == 200, blueprint_personas.text
               assert blueprint_personas.json()["total"] == 1
               assert blueprint_personas.json()["items"][0]["role"] == "reviewer"
+              deleted_persona = client.delete(f"/api/v2/workspaces/{workspace_id}/personas/{created_persona.json()['id']}")
+              assert deleted_persona.status_code == 200, deleted_persona.text
+              missing_persona_list = client.get(f"/api/v2/workspaces/{workspace_id}/personas")
+              assert missing_persona_list.status_code == 200, missing_persona_list.text
+              assert all(item["id"] != created_persona.json()["id"] for item in missing_persona_list.json()["items"])
               created_secret = client.post(
                   f"/api/v2/workspaces/{workspace_id}/secrets",
                   json={"name": "OPENAI_API_KEY", "value": "sk-test-secret", "scope": "workspace"},
