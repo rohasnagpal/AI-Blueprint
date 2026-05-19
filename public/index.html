@@ -2179,7 +2179,17 @@
   <div class="sidebar-divider"></div>
 
   <div class="sidebar-section">
-    <div class="sidebar-label">Recent Chats</div>
+    <div class="sidebar-label" id="chat-history-label">Recent Chats</div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button class="chat-menu-item" id="chat-active-filter" type="button" onclick="setChatArchiveFilter(false)" style="width:auto;padding:5px 8px">Active</button>
+      <button class="chat-menu-item" id="chat-archived-filter" type="button" onclick="setChatArchiveFilter(true)" style="width:auto;padding:5px 8px">Archived</button>
+      <button class="chat-menu-item" type="button" onclick="toggleChatSelectMode()" style="width:auto;padding:5px 8px">Select</button>
+    </div>
+    <div id="chat-bulk-actions" style="display:none;gap:6px;margin-top:6px;flex-wrap:wrap">
+      <button class="chat-menu-item danger" type="button" onclick="deleteSelectedChats()" style="width:auto;padding:5px 8px">Delete selected</button>
+      <button class="chat-menu-item danger" type="button" onclick="deleteAllVisibleChats()" style="width:auto;padding:5px 8px">Delete all</button>
+      <button class="chat-menu-item" type="button" onclick="toggleChatSelectMode(false)" style="width:auto;padding:5px 8px">Cancel</button>
+    </div>
   </div>
 
   <div class="chat-history" id="chat-history-list"></div>
@@ -3663,7 +3673,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -4747,7 +4757,7 @@ async function resetAllSettings() {
 // ── CHATS ──────────────────────────────────────────────────────────────────
 async function loadChats() {
   try {
-    const r = await fetch('/api/chats');
+    const r = await fetch(`/api/chats${App.chatArchiveFilter ? '?archived=true' : ''}`);
     App.chats = await r.json();
     renderChatHistory();
   } catch(e) {}
@@ -4756,25 +4766,65 @@ async function loadChats() {
 function renderChatHistory() {
   const list = document.getElementById('chat-history-list');
   if (!list) return;
+  el('chat-history-label', App.chatArchiveFilter ? 'Archived Chats' : 'Recent Chats');
+  document.getElementById('chat-active-filter')?.classList.toggle('active', !App.chatArchiveFilter);
+  document.getElementById('chat-archived-filter')?.classList.toggle('active', App.chatArchiveFilter);
+  const bulk = document.getElementById('chat-bulk-actions');
+  if (bulk) bulk.style.display = App.chatSelectMode ? 'flex' : 'none';
   list.innerHTML = '';
   for (const chat of App.chats) {
     const item = document.createElement('div');
     item.className = 'chat-history-item' + (chat.id === App.currentChatId ? ' active' : '') + (chat.id === App.openChatMenuId ? ' menu-open' : '');
     const menu = chat.id === App.openChatMenuId ? `
       <div class="chat-row-menu" onclick="event.stopPropagation()">
-        <button class="chat-menu-item" type="button" onclick="archiveChat('${chat.id}', event)">
+        ${App.chatArchiveFilter ? `<button class="chat-menu-item" type="button" onclick="restoreChat('${chat.id}', event)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+          <span>Restore</span>
+        </button>` : `<button class="chat-menu-item" type="button" onclick="archiveChat('${chat.id}', event)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
           <span>Archive</span>
-        </button>
+        </button>`}
         <button class="chat-menu-item danger" type="button" onclick="deleteChat('${chat.id}', event)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           <span>Delete</span>
         </button>
       </div>` : '';
-    item.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="chat-history-title">${esc(chat.title || 'New Chat')}</span><button class="chat-menu-btn" type="button" title="Chat options" onclick="toggleChatMenu('${chat.id}', event)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>${menu}`;
-    item.onclick = () => openChat(chat.id);
+    const checked = App.selectedChatIds.has(chat.id) ? 'checked' : '';
+    const selector = App.chatSelectMode ? `<input type="checkbox" ${checked} onclick="toggleSelectedChat('${chat.id}', event)" style="margin:0 2px 0 0;accent-color:var(--accent)"/>` : '';
+    item.innerHTML = `${selector}<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="chat-history-title">${esc(chat.title || 'New Chat')}</span><button class="chat-menu-btn" type="button" title="Chat options" onclick="toggleChatMenu('${chat.id}', event)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>${menu}`;
+    item.onclick = () => App.chatSelectMode ? toggleSelectedChat(chat.id) : openChat(chat.id);
     list.appendChild(item);
   }
+}
+
+function setChatArchiveFilter(archived) {
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before changing chat lists.', 'warning');
+    return;
+  }
+  App.chatArchiveFilter = !!archived;
+  App.chatSelectMode = false;
+  App.selectedChatIds.clear();
+  App.openChatMenuId = null;
+  loadChats();
+}
+
+function toggleChatSelectMode(force) {
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before selecting chats.', 'warning');
+    return;
+  }
+  App.chatSelectMode = typeof force === 'boolean' ? force : !App.chatSelectMode;
+  App.selectedChatIds.clear();
+  App.openChatMenuId = null;
+  renderChatHistory();
+}
+
+function toggleSelectedChat(chatId, event) {
+  if (event) event.stopPropagation();
+  if (App.selectedChatIds.has(chatId)) App.selectedChatIds.delete(chatId);
+  else App.selectedChatIds.add(chatId);
+  renderChatHistory();
 }
 
 function toggleChatMenu(chatId, event) {
@@ -4810,6 +4860,26 @@ async function archiveChat(chatId, event) {
   }
 }
 
+async function restoreChat(chatId, event) {
+  event.stopPropagation();
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before restoring a chat.', 'warning');
+    return;
+  }
+  try {
+    const r = await fetch(`/api/chats/${chatId}/restore`, { method: 'POST' });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || err.error || 'Restore failed');
+    }
+    App.openChatMenuId = null;
+    await loadChats();
+    showToast('Chat restored.', 'success');
+  } catch(e) {
+    showToast('Failed to restore chat: ' + e.message, 'error');
+  }
+}
+
 async function deleteChat(chatId, event) {
   event.stopPropagation();
   if (App.isStreaming) {
@@ -4832,6 +4902,46 @@ async function deleteChat(chatId, event) {
   } catch(e) {
     showToast('Failed to delete chat: ' + e.message, 'error');
   }
+}
+
+async function deleteSelectedChats() {
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before deleting chats.', 'warning');
+    return;
+  }
+  const ids = [...App.selectedChatIds];
+  if (!ids.length) { showToast('Select at least one chat.', 'warning'); return; }
+  if (!confirm(`Delete ${ids.length} selected chat${ids.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+  try {
+    const r = await fetch('/api/chats/bulk-delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids})});
+    if (!r.ok) throw new Error(await apiError(r));
+    const data = await r.json();
+    if (ids.includes(App.currentChatId)) newChat();
+    App.selectedChatIds.clear();
+    App.chatSelectMode = false;
+    await loadChats();
+    showToast(`${data.deleted || 0} chat${data.deleted === 1 ? '' : 's'} deleted.`);
+  } catch(e) { showToast('Delete failed: ' + e.message, 'error'); }
+}
+
+async function deleteAllVisibleChats() {
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before deleting chats.', 'warning');
+    return;
+  }
+  if (!App.chats.length) { showToast('No chats to delete.', 'warning'); return; }
+  const label = App.chatArchiveFilter ? 'archived' : 'active';
+  if (!confirm(`Delete all ${App.chats.length} ${label} chat${App.chats.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+  try {
+    const r = await fetch(`/api/chats${App.chatArchiveFilter ? '?archived=true' : ''}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    const data = await r.json();
+    if (!App.chatArchiveFilter) newChat();
+    App.selectedChatIds.clear();
+    App.chatSelectMode = false;
+    await loadChats();
+    showToast(`${data.deleted || 0} chat${data.deleted === 1 ? '' : 's'} deleted.`);
+  } catch(e) { showToast('Delete failed: ' + e.message, 'error'); }
 }
 
 async function openChat(chatId) {
