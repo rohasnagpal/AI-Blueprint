@@ -44,6 +44,10 @@ class SendMessage(BaseModel):
     web_search: bool = False
 
 
+class BulkChatDelete(BaseModel):
+    ids: list[str]
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -288,10 +292,11 @@ def _v2_scope_from_chat(chat) -> dict | None:
 
 
 @router.get("/chats")
-async def list_chats(request: Request):
+async def list_chats(request: Request, archived: bool = False):
     user = _optional_v2_user(request)
     conn = database.get_connection()
-    rows = conn.execute("SELECT * FROM chats WHERE archived_at IS NULL ORDER BY updated_at DESC").fetchall()
+    where = "archived_at IS NOT NULL" if archived else "archived_at IS NULL"
+    rows = conn.execute(f"SELECT * FROM chats WHERE {where} ORDER BY updated_at DESC").fetchall()
     conn.close()
     rows = [r for r in rows if _user_can_access_v2_scope(user, _v2_scope_from_chat(r))]
     return [_format_chat(r) for r in rows]
@@ -1119,6 +1124,45 @@ async def delete_chat(chat_id: str, request: Request):
     return {"ok": True}
 
 
+@router.delete("/chats")
+async def delete_visible_chats(request: Request, archived: bool = False):
+    if archived not in {True, False}:
+        archived = False
+    user = _optional_v2_user(request)
+    conn = database.get_connection()
+    where = "archived_at IS NOT NULL" if archived else "archived_at IS NULL"
+    rows = conn.execute(f"SELECT * FROM chats WHERE {where}").fetchall()
+    visible = [r for r in rows if _user_can_access_v2_scope(user, _v2_scope_from_chat(r))]
+    ids = [r["id"] for r in visible]
+    if ids:
+        placeholders = ",".join("?" for _ in ids)
+        conn.execute(f"DELETE FROM messages WHERE chat_id IN ({placeholders})", ids)
+        conn.execute(f"DELETE FROM chats WHERE id IN ({placeholders})", ids)
+        conn.commit()
+    conn.close()
+    return {"ok": True, "deleted": len(ids)}
+
+
+@router.post("/chats/bulk-delete")
+async def bulk_delete_chats(body: BulkChatDelete, request: Request):
+    ids = [chat_id for chat_id in dict.fromkeys(body.ids) if chat_id]
+    if not ids:
+        return {"ok": True, "deleted": 0}
+    user = _optional_v2_user(request)
+    conn = database.get_connection()
+    placeholders = ",".join("?" for _ in ids)
+    rows = conn.execute(f"SELECT * FROM chats WHERE id IN ({placeholders})", ids).fetchall()
+    visible = [r for r in rows if _user_can_access_v2_scope(user, _v2_scope_from_chat(r))]
+    allowed_ids = [r["id"] for r in visible]
+    if allowed_ids:
+        allowed_placeholders = ",".join("?" for _ in allowed_ids)
+        conn.execute(f"DELETE FROM messages WHERE chat_id IN ({allowed_placeholders})", allowed_ids)
+        conn.execute(f"DELETE FROM chats WHERE id IN ({allowed_placeholders})", allowed_ids)
+        conn.commit()
+    conn.close()
+    return {"ok": True, "deleted": len(allowed_ids)}
+
+
 @router.post("/chats/{chat_id}/archive")
 async def archive_chat(chat_id: str, request: Request):
     conn = database.get_connection()
@@ -1131,6 +1175,23 @@ async def archive_chat(chat_id: str, request: Request):
     conn = database.get_connection()
     now = _now()
     conn.execute("UPDATE chats SET archived_at = ?, updated_at = ? WHERE id = ?", (now, now, chat_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@router.post("/chats/{chat_id}/restore")
+async def restore_chat(chat_id: str, request: Request):
+    conn = database.get_connection()
+    chat = conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
+    if not chat:
+        conn.close()
+        raise HTTPException(404, detail="Chat not found")
+    conn.close()
+    _require_v2_chat_access(request, chat)
+    conn = database.get_connection()
+    now = _now()
+    conn.execute("UPDATE chats SET archived_at = NULL, updated_at = ? WHERE id = ?", (now, chat_id))
     conn.commit()
     conn.close()
     return {"ok": True}

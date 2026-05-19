@@ -87,6 +87,19 @@ def main() -> None:
                 },
             )
         )
+        archive = assert_ok(owner.post(f"/api/chats/{scoped_chat['id']}/archive"))
+        assert archive["ok"] is True
+        archived_chats = assert_ok(owner.get("/api/chats?archived=true"))
+        assert any(chat["id"] == scoped_chat["id"] for chat in archived_chats)
+        restore = assert_ok(owner.post(f"/api/chats/{scoped_chat['id']}/restore"))
+        assert restore["ok"] is True
+        active_chats = assert_ok(owner.get("/api/chats"))
+        assert any(chat["id"] == scoped_chat["id"] for chat in active_chats)
+
+        extra_chat = assert_ok(owner.post("/api/chats", json={"doc_context": "none"}))
+        bulk = assert_ok(owner.post("/api/chats/bulk-delete", json={"ids": [extra_chat["id"]]}))
+        assert bulk["deleted"] == 1
+        assert all(chat["id"] != extra_chat["id"] for chat in assert_ok(owner.get("/api/chats")))
 
         with TestClient(app) as anonymous:
             hidden = assert_ok(anonymous.get("/api/chats"))
