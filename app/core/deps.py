@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.core.models import BlueprintInstance, BlueprintMember, Plugin, PluginEnablement, SessionToken, User, WorkspaceMember
+from app.core.models import BlueprintInstance, BlueprintMember, Plugin, PluginEnablement, SessionToken, User, Workspace, WorkspaceMember
 from app.core.security import hash_session_token
 
 
@@ -40,14 +40,19 @@ def get_current_user(
 
 
 def require_workspace_member(workspace_id: str, user: User, db: Session) -> WorkspaceMember:
-    membership = db.execute(
-        select(WorkspaceMember).where(
+    row = db.execute(
+        select(WorkspaceMember, Workspace)
+        .join(Workspace, Workspace.id == WorkspaceMember.workspace_id)
+        .where(
             WorkspaceMember.workspace_id == workspace_id,
             WorkspaceMember.user_id == user.id,
         )
-    ).scalar_one_or_none()
-    if not membership:
+    ).first()
+    if not row:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Workspace access denied")
+    membership, workspace = row
+    if workspace.deleted_at:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return membership
 
 
