@@ -78,6 +78,9 @@ jobs:
               assert navigation.status_code == 200, navigation.text
               assert navigation.json()["items"][0]["workspace_id"] == workspace_id
               assert any(item["id"] == "admin" for item in navigation.json()["items"][0]["items"])
+              updated_workspace = client.put(f"/api/v2/workspaces/{workspace_id}", json={"name": "Firm Workspace Updated", "slug": "firm"})
+              assert updated_workspace.status_code == 200, updated_workspace.text
+              assert updated_workspace.json()["name"] == "Firm Workspace Updated"
               matter = client.post(f"/api/v2/workspaces/{workspace_id}/matters", json={"name": "Test Matter"})
               assert matter.status_code == 201, matter.text
               matter_detail = client.get(f"/api/v2/workspaces/{workspace_id}/matters/{matter.json()['id']}")
