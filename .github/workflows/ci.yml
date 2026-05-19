@@ -78,8 +78,14 @@ jobs:
               assert navigation.status_code == 200, navigation.text
               assert navigation.json()["items"][0]["workspace_id"] == workspace_id
               assert any(item["id"] == "admin" for item in navigation.json()["items"][0]["items"])
+              updated_workspace = client.put(f"/api/v2/workspaces/{workspace_id}", json={"name": "Firm Workspace Updated", "slug": "firm"})
+              assert updated_workspace.status_code == 200, updated_workspace.text
+              assert updated_workspace.json()["name"] == "Firm Workspace Updated"
               matter = client.post(f"/api/v2/workspaces/{workspace_id}/matters", json={"name": "Test Matter"})
               assert matter.status_code == 201, matter.text
+              matter_detail = client.get(f"/api/v2/workspaces/{workspace_id}/matters/{matter.json()['id']}")
+              assert matter_detail.status_code == 200, matter_detail.text
+              assert matter_detail.json()["name"] == "Test Matter"
               plugins = client.get(f"/api/v2/workspaces/{workspace_id}/plugins")
               assert plugins.status_code == 200, plugins.text
               assert len(plugins.json()["items"]) == 3
@@ -143,6 +149,31 @@ jobs:
               linked_docs = client.get(f"/api/v2/workspaces/{workspace_id}/documents/blueprints/{blueprint_id}/links")
               assert linked_docs.status_code == 200, linked_docs.text
               assert linked_docs.json()["total"] == 1
+              temporary_document = client.post(
+                  f"/api/v2/workspaces/{workspace_id}/documents",
+                  json={"original_name": "Temporary Delete Test.txt", "scope": "workspace", "status": "registered"},
+              )
+              assert temporary_document.status_code == 201, temporary_document.text
+              deleted_document = client.delete(f"/api/v2/workspaces/{workspace_id}/documents/{temporary_document.json()['id']}")
+              assert deleted_document.status_code == 200, deleted_document.text
+              missing_document = client.get(f"/api/v2/workspaces/{workspace_id}/documents/{temporary_document.json()['id']}")
+              assert missing_document.status_code == 404, missing_document.text
+              temporary_matter = client.post(f"/api/v2/workspaces/{workspace_id}/matters", json={"name": "Temporary Matter"})
+              assert temporary_matter.status_code == 201, temporary_matter.text
+              temporary_matter_id = temporary_matter.json()["id"]
+              temporary_matter_document = client.post(
+                  f"/api/v2/workspaces/{workspace_id}/documents",
+                  json={"original_name": "matter-note.txt", "matter_id": temporary_matter_id, "scope": "matter", "status": "registered"},
+              )
+              assert temporary_matter_document.status_code == 201, temporary_matter_document.text
+              deleted_matter = client.delete(f"/api/v2/workspaces/{workspace_id}/matters/{temporary_matter_id}")
+              assert deleted_matter.status_code == 200, deleted_matter.text
+              remaining_matters = client.get(f"/api/v2/workspaces/{workspace_id}/matters")
+              assert remaining_matters.status_code == 200, remaining_matters.text
+              assert all(item["id"] != temporary_matter_id for item in remaining_matters.json()["items"])
+              detached_document = client.get(f"/api/v2/workspaces/{workspace_id}/documents/{temporary_matter_document.json()['id']}")
+              assert detached_document.status_code == 200, detached_document.text
+              assert detached_document.json()["matter_id"] is None
               personas = client.get(f"/api/v2/workspaces/{workspace_id}/personas")
               assert personas.status_code == 200, personas.text
               assert personas.json()["total"] >= 2
@@ -170,6 +201,11 @@ jobs:
               assert blueprint_personas.status_code == 200, blueprint_personas.text
               assert blueprint_personas.json()["total"] == 1
               assert blueprint_personas.json()["items"][0]["role"] == "reviewer"
+              deleted_persona = client.delete(f"/api/v2/workspaces/{workspace_id}/personas/{created_persona.json()['id']}")
+              assert deleted_persona.status_code == 200, deleted_persona.text
+              missing_persona_list = client.get(f"/api/v2/workspaces/{workspace_id}/personas")
+              assert missing_persona_list.status_code == 200, missing_persona_list.text
+              assert all(item["id"] != created_persona.json()["id"] for item in missing_persona_list.json()["items"])
               created_secret = client.post(
                   f"/api/v2/workspaces/{workspace_id}/secrets",
                   json={"name": "OPENAI_API_KEY", "value": "sk-test-secret", "scope": "workspace"},
@@ -246,6 +282,22 @@ jobs:
               assert updated_blueprint_member.json()["role"] == "editor"
               removed_blueprint_member = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/members/{second_user_id}")
               assert removed_blueprint_member.status_code == 200, removed_blueprint_member.text
+              temporary_blueprint = client.post(
+                  f"/api/v2/workspaces/{workspace_id}/blueprints",
+                  json={"name": "Temporary Delete Blueprint", "plugin_id": "contract_review", "matter_id": matter.json()["id"]},
+              )
+              assert temporary_blueprint.status_code == 201, temporary_blueprint.text
+              temporary_blueprint_id = temporary_blueprint.json()["id"]
+              temporary_link = client.post(
+                  f"/api/v2/workspaces/{workspace_id}/documents/{document_id}/links",
+                  json={"blueprint_id": temporary_blueprint_id, "link_type": "contract"},
+              )
+              assert temporary_link.status_code == 201, temporary_link.text
+              deleted_blueprint = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{temporary_blueprint_id}")
+              assert deleted_blueprint.status_code == 200, deleted_blueprint.text
+              remaining_blueprints = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints")
+              assert remaining_blueprints.status_code == 200, remaining_blueprints.text
+              assert all(item["id"] != temporary_blueprint_id for item in remaining_blueprints.json()["items"])
 
               assert client.post("/api/v2/auth/logout").status_code == 200
               login = client.post("/api/v2/auth/login", json={"email": "second@example.com", "password": "0123456789ab"})
@@ -459,4 +511,16 @@ jobs:
               research_skill_runs = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{research_blueprint_id}/skill-runs")
               assert research_skill_runs.status_code == 200, research_skill_runs.text
               assert research_skill_runs.json()["total"] == 4
+              deleted_council_run = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{council_blueprint_id}/council/runs/{council_run_id}")
+              assert deleted_council_run.status_code == 200, deleted_council_run.text
+              missing_council_run = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{council_blueprint_id}/council/runs/{council_run_id}")
+              assert missing_council_run.status_code == 404, missing_council_run.text
+              deleted_contract_run = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{contract_blueprint_id}/contract-review/runs/{contract_run_id}")
+              assert deleted_contract_run.status_code == 200, deleted_contract_run.text
+              missing_contract_run = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{contract_blueprint_id}/contract-review/runs/{contract_run_id}")
+              assert missing_contract_run.status_code == 404, missing_contract_run.text
+              deleted_research_run = client.delete(f"/api/v2/workspaces/{workspace_id}/blueprints/{research_blueprint_id}/legal-research/runs/{research_run_id}")
+              assert deleted_research_run.status_code == 200, deleted_research_run.text
+              missing_research_run = client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{research_blueprint_id}/legal-research/runs/{research_run_id}")
+              assert missing_research_run.status_code == 404, missing_research_run.text
           PY

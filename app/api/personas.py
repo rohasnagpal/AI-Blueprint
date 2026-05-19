@@ -149,6 +149,29 @@ async def update_persona(workspace_id: str, persona_id: str, body: PersonaIn, us
     return _format_persona(persona)
 
 
+@router.delete("/workspaces/{workspace_id}/personas/{persona_id}")
+async def delete_persona(workspace_id: str, persona_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_workspace_admin(workspace_id, user, db)
+    persona = db.execute(select(Persona).where(Persona.workspace_id == workspace_id, Persona.id == persona_id)).scalar_one_or_none()
+    if not persona:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found")
+    links = db.execute(select(BlueprintPersona).where(BlueprintPersona.workspace_id == workspace_id, BlueprintPersona.persona_id == persona_id)).scalars().all()
+    for link in links:
+        db.delete(link)
+    db.delete(persona)
+    record_audit_event(
+        db,
+        action="persona.delete",
+        resource_type="persona",
+        resource_id=persona_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        metadata={"link_count": len(links)},
+    )
+    db.commit()
+    return {"ok": True}
+
+
 @router.get("/workspaces/{workspace_id}/blueprints/{blueprint_id}/personas")
 async def list_blueprint_personas(workspace_id: str, blueprint_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_blueprint_member(workspace_id, blueprint_id, user, db)

@@ -278,6 +278,58 @@ async def get_document(
     return _format_document(_get_document_or_404(db, workspace_id, document_id))
 
 
+@router.delete("/{document_id}")
+async def delete_document(
+    workspace_id: str,
+    document_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_member(workspace_id, user, db)
+    document = _get_document_or_404(db, workspace_id, document_id)
+    linked = db.execute(select(DocumentLink).where(DocumentLink.document_id == document_id)).scalars().all()
+    for link in linked:
+        db.delete(link)
+    db.delete(document)
+    record_audit_event(
+        db,
+        action="document.delete",
+        resource_type="document",
+        resource_id=document_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        metadata={"storage_key": document.storage_key, "link_count": len(linked)},
+    )
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("")
+async def delete_all_documents(
+    workspace_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_member(workspace_id, user, db)
+    documents = db.execute(select(KnowledgeDocument).where(KnowledgeDocument.workspace_id == workspace_id)).scalars().all()
+    links = db.execute(select(DocumentLink).where(DocumentLink.workspace_id == workspace_id)).scalars().all()
+    for link in links:
+        db.delete(link)
+    for document in documents:
+        db.delete(document)
+    record_audit_event(
+        db,
+        action="document.delete_all",
+        resource_type="document",
+        resource_id=workspace_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        metadata={"document_count": len(documents), "link_count": len(links)},
+    )
+    db.commit()
+    return {"ok": True, "deleted": len(documents)}
+
+
 @router.post("/{document_id}/links", status_code=status.HTTP_201_CREATED)
 async def link_document_to_blueprint(
     workspace_id: str,

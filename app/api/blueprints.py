@@ -2,13 +2,34 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_blueprint_member, require_plugin_enabled, require_workspace_member
-from app.core.models import BlueprintInstance, BlueprintMember, Matter, User, WorkspaceMember, utcnow
+from app.core.models import (
+    BlueprintInstance,
+    BlueprintMember,
+    BlueprintPersona,
+    ContractReviewConfig,
+    ContractReviewOutput,
+    ContractReviewRun,
+    CouncilConfig,
+    CouncilEvidence,
+    CouncilOutput,
+    CouncilRun,
+    DocumentLink,
+    Escalation,
+    LegalResearchConfig,
+    LegalResearchOutput,
+    LegalResearchRun,
+    Matter,
+    SkillRun,
+    User,
+    WorkspaceMember,
+    utcnow,
+)
 from app.core.pagination import page_response
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/blueprints", tags=["blueprints"])
@@ -257,6 +278,51 @@ async def remove_blueprint_member(
     membership_id = membership.id
     db.delete(membership)
     record_audit_event(db, action="blueprint.member.remove", resource_type="blueprint_member", resource_id=membership_id, user_id=user.id, workspace_id=workspace_id, metadata={"blueprint_id": blueprint_id, "member_user_id": member_user_id})
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/{blueprint_id}")
+async def delete_blueprint(
+    workspace_id: str,
+    blueprint_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    blueprint, _membership = _require_blueprint_owner(workspace_id, blueprint_id, user, db)
+    metadata = {
+        "plugin_id": blueprint.plugin_id,
+        "matter_id": blueprint.matter_id,
+        "status": blueprint.status,
+    }
+    for model in (
+        CouncilOutput,
+        CouncilEvidence,
+        CouncilRun,
+        CouncilConfig,
+        ContractReviewOutput,
+        ContractReviewRun,
+        ContractReviewConfig,
+        LegalResearchOutput,
+        LegalResearchRun,
+        LegalResearchConfig,
+        DocumentLink,
+        BlueprintPersona,
+        Escalation,
+        SkillRun,
+        BlueprintMember,
+    ):
+        db.execute(delete(model).where(model.blueprint_id == blueprint_id))
+    db.delete(blueprint)
+    record_audit_event(
+        db,
+        action="blueprint.delete",
+        resource_type="blueprint",
+        resource_id=blueprint_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        metadata=metadata,
+    )
     db.commit()
     return {"ok": True}
 
