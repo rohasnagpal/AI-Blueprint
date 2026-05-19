@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
@@ -232,6 +232,27 @@ async def get_run(workspace_id: str, blueprint_id: str, run_id: str, user: User 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Legal Research run not found")
     output = db.execute(select(LegalResearchOutput).where(LegalResearchOutput.run_id == run_id)).scalar_one_or_none()
     return {"run": _format_run(run), "output": _format_output(output) if output else None}
+
+
+@router.delete("/runs/{run_id}")
+async def delete_run(workspace_id: str, blueprint_id: str, run_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _blueprint, role = _require_research_blueprint(workspace_id, blueprint_id, user, db)
+    if role not in {"owner", "editor"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Blueprint edit access required")
+    run = db.execute(
+        select(LegalResearchRun).where(
+            LegalResearchRun.workspace_id == workspace_id,
+            LegalResearchRun.blueprint_id == blueprint_id,
+            LegalResearchRun.id == run_id,
+        )
+    ).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Legal Research run not found")
+    db.execute(delete(LegalResearchOutput).where(LegalResearchOutput.run_id == run_id))
+    db.delete(run)
+    record_audit_event(db, action="legal_research.run.delete", resource_type="legal_research_run", resource_id=run_id, user_id=user.id, workspace_id=workspace_id, metadata={"blueprint_id": blueprint_id})
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/runs/{run_id}/export")

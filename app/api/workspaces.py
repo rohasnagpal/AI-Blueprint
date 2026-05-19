@@ -3,13 +3,13 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_admin, require_workspace_member
-from app.core.models import Matter, User, Workspace, WorkspaceMember, utcnow
+from app.core.models import BlueprintInstance, KnowledgeDocument, Matter, User, Workspace, WorkspaceMember, utcnow
 from app.core.pagination import page_response
 from app.core.security import hash_password
 
@@ -125,6 +125,30 @@ async def get_workspace(workspace_id: str, user: User = Depends(get_current_user
     workspace = db.get(Workspace, workspace_id)
     if not workspace:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    return _format_workspace(workspace, membership.role)
+
+
+@router.put("/{workspace_id}")
+async def update_workspace(
+    workspace_id: str,
+    body: WorkspaceIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    membership = require_workspace_admin(workspace_id, user, db)
+    workspace = db.get(Workspace, workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    slug = _slugify(body.slug or body.name)
+    existing = db.execute(select(Workspace).where(Workspace.slug == slug, Workspace.id != workspace_id)).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workspace slug already exists")
+    workspace.name = body.name.strip()
+    workspace.slug = slug
+    workspace.updated_at = utcnow()
+    record_audit_event(db, action="workspace.update", resource_type="workspace", resource_id=workspace.id, user_id=user.id, workspace_id=workspace.id)
+    db.commit()
+    db.refresh(workspace)
     return _format_workspace(workspace, membership.role)
 
 
@@ -272,6 +296,20 @@ async def create_matter(
     return _format_matter(matter)
 
 
+@router.get("/{workspace_id}/matters/{matter_id}")
+async def get_matter(
+    workspace_id: str,
+    matter_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_member(workspace_id, user, db)
+    matter = db.execute(select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)).scalar_one_or_none()
+    if not matter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+    return _format_matter(matter)
+
+
 @router.put("/{workspace_id}/matters/{matter_id}")
 async def update_matter(
     workspace_id: str,
@@ -293,3 +331,30 @@ async def update_matter(
     db.commit()
     db.refresh(matter)
     return _format_matter(matter)
+
+
+@router.delete("/{workspace_id}/matters/{matter_id}")
+async def delete_matter(
+    workspace_id: str,
+    matter_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_member(workspace_id, user, db)
+    matter = db.execute(select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)).scalar_one_or_none()
+    if not matter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+    db.execute(
+        update(BlueprintInstance)
+        .where(BlueprintInstance.workspace_id == workspace_id, BlueprintInstance.matter_id == matter_id)
+        .values(matter_id=None, updated_at=utcnow())
+    )
+    db.execute(
+        update(KnowledgeDocument)
+        .where(KnowledgeDocument.workspace_id == workspace_id, KnowledgeDocument.matter_id == matter_id)
+        .values(matter_id=None, updated_at=utcnow())
+    )
+    db.delete(matter)
+    record_audit_event(db, action="matter.delete", resource_type="matter", resource_id=matter_id, user_id=user.id, workspace_id=workspace_id)
+    db.commit()
+    return {"ok": True}
