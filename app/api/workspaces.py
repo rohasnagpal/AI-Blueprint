@@ -128,6 +128,30 @@ async def get_workspace(workspace_id: str, user: User = Depends(get_current_user
     return _format_workspace(workspace, membership.role)
 
 
+@router.put("/{workspace_id}")
+async def update_workspace(
+    workspace_id: str,
+    body: WorkspaceIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    membership = require_workspace_admin(workspace_id, user, db)
+    workspace = db.get(Workspace, workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    slug = _slugify(body.slug or body.name)
+    existing = db.execute(select(Workspace).where(Workspace.slug == slug, Workspace.id != workspace_id)).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workspace slug already exists")
+    workspace.name = body.name.strip()
+    workspace.slug = slug
+    workspace.updated_at = utcnow()
+    record_audit_event(db, action="workspace.update", resource_type="workspace", resource_id=workspace.id, user_id=user.id, workspace_id=workspace.id)
+    db.commit()
+    db.refresh(workspace)
+    return _format_workspace(workspace, membership.role)
+
+
 @router.get("/{workspace_id}/members")
 async def list_workspace_members(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_admin(workspace_id, user, db)
