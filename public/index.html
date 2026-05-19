@@ -2149,6 +2149,10 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       New Chat
     </div>
+    <div class="nav-item" onclick="switchView('blueprints')" id="nav-blueprints">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Blueprints
+    </div>
     <div class="nav-item" onclick="switchView('councils')" id="nav-councils">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Councils
@@ -2283,6 +2287,120 @@
         </div>
       </div>
       <div class="input-hint">Built in India 🇮🇳 for the world by Rohas Nagpal.<br/>AI Blueprint may make mistakes. Always verify important information from the original documents.</div>
+    </div>
+  </div>
+
+  <!-- ── BLUEPRINTS VIEW ── -->
+  <div class="view" id="view-blueprints">
+    <div class="councils-area">
+      <div class="view-header">
+        <h2>Blueprints</h2>
+        <p>Open workspace matters and create plugin-backed legal blueprints.</p>
+      </div>
+
+      <div class="settings-card" style="margin-bottom:16px">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">Workspace</div><div class="settings-card-subtitle">Choose the v2 workspace for matters, documents, and blueprint permissions.</div></div>
+          <button class="btn-secondary" type="button" onclick="loadV2Shell()">Refresh</button>
+        </div>
+        <div class="council-form">
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="v2-workspace-select">Current workspace</label>
+              <select class="council-select" id="v2-workspace-select" onchange="setV2Workspace(this.value)"></select>
+            </div>
+            <div class="council-field">
+              <label for="v2-matter-filter">Matter filter</label>
+              <select class="council-select" id="v2-matter-filter" onchange="setV2MatterFilter(this.value)"></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="docs-stats">
+        <div class="stat-pill"><strong id="v2-stat-matters">0</strong> matters</div>
+        <div class="stat-pill"><strong id="v2-stat-blueprints">0</strong> blueprints</div>
+        <div class="stat-pill"><strong id="v2-stat-documents">0</strong> v2 documents</div>
+      </div>
+
+      <div class="councils-shell">
+        <div class="council-nav">
+          <button class="council-tab active" type="button" onclick="switchBlueprintTab('matters', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 3h11v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 4"/></svg>
+            Matters
+          </button>
+          <button class="council-tab" type="button" onclick="switchBlueprintTab('blueprints', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Blueprints
+          </button>
+          <button class="council-tab" type="button" onclick="switchBlueprintTab('plugins', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"/><path d="M5.2 5.2l4.2 4.2"/><path d="M2 12h6"/><path d="M5.2 18.8l4.2-4.2"/><path d="M12 16v6"/><path d="M18.8 18.8l-4.2-4.2"/><path d="M16 12h6"/><path d="M18.8 5.2l-4.2 4.2"/></svg>
+            Plugins
+          </button>
+        </div>
+
+        <div>
+          <div class="council-panel active" id="blueprint-panel-matters">
+            <div class="council-toolbar">
+              <div>
+                <div class="settings-section-title">Matters</div>
+                <div class="settings-section-desc">Matter records scope documents and blueprints.</div>
+              </div>
+            </div>
+            <div class="settings-card" style="margin-bottom:16px">
+              <div class="settings-card-header">
+                <div><div class="settings-card-title">New Matter</div></div>
+              </div>
+              <div class="council-form">
+                <div class="council-form-row">
+                  <div class="council-field"><label for="v2-matter-name">Name</label><input class="council-input" id="v2-matter-name" placeholder="Client or matter name"/></div>
+                  <div class="council-field"><label for="v2-matter-client">Client</label><input class="council-input" id="v2-matter-client" placeholder="Optional client name"/></div>
+                </div>
+                <div class="council-field"><label for="v2-matter-description">Description</label><textarea class="council-textarea" id="v2-matter-description" placeholder="Optional matter notes"></textarea></div>
+                <div class="council-actions"><button class="btn-primary" type="button" onclick="createV2Matter()">Create Matter</button></div>
+              </div>
+            </div>
+            <div class="council-list" id="v2-matters-list"></div>
+          </div>
+
+          <div class="council-panel" id="blueprint-panel-blueprints">
+            <div class="council-toolbar">
+              <div>
+                <div class="settings-section-title">Blueprints</div>
+                <div class="settings-section-desc">Create legal workspaces from enabled plugins.</div>
+              </div>
+            </div>
+            <div class="settings-card" style="margin-bottom:16px">
+              <div class="settings-card-header">
+                <div><div class="settings-card-title">New Blueprint</div></div>
+              </div>
+              <div class="council-form">
+                <div class="council-form-row">
+                  <div class="council-field"><label for="v2-blueprint-name">Name</label><input class="council-input" id="v2-blueprint-name" placeholder="Blueprint name"/></div>
+                  <div class="council-field"><label for="v2-blueprint-plugin">Plugin</label><select class="council-select" id="v2-blueprint-plugin"></select></div>
+                </div>
+                <div class="council-form-row">
+                  <div class="council-field"><label for="v2-blueprint-matter">Matter</label><select class="council-select" id="v2-blueprint-matter"></select></div>
+                  <div class="council-field"><label for="v2-blueprint-status">Status</label><select class="council-select" id="v2-blueprint-status"><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></div>
+                </div>
+                <div class="council-field"><label for="v2-blueprint-description">Description</label><textarea class="council-textarea" id="v2-blueprint-description" placeholder="Optional blueprint notes"></textarea></div>
+                <div class="council-actions"><button class="btn-primary" type="button" onclick="createV2Blueprint()">Create Blueprint</button></div>
+              </div>
+            </div>
+            <div class="council-list" id="v2-blueprints-list"></div>
+          </div>
+
+          <div class="council-panel" id="blueprint-panel-plugins">
+            <div class="council-toolbar">
+              <div>
+                <div class="settings-section-title">Plugins</div>
+                <div class="settings-section-desc">Enable plugins before creating matching blueprints.</div>
+              </div>
+            </div>
+            <div class="council-grid" id="v2-plugins-grid"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3544,7 +3662,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', v2: { enabled: false, user: null, workspaceId: null, workspaces: [], documents: [], personas: [], secrets: [], setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -3610,9 +3728,7 @@ async function refreshV2Workspace() {
       workspaceId: workspaces[0]?.workspace_id || null,
       workspaces
     };
-    if (App.v2.enabled) {
-      await Promise.all([loadV2Documents(), loadV2Personas(), loadV2Secrets()]);
-    }
+    if (App.v2.enabled) await loadV2ShellData();
   } catch(e) {
     App.v2.enabled = false;
   }
@@ -3700,6 +3816,32 @@ async function loadV2Documents() {
   App.v2.documents = data.items || [];
 }
 
+async function loadV2Matters() {
+  const r = await v2Fetch('/matters?page_size=200');
+  if (!r || !r.ok) return;
+  const data = await r.json();
+  App.v2.matters = data.items || [];
+}
+
+async function loadV2Blueprints() {
+  const r = await v2Fetch('/blueprints?page_size=200');
+  if (!r || !r.ok) return;
+  const data = await r.json();
+  App.v2.blueprints = data.items || [];
+}
+
+async function loadV2Plugins() {
+  const r = await v2Fetch('/plugins?page_size=200');
+  if (!r || !r.ok) return;
+  const data = await r.json();
+  App.v2.plugins = data.items || [];
+}
+
+async function loadV2ShellData() {
+  await Promise.all([loadV2Matters(), loadV2Blueprints(), loadV2Plugins(), loadV2Documents(), loadV2Personas(), loadV2Secrets()]);
+  renderV2Shell();
+}
+
 function v2DocumentByNameAndSize(doc) {
   return App.v2.documents.find(v2 =>
     v2.original_name === doc.original_name &&
@@ -3781,6 +3923,242 @@ async function syncV2RuntimeSettings(settings) {
     const maxUploadSize = parseInt(settings.max_file_size_mb, 10);
     if (!Number.isNaN(maxUploadSize)) await updateV2Setting('max_upload_size_mb', maxUploadSize);
   }
+}
+
+function v2PluginLabel(pluginId) {
+  const labels = {contract_review:'Contract Review', ai_council:'AI Council', legal_research:'Legal Research'};
+  return labels[pluginId] || pluginId;
+}
+
+function renderV2Shell() {
+  const workspaceSelect = document.getElementById('v2-workspace-select');
+  if (!workspaceSelect) return;
+  if (!App.v2.enabled) {
+    workspaceSelect.innerHTML = '<option>Sign in to multi-user access</option>';
+    el('v2-stat-matters', '0');
+    el('v2-stat-blueprints', '0');
+    el('v2-stat-documents', '0');
+    const empty = '<div class="council-row"><div class="council-card-desc">Sign in to use v2 workspaces, matters, and blueprints.</div></div>';
+    const matters = document.getElementById('v2-matters-list');
+    const blueprints = document.getElementById('v2-blueprints-list');
+    const plugins = document.getElementById('v2-plugins-grid');
+    if (matters) matters.innerHTML = empty;
+    if (blueprints) blueprints.innerHTML = empty;
+    if (plugins) plugins.innerHTML = empty;
+    return;
+  }
+  workspaceSelect.innerHTML = App.v2.workspaces.map(w => `<option value="${esc(w.workspace_id)}">${esc(w.workspace_name || w.name || 'Workspace')}</option>`).join('');
+  workspaceSelect.value = App.v2.workspaceId || '';
+  el('v2-stat-matters', App.v2.matters.length);
+  el('v2-stat-blueprints', App.v2.blueprints.length);
+  el('v2-stat-documents', App.v2.documents.length);
+  renderV2MatterOptions();
+  renderV2Matters();
+  renderV2Blueprints();
+  renderV2Plugins();
+}
+
+function renderV2MatterOptions() {
+  const filter = document.getElementById('v2-matter-filter');
+  const blueprintMatter = document.getElementById('v2-blueprint-matter');
+  const options = App.v2.matters.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+  if (filter) {
+    filter.innerHTML = `<option value="all">All matters</option><option value="">No matter</option>${options}`;
+    filter.value = App.v2.activeMatterId || 'all';
+  }
+  if (blueprintMatter) {
+    blueprintMatter.innerHTML = `<option value="">No matter</option>${options}`;
+    const active = App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : '';
+    blueprintMatter.value = active;
+  }
+  const pluginSelect = document.getElementById('v2-blueprint-plugin');
+  if (pluginSelect) {
+    const plugins = App.v2.plugins.filter(p => p.workspace_enabled);
+    pluginSelect.innerHTML = plugins.length
+      ? plugins.map(p => `<option value="${esc(p.id)}">${esc(v2PluginLabel(p.id))}</option>`).join('')
+      : '<option value="">Enable a plugin first</option>';
+  }
+}
+
+function renderV2Matters() {
+  const list = document.getElementById('v2-matters-list');
+  if (!list) return;
+  if (!App.v2.matters.length) {
+    list.innerHTML = '<div class="council-row"><div class="council-card-desc">No matters yet.</div></div>';
+    return;
+  }
+  list.innerHTML = App.v2.matters.map(m => {
+    const count = App.v2.blueprints.filter(b => b.matter_id === m.id).length;
+    const client = m.client_name ? ` · ${esc(m.client_name)}` : '';
+    return `<div class="council-row">
+      <div class="council-row-head">
+        <div>
+          <div class="council-card-title">${esc(m.name)}</div>
+          <div class="council-card-meta">${esc(m.status || 'active')}${client} · ${count} blueprint${count === 1 ? '' : 's'}</div>
+        </div>
+        <span class="council-status ${esc(m.status || 'active')}">${esc(m.status || 'active')}</span>
+      </div>
+      ${m.description ? `<div class="council-card-desc">${esc(m.description)}</div>` : ''}
+      <div class="council-actions">
+        <button class="btn-secondary" type="button" onclick="focusV2Matter('${m.id}')">Open</button>
+        <button class="danger-btn" type="button" onclick="deleteV2Matter('${m.id}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderV2Blueprints() {
+  const list = document.getElementById('v2-blueprints-list');
+  if (!list) return;
+  const active = App.v2.activeMatterId || 'all';
+  const rows = App.v2.blueprints.filter(b => active === 'all' || (active === '' ? !b.matter_id : b.matter_id === active));
+  if (!rows.length) {
+    list.innerHTML = '<div class="council-row"><div class="council-card-desc">No blueprints for this filter.</div></div>';
+    return;
+  }
+  list.innerHTML = rows.map(b => {
+    const matter = App.v2.matters.find(m => m.id === b.matter_id);
+    return `<div class="council-row">
+      <div class="council-row-head">
+        <div>
+          <div class="council-card-title">${esc(b.name)}</div>
+          <div class="council-card-meta">${esc(v2PluginLabel(b.plugin_id))} · ${esc(matter?.name || 'No matter')} · ${esc(b.role || 'member')}</div>
+        </div>
+        <span class="council-status ${esc(b.status || 'active')}">${esc(b.status || 'active')}</span>
+      </div>
+      ${b.description ? `<div class="council-card-desc">${esc(b.description)}</div>` : ''}
+      <div class="council-actions">
+        <button class="btn-secondary" type="button" onclick="openV2Blueprint('${b.id}')">Open</button>
+        <button class="danger-btn" type="button" onclick="deleteV2Blueprint('${b.id}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderV2Plugins() {
+  const grid = document.getElementById('v2-plugins-grid');
+  if (!grid) return;
+  if (!App.v2.plugins.length) {
+    grid.innerHTML = '<div class="council-card"><div class="council-card-desc">No v2 plugins available.</div></div>';
+    return;
+  }
+  grid.innerHTML = App.v2.plugins.map(p => `<div class="council-card">
+    <div class="council-card-title">${esc(p.name || v2PluginLabel(p.id))}</div>
+    <div class="council-card-meta">${p.workspace_enabled ? 'Enabled' : 'Disabled'} · ${esc(p.id)}</div>
+    <div class="council-card-desc">${esc(p.description || 'Plugin-backed blueprint workflow.')}</div>
+    <div class="council-actions">
+      <button class="${p.workspace_enabled ? 'btn-secondary' : 'btn-primary'}" type="button" onclick="setV2PluginEnabled('${p.id}', ${p.workspace_enabled ? 'false' : 'true'})">${p.workspace_enabled ? 'Disable' : 'Enable'}</button>
+    </div>
+  </div>`).join('');
+}
+
+async function loadV2Shell() {
+  if (!App.v2.enabled) {
+    await initV2();
+  } else {
+    await loadV2ShellData();
+  }
+  renderV2Shell();
+}
+
+async function setV2Workspace(workspaceId) {
+  if (!workspaceId || workspaceId === App.v2.workspaceId) return;
+  App.v2.workspaceId = workspaceId;
+  App.v2.activeMatterId = 'all';
+  await loadV2ShellData();
+}
+
+function setV2MatterFilter(matterId) {
+  App.v2.activeMatterId = matterId;
+  renderV2Shell();
+}
+
+function focusV2Matter(matterId) {
+  App.v2.activeMatterId = matterId;
+  renderV2Shell();
+  switchBlueprintTab('blueprints');
+}
+
+function switchBlueprintTab(tab, button) {
+  document.querySelectorAll('[id^="blueprint-panel-"]').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#view-blueprints .council-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('blueprint-panel-' + tab)?.classList.add('active');
+  if (button) button.classList.add('active');
+  else document.querySelector(`#view-blueprints .council-tab[onclick*="'${tab}'"]`)?.classList.add('active');
+}
+
+async function createV2Matter() {
+  if (!App.v2.enabled) { showToast('Sign in to multi-user access first.', 'error'); return; }
+  const name = document.getElementById('v2-matter-name')?.value.trim();
+  const client = document.getElementById('v2-matter-client')?.value.trim();
+  const description = document.getElementById('v2-matter-description')?.value.trim();
+  if (!name) { showToast('Matter name is required.', 'error'); return; }
+  try {
+    const r = await v2Fetch('/matters', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, client_name:client || null, description:description || null})});
+    if (!r || !r.ok) throw new Error(await apiError(r));
+    document.getElementById('v2-matter-name').value = '';
+    document.getElementById('v2-matter-client').value = '';
+    document.getElementById('v2-matter-description').value = '';
+    await loadV2ShellData();
+    showToast('Matter created.');
+  } catch(e) { showToast('Failed to create matter: ' + e.message, 'error'); }
+}
+
+async function deleteV2Matter(matterId) {
+  if (!confirm('Delete this matter? Blueprints and documents will remain but lose the matter link.')) return;
+  try {
+    const r = await v2Fetch(`/matters/${encodeURIComponent(matterId)}`, {method:'DELETE'});
+    if (!r || !r.ok) throw new Error(await apiError(r));
+    if (App.v2.activeMatterId === matterId) App.v2.activeMatterId = 'all';
+    await loadV2ShellData();
+    showToast('Matter deleted.');
+  } catch(e) { showToast('Failed to delete matter: ' + e.message, 'error'); }
+}
+
+async function createV2Blueprint() {
+  if (!App.v2.enabled) { showToast('Sign in to multi-user access first.', 'error'); return; }
+  const name = document.getElementById('v2-blueprint-name')?.value.trim();
+  const pluginId = document.getElementById('v2-blueprint-plugin')?.value;
+  const matterId = document.getElementById('v2-blueprint-matter')?.value || null;
+  const status = document.getElementById('v2-blueprint-status')?.value || 'active';
+  const description = document.getElementById('v2-blueprint-description')?.value.trim();
+  if (!name || !pluginId) { showToast('Blueprint name and enabled plugin are required.', 'error'); return; }
+  try {
+    const body = {name, plugin_id:pluginId, matter_id:matterId, status, description:description || null};
+    const r = await v2Fetch('/blueprints', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if (!r || !r.ok) throw new Error(await apiError(r));
+    document.getElementById('v2-blueprint-name').value = '';
+    document.getElementById('v2-blueprint-description').value = '';
+    await loadV2ShellData();
+    showToast('Blueprint created.');
+  } catch(e) { showToast('Failed to create blueprint: ' + e.message, 'error'); }
+}
+
+async function deleteV2Blueprint(blueprintId) {
+  if (!confirm('Delete this blueprint and its plugin runs? This cannot be undone.')) return;
+  try {
+    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprintId)}`, {method:'DELETE'});
+    if (!r || !r.ok) throw new Error(await apiError(r));
+    await loadV2ShellData();
+    showToast('Blueprint deleted.');
+  } catch(e) { showToast('Failed to delete blueprint: ' + e.message, 'error'); }
+}
+
+async function setV2PluginEnabled(pluginId, enabled) {
+  try {
+    const r = await v2Fetch(`/plugins/${encodeURIComponent(pluginId)}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled})});
+    if (!r || !r.ok) throw new Error(await apiError(r));
+    await loadV2ShellData();
+    showToast(enabled ? 'Plugin enabled.' : 'Plugin disabled.');
+  } catch(e) { showToast('Failed to update plugin: ' + e.message, 'error'); }
+}
+
+function openV2Blueprint(blueprintId) {
+  const blueprint = App.v2.blueprints.find(b => b.id === blueprintId);
+  if (!blueprint) return;
+  if (blueprint.plugin_id === 'ai_council') switchView('councils');
+  else switchView('chat');
+  showToast(`${blueprint.name} selected.`);
 }
 
 async function checkFirstRun() {
@@ -5459,9 +5837,9 @@ document.addEventListener('click', () => {
 });
 
 // ── VIEW SWITCHING ────────────────────────────────────────────────────────
-const VIEWS = {chat:'view-chat',councils:'view-councils',personas:'view-personas',email:'view-email','add-doc':'view-add-doc','view-docs':'view-view-docs',settings:'view-settings'};
-const NAVS = {chat:'nav-chat',councils:'nav-councils',personas:'nav-personas',email:'nav-email','add-doc':'nav-add-doc','view-docs':'nav-view-docs',settings:'nav-settings'};
-const TITLES = {chat:'Chat',councils:'Councils',personas:'Personas',email:'Email','add-doc':'Add Document','view-docs':'View Documents',settings:'Settings'};
+const VIEWS = {chat:'view-chat',blueprints:'view-blueprints',councils:'view-councils',personas:'view-personas',email:'view-email','add-doc':'view-add-doc','view-docs':'view-view-docs',settings:'view-settings'};
+const NAVS = {chat:'nav-chat',blueprints:'nav-blueprints',councils:'nav-councils',personas:'nav-personas',email:'nav-email','add-doc':'nav-add-doc','view-docs':'nav-view-docs',settings:'nav-settings'};
+const TITLES = {chat:'Chat',blueprints:'Blueprints',councils:'Councils',personas:'Personas',email:'Email','add-doc':'Add Document','view-docs':'View Documents',settings:'Settings'};
 
 function switchView(name) {
   Object.values(VIEWS).forEach(id => document.getElementById(id)?.classList.remove('active'));
@@ -5471,6 +5849,7 @@ function switchView(name) {
   document.getElementById('topbar-title').textContent = TITLES[name] || name;
   document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
   if (name === 'view-docs') renderDocuments();
+  if (name === 'blueprints') loadV2Shell();
   if (name === 'councils') loadCouncils();
   if (name === 'personas') renderPersonas();
   if (name === 'email') { renderEmailControls(); loadEmailMessages(); }
