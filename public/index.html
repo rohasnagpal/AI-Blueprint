@@ -3662,7 +3662,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -4065,17 +4065,22 @@ async function setV2Workspace(workspaceId) {
   if (!workspaceId || workspaceId === App.v2.workspaceId) return;
   App.v2.workspaceId = workspaceId;
   App.v2.activeMatterId = 'all';
+  App.v2.activeBlueprintId = null;
   await loadV2ShellData();
 }
 
 function setV2MatterFilter(matterId) {
   App.v2.activeMatterId = matterId;
+  App.v2.activeBlueprintId = null;
   renderV2Shell();
+  updateDocSelector();
 }
 
 function focusV2Matter(matterId) {
   App.v2.activeMatterId = matterId;
+  App.v2.activeBlueprintId = null;
   renderV2Shell();
+  updateDocSelector();
   switchBlueprintTab('blueprints');
 }
 
@@ -4156,8 +4161,13 @@ async function setV2PluginEnabled(pluginId, enabled) {
 function openV2Blueprint(blueprintId) {
   const blueprint = App.v2.blueprints.find(b => b.id === blueprintId);
   if (!blueprint) return;
+  App.v2.activeBlueprintId = blueprintId;
+  App.v2.activeMatterId = blueprint.matter_id || '';
+  App.chatMode = 'documents';
+  App.selectedDocIds = 'all';
   if (blueprint.plugin_id === 'ai_council') switchView('councils');
   else switchView('chat');
+  updateChatModeUI();
   showToast(`${blueprint.name} selected.`);
 }
 
@@ -4664,6 +4674,11 @@ async function openChat(chatId) {
   App.chatMode = context === 'none' ? 'general' : 'documents';
   App.selectedDocIds = context === 'none' ? 'all' : context === 'all' ? 'all' : context.split(',').filter(Boolean);
   App.selectedPersonaId = chat?.persona_id || '';
+  if (chat?.v2_workspace_id) {
+    App.v2.workspaceId = chat.v2_workspace_id;
+    App.v2.activeMatterId = chat.v2_matter_id || 'all';
+    App.v2.activeBlueprintId = chat.v2_blueprint_id || null;
+  }
   updateChatModeUI();
   updatePersonaSelect();
   switchView('chat');
@@ -5103,12 +5118,43 @@ function updateDocSelector() {
     if (topbarLabel) topbarLabel.textContent = 'General';
     return;
   }
-  const docText = App.selectedDocIds === 'all' ? `All Documents (${App.documents.length})` : `${App.selectedDocIds.length} selected`;
+  const v2Label = v2ChatScopeLabel();
+  const docText = v2Label || (App.selectedDocIds === 'all' ? `All Documents (${App.documents.length})` : `${App.selectedDocIds.length} selected`);
   if (badge) {
     badge.textContent = docText;
     badge.style.display = 'inline-flex';
   }
   if (topbarLabel) topbarLabel.textContent = docText;
+}
+
+function v2ChatScopeLabel() {
+  if (!App.v2.enabled || App.chatMode !== 'documents' || !App.v2.workspaceId) return '';
+  const blueprint = App.v2.activeBlueprintId ? App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId) : null;
+  if (blueprint) return `Blueprint: ${blueprint.name}`;
+  const matterId = App.v2.activeMatterId;
+  if (matterId && matterId !== 'all') {
+    const matter = App.v2.matters.find(m => m.id === matterId);
+    return matter ? `Matter: ${matter.name}` : 'Matter documents';
+  }
+  return `Workspace documents (${App.v2.documents.length})`;
+}
+
+function v2ChatScopePayload() {
+  if (!App.v2.enabled || App.chatMode !== 'documents' || !App.v2.workspaceId) return {};
+  let v2DocIds = [];
+  if (Array.isArray(App.selectedDocIds)) {
+    v2DocIds = App.selectedDocIds
+      .map(id => App.documents.find(d => d.id === id))
+      .map(doc => doc ? v2DocumentByNameAndSize(doc) : null)
+      .filter(Boolean)
+      .map(doc => doc.id);
+  }
+  return {
+    v2_workspace_id: App.v2.workspaceId,
+    v2_matter_id: App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : null,
+    v2_blueprint_id: App.v2.activeBlueprintId || null,
+    v2_document_ids: v2DocIds
+  };
 }
 
 async function deleteDocument(id) {
@@ -5685,8 +5731,9 @@ async function sendMessage() {
   if (!App.currentChatId) {
     try {
       const docCtx = App.chatMode === 'general' ? 'none' : App.selectedDocIds === 'all' ? 'all' : App.selectedDocIds.join(',');
-      const r = await fetch('/api/chats', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({doc_context:docCtx, persona_id:App.selectedPersonaId || null})});
+      const r = await fetch('/api/chats', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({doc_context:docCtx, persona_id:App.selectedPersonaId || null, ...v2ChatScopePayload()})});
       const chat = await r.json();
+      if (!r.ok) throw new Error(chat.detail || chat.error || 'Chat creation failed');
       App.currentChatId = chat.id;
     } catch(e) { showToast('Failed to create chat.', 'error'); return; }
   }

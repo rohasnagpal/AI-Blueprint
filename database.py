@@ -246,6 +246,9 @@ def init_db():
         conn.execute("ALTER TABLE chats ADD COLUMN archived_at TEXT")
     if "persona_id" not in chat_cols:
         conn.execute("ALTER TABLE chats ADD COLUMN persona_id TEXT")
+    for col in ("v2_workspace_id", "v2_matter_id", "v2_blueprint_id", "v2_document_ids"):
+        if col not in chat_cols:
+            conn.execute(f"ALTER TABLE chats ADD COLUMN {col} TEXT")
     count = conn.execute("SELECT COUNT(*) FROM settings").fetchone()[0]
     if count == 0:
         for k, v in DEFAULTS.items():

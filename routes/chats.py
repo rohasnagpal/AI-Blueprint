@@ -4,11 +4,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy import select
 
 import database
+from app.core.config import get_settings
+from app.core.database import SessionLocal
+from app.core.models import (
+    BlueprintInstance,
+    BlueprintMember,
+    DocumentLink,
+    KnowledgeChunk,
+    KnowledgeDocument,
+    Matter,
+    SessionToken,
+    User,
+    Workspace,
+    WorkspaceMember,
+)
+from app.core.security import hash_session_token
 from webtools import format_search_context, web_search
 
 router = APIRouter()
@@ -17,6 +33,10 @@ router = APIRouter()
 class CreateChat(BaseModel):
     doc_context: str = "none"
     persona_id: str | None = None
+    v2_workspace_id: str | None = None
+    v2_matter_id: str | None = None
+    v2_blueprint_id: str | None = None
+    v2_document_ids: list[str] | None = None
 
 
 class SendMessage(BaseModel):
@@ -34,6 +54,10 @@ def _format_chat(row) -> dict:
         "title": row["title"],
         "doc_context": row["doc_context"],
         "persona_id": row["persona_id"] if "persona_id" in row.keys() else None,
+        "v2_workspace_id": row["v2_workspace_id"] if "v2_workspace_id" in row.keys() else None,
+        "v2_matter_id": row["v2_matter_id"] if "v2_matter_id" in row.keys() else None,
+        "v2_blueprint_id": row["v2_blueprint_id"] if "v2_blueprint_id" in row.keys() else None,
+        "v2_document_ids": _parse_json(row["v2_document_ids"], []) if "v2_document_ids" in row.keys() else [],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
         "archived_at": row["archived_at"] if "archived_at" in row.keys() else None,
@@ -55,6 +79,15 @@ def _format_message(row) -> dict:
         "sources": sources,
         "created_at": row["created_at"],
     }
+
+
+def _parse_json(value, fallback):
+    if not value:
+        return fallback
+    try:
+        return json.loads(value)
+    except Exception:
+        return fallback
 
 
 def _build_system_prompt(settings: dict) -> str:
@@ -123,48 +156,215 @@ def _get_persona(persona_id: str | None) -> dict | None:
     }
 
 
+def _get_v2_user(request: Request) -> User:
+    token = request.cookies.get(get_settings().session_cookie_name)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    with SessionLocal() as db:
+        row = db.execute(
+            select(SessionToken, User)
+            .join(User, User.id == SessionToken.user_id)
+            .where(SessionToken.token_hash == hash_session_token(token))
+        ).first()
+        if not row:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
+        session, user = row
+        if session.revoked_at or not user.is_active:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
+        db.expunge(user)
+        return user
+
+
+def _optional_v2_user(request: Request) -> User | None:
+    try:
+        return _get_v2_user(request)
+    except HTTPException:
+        return None
+
+
+def _user_can_access_v2_scope(user: User | None, scope: dict | None) -> bool:
+    if not scope:
+        return True
+    if not user:
+        return False
+    with SessionLocal() as db:
+        membership = db.execute(
+            select(WorkspaceMember, Workspace)
+            .join(Workspace, Workspace.id == WorkspaceMember.workspace_id)
+            .where(WorkspaceMember.workspace_id == scope["workspace_id"], WorkspaceMember.user_id == user.id)
+        ).first()
+        if not membership:
+            return False
+        _workspace_member, workspace = membership
+        if workspace.deleted_at:
+            return False
+        if scope.get("blueprint_id"):
+            blueprint_member = db.execute(
+                select(BlueprintMember)
+                .join(BlueprintInstance, BlueprintInstance.id == BlueprintMember.blueprint_id)
+                .where(
+                    BlueprintInstance.workspace_id == scope["workspace_id"],
+                    BlueprintInstance.id == scope["blueprint_id"],
+                    BlueprintMember.user_id == user.id,
+                )
+            ).scalar_one_or_none()
+            return bool(blueprint_member)
+    return True
+
+
+def _require_v2_chat_access(request: Request, chat) -> None:
+    scope = _v2_scope_from_chat(chat)
+    if not scope:
+        return
+    user = _get_v2_user(request)
+    if not _user_can_access_v2_scope(user, scope):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat access denied")
+
+
+def _validate_v2_chat_scope(request: Request, body: CreateChat) -> dict | None:
+    if not body.v2_workspace_id:
+        return None
+    user = _get_v2_user(request)
+    document_ids = [doc_id for doc_id in (body.v2_document_ids or []) if doc_id]
+    with SessionLocal() as db:
+        membership = db.execute(
+            select(WorkspaceMember, Workspace)
+            .join(Workspace, Workspace.id == WorkspaceMember.workspace_id)
+            .where(WorkspaceMember.workspace_id == body.v2_workspace_id, WorkspaceMember.user_id == user.id)
+        ).first()
+        if not membership:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Workspace access denied")
+        _workspace_member, workspace = membership
+        if workspace.deleted_at:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        if body.v2_matter_id:
+            matter = db.execute(
+                select(Matter).where(Matter.workspace_id == body.v2_workspace_id, Matter.id == body.v2_matter_id)
+            ).scalar_one_or_none()
+            if not matter:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+        if body.v2_blueprint_id:
+            blueprint_row = db.execute(
+                select(BlueprintInstance, BlueprintMember)
+                .join(BlueprintMember, BlueprintMember.blueprint_id == BlueprintInstance.id)
+                .where(
+                    BlueprintInstance.workspace_id == body.v2_workspace_id,
+                    BlueprintInstance.id == body.v2_blueprint_id,
+                    BlueprintMember.user_id == user.id,
+                )
+            ).first()
+            if not blueprint_row:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Blueprint access denied")
+            blueprint, _blueprint_member = blueprint_row
+            if not body.v2_matter_id and blueprint.matter_id:
+                body.v2_matter_id = blueprint.matter_id
+        if document_ids:
+            count = db.execute(
+                select(KnowledgeDocument.id).where(
+                    KnowledgeDocument.workspace_id == body.v2_workspace_id,
+                    KnowledgeDocument.id.in_(document_ids),
+                )
+            ).all()
+            if len(count) != len(set(document_ids)):
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return {
+        "workspace_id": body.v2_workspace_id,
+        "matter_id": body.v2_matter_id,
+        "blueprint_id": body.v2_blueprint_id,
+        "document_ids": document_ids,
+    }
+
+
+def _v2_scope_from_chat(chat) -> dict | None:
+    workspace_id = chat["v2_workspace_id"] if "v2_workspace_id" in chat.keys() else None
+    if not workspace_id:
+        return None
+    return {
+        "workspace_id": workspace_id,
+        "matter_id": chat["v2_matter_id"] if "v2_matter_id" in chat.keys() else None,
+        "blueprint_id": chat["v2_blueprint_id"] if "v2_blueprint_id" in chat.keys() else None,
+        "document_ids": _parse_json(chat["v2_document_ids"], []) if "v2_document_ids" in chat.keys() else [],
+    }
+
+
 @router.get("/chats")
-async def list_chats():
+async def list_chats(request: Request):
+    user = _optional_v2_user(request)
     conn = database.get_connection()
     rows = conn.execute("SELECT * FROM chats WHERE archived_at IS NULL ORDER BY updated_at DESC").fetchall()
     conn.close()
+    rows = [r for r in rows if _user_can_access_v2_scope(user, _v2_scope_from_chat(r))]
     return [_format_chat(r) for r in rows]
 
 
 @router.post("/chats")
-async def create_chat(body: CreateChat):
+async def create_chat(body: CreateChat, request: Request):
+    v2_scope = _validate_v2_chat_scope(request, body)
     chat_id = str(uuid.uuid4())
     now = _now()
     conn = database.get_connection()
     conn.execute(
-        "INSERT INTO chats (id, title, doc_context, persona_id, thread_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (chat_id, None, body.doc_context, body.persona_id, None, now, now),
+        """
+        INSERT INTO chats (
+            id, title, doc_context, persona_id, thread_id,
+            v2_workspace_id, v2_matter_id, v2_blueprint_id, v2_document_ids,
+            created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            chat_id,
+            None,
+            body.doc_context,
+            body.persona_id,
+            None,
+            v2_scope["workspace_id"] if v2_scope else None,
+            v2_scope["matter_id"] if v2_scope else None,
+            v2_scope["blueprint_id"] if v2_scope else None,
+            json.dumps(v2_scope["document_ids"]) if v2_scope else "[]",
+            now,
+            now,
+        ),
     )
     conn.commit()
     conn.close()
-    return {"id": chat_id, "title": None, "doc_context": body.doc_context, "persona_id": body.persona_id, "created_at": now, "updated_at": now}
+    return {
+        "id": chat_id,
+        "title": None,
+        "doc_context": body.doc_context,
+        "persona_id": body.persona_id,
+        "v2_workspace_id": v2_scope["workspace_id"] if v2_scope else None,
+        "v2_matter_id": v2_scope["matter_id"] if v2_scope else None,
+        "v2_blueprint_id": v2_scope["blueprint_id"] if v2_scope else None,
+        "v2_document_ids": v2_scope["document_ids"] if v2_scope else [],
+        "created_at": now,
+        "updated_at": now,
+    }
 
 
 @router.get("/chats/{chat_id}/messages")
-async def get_messages(chat_id: str):
+async def get_messages(chat_id: str, request: Request):
     conn = database.get_connection()
     chat = conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
     if not chat:
         conn.close()
         raise HTTPException(404, detail="Chat not found")
+    conn.close()
+    _require_v2_chat_access(request, chat)
+    conn = database.get_connection()
     rows = conn.execute("SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at", (chat_id,)).fetchall()
     conn.close()
     return [_format_message(r) for r in rows]
 
 
 @router.post("/chats/{chat_id}/message")
-async def send_message(chat_id: str, body: SendMessage):
+async def send_message(chat_id: str, body: SendMessage, request: Request):
     conn = database.get_connection()
     chat = conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
     if not chat:
         conn.close()
         raise HTTPException(404, detail="Chat not found")
     conn.close()
+    _require_v2_chat_access(request, chat)
 
     user_msg_id = str(uuid.uuid4())
     now = _now()
@@ -195,9 +395,10 @@ async def send_message(chat_id: str, body: SendMessage):
     use_documents = doc_context != "none"
     doc_ids = None if doc_context in ("all", "none") else [d.strip() for d in doc_context.split(",") if d.strip()]
     persona = _get_persona(chat["persona_id"] if "persona_id" in chat.keys() else None)
+    v2_scope = _v2_scope_from_chat(chat)
 
     return StreamingResponse(
-        _stream(chat_id, chat, body.message, settings, provider_name, doc_ids, use_documents, persona, body.web_search),
+        _stream(chat_id, chat, body.message, settings, provider_name, doc_ids, use_documents, persona, body.web_search, v2_scope),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -272,6 +473,7 @@ async def _stream(
     use_documents: bool,
     persona: dict | None,
     use_web_search: bool,
+    v2_scope: dict | None = None,
 ) -> AsyncGenerator[str, None]:
     collected_content = []
     collected_sources = []
@@ -300,6 +502,15 @@ async def _stream(
                 data = _parse_sse(event)
                 if data and data.get("type") == "token":
                     collected_content.append(data.get("content", ""))
+        elif v2_scope:
+            async for event in _stream_v2_documents(message, settings, v2_scope, persona, web_results):
+                yield event
+                data = _parse_sse(event)
+                if data:
+                    if data.get("type") == "token":
+                        collected_content.append(data.get("content", ""))
+                    elif data.get("type") == "source":
+                        collected_sources.append(data)
         elif provider_name == "openai":
             async for event in _stream_openai(chat, message, settings, doc_ids, persona, web_results):
                 yield event
@@ -381,6 +592,115 @@ def _parse_sse(event: str) -> dict | None:
         except Exception:
             pass
     return None
+
+
+def _score_chunk(query_terms: set[str], text: str) -> int:
+    lower = text.lower()
+    return sum(1 for term in query_terms if term in lower)
+
+
+def _v2_scope_name(scope: dict) -> str:
+    if scope.get("document_ids"):
+        return "selected v2 documents"
+    if scope.get("blueprint_id"):
+        return "this v2 blueprint"
+    if scope.get("matter_id"):
+        return "this v2 matter"
+    return "this v2 workspace"
+
+
+def _load_v2_chunks(scope: dict, message: str, top_k: int) -> list[dict]:
+    query_terms = {t.lower() for t in message.split() if len(t) > 2}
+    with SessionLocal() as db:
+        query = (
+            select(KnowledgeChunk, KnowledgeDocument)
+            .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)
+            .where(KnowledgeDocument.workspace_id == scope["workspace_id"])
+        )
+        document_ids = scope.get("document_ids") or []
+        if document_ids:
+            query = query.where(KnowledgeDocument.id.in_(document_ids))
+        elif scope.get("blueprint_id"):
+            query = query.join(DocumentLink, DocumentLink.document_id == KnowledgeDocument.id).where(
+                DocumentLink.workspace_id == scope["workspace_id"],
+                DocumentLink.blueprint_id == scope["blueprint_id"],
+            )
+        elif scope.get("matter_id"):
+            query = query.where(KnowledgeDocument.matter_id == scope["matter_id"])
+        rows = db.execute(query.order_by(KnowledgeDocument.created_at.desc(), KnowledgeChunk.chunk_index)).all()
+
+    chunks = []
+    for chunk, document in rows:
+        chunks.append(
+            {
+                "document_id": document.id,
+                "source": document.original_name,
+                "content": chunk.content,
+                "score": _score_chunk(query_terms, chunk.content),
+                "scope": document.scope,
+                "matter_id": document.matter_id,
+            }
+        )
+    chunks.sort(key=lambda c: (c["score"], c["source"]), reverse=True)
+    return chunks[:top_k]
+
+
+async def _stream_v2_documents(message: str, settings: dict, scope: dict, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
+    top_k = int(settings.get("top_k", 5))
+    chunks = _load_v2_chunks(scope, message, top_k)
+    if not chunks:
+        yield f'data: {json.dumps({"type": "error", "content": f"No indexed documents are available for {_v2_scope_name(scope)}."})}\n\n'
+        return
+
+    context = "\n\n---\n\n".join(
+        f"[Source: {c['source']}]\n{c['content']}" for c in chunks
+    )
+    system_prompt = _apply_persona_prompt(_build_system_prompt(settings), persona)
+    system_prompt += f"\nLimit document-grounded claims to {_v2_scope_name(scope)}. Respect workspace, matter, blueprint, and document permissions."
+    web_context = f"\n\nWeb search results:\n{format_search_context(web_results)}" if web_results else ""
+    if web_results:
+        system_prompt += "\nUse the supplied web search results when relevant and cite source titles or URLs."
+    full_message = f"V2 document context:\n{context}{web_context}\n\nQuestion: {message}"
+    llm_provider = settings.get("local_llm_provider", "openai")
+    model = settings.get("chat_model", "gpt-4o")
+    temperature = float(settings.get("temperature", 0.2))
+    max_tokens = int(settings.get("max_tokens", 2048))
+
+    if llm_provider == "ollama":
+        async for token in _stream_ollama(system_prompt, full_message, model, temperature, max_tokens, settings):
+            yield token
+    elif llm_provider == "anthropic":
+        anthropic_key = settings.get("anthropic_api_key", "")
+        if not anthropic_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Anthropic API key not configured."})}\n\n'
+            return
+        async for token in _stream_anthropic(anthropic_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "groq":
+        groq_key = settings.get("groq_api_key", "")
+        if not groq_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Groq API key not configured."})}\n\n'
+            return
+        async for token in _stream_groq(groq_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    else:
+        openai_key = settings.get("openai_api_key", "")
+        if not openai_key:
+            yield f'data: {json.dumps({"type": "error", "content": "OpenAI API key not configured. Go to Settings → API Keys."})}\n\n'
+            return
+        async for token in _stream_openai_chat(openai_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+
+    for chunk in chunks:
+        src = {
+            "type": "source",
+            "kind": "v2_document",
+            "document_id": chunk["document_id"],
+            "filename": chunk["source"],
+            "page": None,
+            "excerpt": chunk["content"][:200],
+        }
+        yield f'data: {json.dumps(src)}\n\n'
 
 
 def _ollama_endpoint(settings: dict, path: str) -> str:
@@ -783,12 +1103,15 @@ async def _stream_ollama(
 
 
 @router.delete("/chats/{chat_id}")
-async def delete_chat(chat_id: str):
+async def delete_chat(chat_id: str, request: Request):
     conn = database.get_connection()
     chat = conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
     if not chat:
         conn.close()
         raise HTTPException(404, detail="Chat not found")
+    conn.close()
+    _require_v2_chat_access(request, chat)
+    conn = database.get_connection()
     conn.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
     conn.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
     conn.commit()
@@ -797,12 +1120,15 @@ async def delete_chat(chat_id: str):
 
 
 @router.post("/chats/{chat_id}/archive")
-async def archive_chat(chat_id: str):
+async def archive_chat(chat_id: str, request: Request):
     conn = database.get_connection()
     chat = conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
     if not chat:
         conn.close()
         raise HTTPException(404, detail="Chat not found")
+    conn.close()
+    _require_v2_chat_access(request, chat)
+    conn = database.get_connection()
     now = _now()
     conn.execute("UPDATE chats SET archived_at = ?, updated_at = ? WHERE id = ?", (now, now, chat_id))
     conn.commit()

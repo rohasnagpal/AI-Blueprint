@@ -141,6 +141,19 @@ jobs:
               indexed_document = client.get(f"/api/v2/workspaces/{workspace_id}/documents/{upload_document_id}")
               assert indexed_document.status_code == 200, indexed_document.text
               assert indexed_document.json()["status"] == "indexed"
+              scoped_chat = client.post(
+                  "/api/chats",
+                  json={
+                      "doc_context": "all",
+                      "v2_workspace_id": workspace_id,
+                      "v2_matter_id": matter.json()["id"],
+                      "v2_document_ids": [upload_document_id],
+                  },
+              )
+              assert scoped_chat.status_code == 200, scoped_chat.text
+              assert scoped_chat.json()["v2_workspace_id"] == workspace_id
+              assert scoped_chat.json()["v2_matter_id"] == matter.json()["id"]
+              assert scoped_chat.json()["v2_document_ids"] == [upload_document_id]
               link = client.post(
                   f"/api/v2/workspaces/{workspace_id}/documents/{document_id}/links",
                   json={"blueprint_id": blueprint_id, "link_type": "contract"},
