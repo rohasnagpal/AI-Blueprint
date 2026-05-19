@@ -272,6 +272,20 @@ async def create_matter(
     return _format_matter(matter)
 
 
+@router.get("/{workspace_id}/matters/{matter_id}")
+async def get_matter(
+    workspace_id: str,
+    matter_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_member(workspace_id, user, db)
+    matter = db.execute(select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)).scalar_one_or_none()
+    if not matter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+    return _format_matter(matter)
+
+
 @router.put("/{workspace_id}/matters/{matter_id}")
 async def update_matter(
     workspace_id: str,

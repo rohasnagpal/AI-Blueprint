@@ -80,6 +80,9 @@ jobs:
               assert any(item["id"] == "admin" for item in navigation.json()["items"][0]["items"])
               matter = client.post(f"/api/v2/workspaces/{workspace_id}/matters", json={"name": "Test Matter"})
               assert matter.status_code == 201, matter.text
+              matter_detail = client.get(f"/api/v2/workspaces/{workspace_id}/matters/{matter.json()['id']}")
+              assert matter_detail.status_code == 200, matter_detail.text
+              assert matter_detail.json()["name"] == "Test Matter"
               plugins = client.get(f"/api/v2/workspaces/{workspace_id}/plugins")
               assert plugins.status_code == 200, plugins.text
               assert len(plugins.json()["items"]) == 3
