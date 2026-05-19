@@ -2388,6 +2388,7 @@
               </div>
             </div>
             <div class="council-list" id="v2-blueprints-list"></div>
+            <div class="settings-card" id="v2-plugin-workspace" style="margin-top:12px;display:none"></div>
           </div>
 
           <div class="council-panel" id="blueprint-panel-plugins">
@@ -3662,7 +3663,7 @@
 </style>
 <script>
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -4014,6 +4015,7 @@ function renderV2Blueprints() {
   const rows = App.v2.blueprints.filter(b => active === 'all' || (active === '' ? !b.matter_id : b.matter_id === active));
   if (!rows.length) {
     list.innerHTML = '<div class="council-row"><div class="council-card-desc">No blueprints for this filter.</div></div>';
+    renderV2PluginWorkspace();
     return;
   }
   list.innerHTML = rows.map(b => {
@@ -4033,6 +4035,7 @@ function renderV2Blueprints() {
       </div>
     </div>`;
   }).join('');
+  renderV2PluginWorkspace();
 }
 
 function renderV2Plugins() {
@@ -4050,6 +4053,169 @@ function renderV2Plugins() {
       <button class="${p.workspace_enabled ? 'btn-secondary' : 'btn-primary'}" type="button" onclick="setV2PluginEnabled('${p.id}', ${p.workspace_enabled ? 'false' : 'true'})">${p.workspace_enabled ? 'Disable' : 'Enable'}</button>
     </div>
   </div>`).join('');
+}
+
+function v2PluginApiSegment(pluginId) {
+  return {contract_review:'contract-review', ai_council:'council', legal_research:'legal-research'}[pluginId] || pluginId;
+}
+
+function defaultV2PluginConfig(pluginId) {
+  if (pluginId === 'ai_council') {
+    return {
+      name: 'AI Council',
+      agents: [{id:'agent_1', name:'Reviewer', instructions:'Assess the issue and cite document evidence.', provider:'default', model:'default', temperature:0.2, max_tokens:1200, context_access:['documents','user_prompt'], output_type:'analysis', require_citations:true}],
+      phases: [{id:'phase_1', name:'Review', mode:'sequential', agents:['agent_1'], instructions:'Produce a practical answer with citations.', retrieval_query:'objective'}]
+    };
+  }
+  if (pluginId === 'legal_research') return {jurisdiction:'', memo_format:'IRAC', authorities_required:true};
+  return {review_standard:'balanced', jurisdiction:'', risk_tolerance:'medium'};
+}
+
+function v2PluginRunFields(blueprint) {
+  if (!blueprint) return '';
+  if (blueprint.plugin_id === 'legal_research') {
+    return '<div class="council-field"><label for="v2-plugin-run-title">Run title</label><input class="council-input" id="v2-plugin-run-title" placeholder="Research memo"/></div><div class="council-field"><label for="v2-plugin-run-question">Question</label><textarea class="council-textarea" id="v2-plugin-run-question" placeholder="What legal question should this research answer?"></textarea></div>';
+  }
+  if (blueprint.plugin_id === 'ai_council') {
+    return '<div class="council-field"><label for="v2-plugin-run-title">Run title</label><input class="council-input" id="v2-plugin-run-title" placeholder="Council run"/></div><div class="council-field"><label for="v2-plugin-run-objective">Objective</label><textarea class="council-textarea" id="v2-plugin-run-objective" placeholder="What should the council decide or analyze?"></textarea></div>';
+  }
+  return '<div class="council-field"><label for="v2-plugin-run-title">Run title</label><input class="council-input" id="v2-plugin-run-title" placeholder="Contract review"/></div>';
+}
+
+function renderV2PluginWorkspace() {
+  const host = document.getElementById('v2-plugin-workspace');
+  if (!host) return;
+  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
+  if (!blueprint) {
+    host.style.display = 'none';
+    host.innerHTML = '';
+    return;
+  }
+  host.style.display = 'block';
+  const matter = App.v2.matters.find(m => m.id === blueprint.matter_id);
+  const config = App.v2.pluginConfig || defaultV2PluginConfig(blueprint.plugin_id);
+  const runs = App.v2.pluginRuns || [];
+  host.innerHTML = `
+    <div class="settings-card-header">
+      <div><div class="settings-card-title">${esc(blueprint.name)}</div><div class="settings-card-subtitle">${esc(v2PluginLabel(blueprint.plugin_id))}${matter ? ' · ' + esc(matter.name) : ''}</div></div>
+      <button class="btn-secondary" type="button" onclick="openV2BlueprintChat('${esc(blueprint.id)}')">Chat</button>
+    </div>
+    <div class="settings-section-desc">Plugin config</div>
+    <div class="council-field"><textarea class="council-textarea" id="v2-plugin-config-json" style="min-height:150px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(JSON.stringify(config, null, 2))}</textarea></div>
+    <div class="council-actions">
+      <button class="btn-secondary" type="button" onclick="saveV2PluginConfig()">Save Config</button>
+      <button class="btn-secondary" type="button" onclick="loadV2PluginData()">Refresh</button>
+    </div>
+    <div class="settings-section-desc" style="margin-top:14px">New run</div>
+    ${v2PluginRunFields(blueprint)}
+    <div class="council-actions"><button class="btn-primary" type="button" onclick="runV2Plugin()">Run ${esc(v2PluginLabel(blueprint.plugin_id))}</button></div>
+    <div class="settings-section-desc" style="margin-top:14px">Runs</div>
+    <div class="council-list">
+      ${runs.length ? runs.map(run => `<div class="council-row">
+        <div class="council-row-head">
+          <div><div class="council-card-title">${esc(run.title || 'Run')}</div><div class="council-card-meta">${esc(new Date(run.created_at).toLocaleString())}</div></div>
+          <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
+        </div>
+        ${run.error ? `<div class="council-card-desc" style="color:var(--danger)">${esc(run.error)}</div>` : ''}
+        <div class="council-actions">
+          <button class="btn-secondary" type="button" onclick="exportV2PluginRun('${esc(run.id)}')">Export</button>
+          <button class="danger-btn" type="button" onclick="deleteV2PluginRun('${esc(run.id)}')">Delete</button>
+        </div>
+      </div>`).join('') : '<div class="council-row"><div class="council-card-desc">No runs yet.</div></div>'}
+    </div>
+  `;
+}
+
+async function loadV2PluginData() {
+  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
+  if (!blueprint) return;
+  const segment = v2PluginApiSegment(blueprint.plugin_id);
+  App.v2.pluginConfig = null;
+  App.v2.pluginRuns = [];
+  const config = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/config`);
+  App.v2.pluginConfig = config?.ok ? (await config.json()).config : defaultV2PluginConfig(blueprint.plugin_id);
+  const runs = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs?page_size=50`);
+  if (runs?.ok) App.v2.pluginRuns = (await runs.json()).items || [];
+  renderV2PluginWorkspace();
+}
+
+async function saveV2PluginConfig() {
+  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
+  if (!blueprint) return;
+  let config;
+  try { config = JSON.parse(document.getElementById('v2-plugin-config-json')?.value || '{}'); }
+  catch(e) { showToast('Config must be valid JSON.', 'error'); return; }
+  const segment = v2PluginApiSegment(blueprint.plugin_id);
+  try {
+    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/config`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({config})});
+    if (!r?.ok) throw new Error(await apiError(r));
+    App.v2.pluginConfig = (await r.json()).config;
+    renderV2PluginWorkspace();
+    showToast('Config saved.');
+  } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+}
+
+async function runV2Plugin() {
+  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
+  if (!blueprint) return;
+  const segment = v2PluginApiSegment(blueprint.plugin_id);
+  const title = document.getElementById('v2-plugin-run-title')?.value.trim() || blueprint.name;
+  const body = {title};
+  if (blueprint.plugin_id === 'legal_research') {
+    const question = document.getElementById('v2-plugin-run-question')?.value.trim();
+    if (!question) { showToast('Question is required.', 'error'); return; }
+    body.question = question;
+  }
+  if (blueprint.plugin_id === 'ai_council') {
+    const objective = document.getElementById('v2-plugin-run-objective')?.value.trim();
+    if (!objective) { showToast('Objective is required.', 'error'); return; }
+    body.objective = objective;
+  }
+  try {
+    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if (!r?.ok) throw new Error(await apiError(r));
+    showToast('Run started.');
+    await loadV2PluginData();
+  } catch(e) { showToast('Run failed: ' + e.message, 'error'); }
+}
+
+async function deleteV2PluginRun(runId) {
+  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
+  if (!blueprint || !confirm('Delete this run?')) return;
+  const segment = v2PluginApiSegment(blueprint.plugin_id);
+  try {
+    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs/${encodeURIComponent(runId)}`, {method:'DELETE'});
+    if (!r?.ok) throw new Error(await apiError(r));
+    await loadV2PluginData();
+    showToast('Run deleted.');
+  } catch(e) { showToast('Delete failed: ' + e.message, 'error'); }
+}
+
+async function exportV2PluginRun(runId) {
+  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
+  if (!blueprint) return;
+  const segment = v2PluginApiSegment(blueprint.plugin_id);
+  try {
+    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs/${encodeURIComponent(runId)}/export`);
+    if (!r?.ok) throw new Error(await apiError(r));
+    const text = await r.text();
+    const w = window.open('', '_blank');
+    if (w) {
+      w.document.write(`<pre style="white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:20px">${esc(text)}</pre>`);
+      w.document.close();
+    }
+  } catch(e) { showToast('Export failed: ' + e.message, 'error'); }
+}
+
+function openV2BlueprintChat(blueprintId) {
+  const blueprint = App.v2.blueprints.find(b => b.id === blueprintId);
+  if (!blueprint) return;
+  App.v2.activeBlueprintId = blueprintId;
+  App.v2.activeMatterId = blueprint.matter_id || '';
+  App.chatMode = 'documents';
+  App.selectedDocIds = 'all';
+  switchView('chat');
+  updateChatModeUI();
 }
 
 async function loadV2Shell() {
@@ -4158,16 +4324,18 @@ async function setV2PluginEnabled(pluginId, enabled) {
   } catch(e) { showToast('Failed to update plugin: ' + e.message, 'error'); }
 }
 
-function openV2Blueprint(blueprintId) {
+async function openV2Blueprint(blueprintId) {
   const blueprint = App.v2.blueprints.find(b => b.id === blueprintId);
   if (!blueprint) return;
   App.v2.activeBlueprintId = blueprintId;
   App.v2.activeMatterId = blueprint.matter_id || '';
   App.chatMode = 'documents';
   App.selectedDocIds = 'all';
-  if (blueprint.plugin_id === 'ai_council') switchView('councils');
-  else switchView('chat');
+  switchView('blueprints');
+  switchBlueprintTab('blueprints');
   updateChatModeUI();
+  renderV2Shell();
+  await loadV2PluginData();
   showToast(`${blueprint.name} selected.`);
 }
 
