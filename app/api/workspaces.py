@@ -52,6 +52,7 @@ def _format_workspace(workspace: Workspace, role: str | None = None) -> dict:
         "created_by_user_id": workspace.created_by_user_id,
         "created_at": workspace.created_at.isoformat(),
         "updated_at": workspace.updated_at.isoformat(),
+        "deleted_at": workspace.deleted_at.isoformat() if workspace.deleted_at else None,
     }
     if role:
         data["role"] = role
@@ -98,7 +99,7 @@ async def list_workspaces(page: int = Query(default=1, ge=1), page_size: int = Q
     rows = db.execute(
         select(Workspace, WorkspaceMember.role)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
-        .where(WorkspaceMember.user_id == user.id)
+        .where(WorkspaceMember.user_id == user.id, Workspace.deleted_at.is_(None))
         .order_by(Workspace.name)
     ).all()
     return page_response(rows, lambda row: _format_workspace(row[0], row[1]), page=page, page_size=page_size)
@@ -123,7 +124,7 @@ async def create_workspace(body: WorkspaceIn, user: User = Depends(get_current_u
 async def get_workspace(workspace_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     membership = require_workspace_member(workspace_id, user, db)
     workspace = db.get(Workspace, workspace_id)
-    if not workspace:
+    if not workspace or workspace.deleted_at:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return _format_workspace(workspace, membership.role)
 
@@ -137,7 +138,7 @@ async def update_workspace(
 ):
     membership = require_workspace_admin(workspace_id, user, db)
     workspace = db.get(Workspace, workspace_id)
-    if not workspace:
+    if not workspace or workspace.deleted_at:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     slug = _slugify(body.slug or body.name)
     existing = db.execute(select(Workspace).where(Workspace.slug == slug, Workspace.id != workspace_id)).scalar_one_or_none()
@@ -150,6 +151,20 @@ async def update_workspace(
     db.commit()
     db.refresh(workspace)
     return _format_workspace(workspace, membership.role)
+
+
+@router.delete("/{workspace_id}")
+async def delete_workspace(workspace_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_workspace_admin(workspace_id, user, db)
+    workspace = db.get(Workspace, workspace_id)
+    if not workspace or workspace.deleted_at:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    now = utcnow()
+    workspace.deleted_at = now
+    workspace.updated_at = now
+    record_audit_event(db, action="workspace.delete", resource_type="workspace", resource_id=workspace.id, user_id=user.id, workspace_id=workspace.id)
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/{workspace_id}/members")
