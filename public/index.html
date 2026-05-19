@@ -3579,6 +3579,13 @@ async function loadV2Documents() {
   App.v2.documents = data.items || [];
 }
 
+function v2DocumentByNameAndSize(doc) {
+  return App.v2.documents.find(v2 =>
+    v2.original_name === doc.original_name &&
+    (v2.size_bytes || 0) === (doc.size_bytes || 0)
+  );
+}
+
 async function loadV2Personas() {
   const r = await v2Fetch('/personas?page_size=200');
   if (!r || !r.ok) return;
@@ -3601,6 +3608,25 @@ async function mirrorUploadToV2(file) {
     fd.append('scope', 'workspace');
     const r = await v2Fetch('/documents/upload', {method:'POST', body:fd});
     if (r && r.ok) await loadV2Documents();
+  } catch(e) {}
+}
+
+async function deleteV2DocumentForLegacyDoc(doc) {
+  if (!App.v2.enabled || !doc) return;
+  try {
+    await loadV2Documents();
+    const v2Doc = v2DocumentByNameAndSize(doc);
+    if (!v2Doc) return;
+    const r = await v2Fetch(`/documents/${encodeURIComponent(v2Doc.id)}`, {method:'DELETE'});
+    if (r && r.ok) await loadV2Documents();
+  } catch(e) {}
+}
+
+async function deleteAllV2Documents() {
+  if (!App.v2.enabled) return;
+  try {
+    const r = await v2Fetch('/documents', {method:'DELETE'});
+    if (r && r.ok) App.v2.documents = [];
   } catch(e) {}
 }
 
@@ -4163,6 +4189,7 @@ function toggleWebSearch() {
 // ── DOCUMENTS ─────────────────────────────────────────────────────────────
 async function loadDocuments() {
   try {
+    if (App.v2.enabled) await loadV2Documents();
     const r = await fetch('/api/documents');
     App.documents = await r.json();
     if (!App.documents.length && App.chatMode === 'documents') App.chatMode = 'general';
@@ -4569,7 +4596,9 @@ function updateDocSelector() {
 async function deleteDocument(id) {
   if (!confirm('Delete this document?')) return;
   try {
+    const doc = App.documents.find(d => d.id === id);
     await fetch(`/api/documents/${id}`, {method:'DELETE'});
+    await deleteV2DocumentForLegacyDoc(doc);
     showToast('Document deleted.');
     await loadDocuments();
   } catch(e) { showToast('Delete failed.', 'error'); }
@@ -4579,6 +4608,7 @@ async function deleteAllDocuments() {
   if (!confirm('Delete ALL documents? This cannot be undone.')) return;
   try {
     await fetch('/api/documents', {method:'DELETE'});
+    await deleteAllV2Documents();
     showToast('All documents deleted.');
     await loadDocuments();
   } catch(e) { showToast('Delete failed.', 'error'); }
@@ -5082,7 +5112,7 @@ async function uploadFile(file) {
       status.className='upload-item-status status-done';
       status.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
       showToast(`${file.name} uploaded.`);
-      mirrorUploadToV2(file);
+      await mirrorUploadToV2(file);
       await loadDocuments();
       if (!App.currentChatId && !App.isStreaming && uploaded.id) {
         App.chatMode = 'documents';
