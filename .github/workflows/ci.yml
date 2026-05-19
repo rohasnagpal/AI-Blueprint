@@ -143,6 +143,15 @@ jobs:
               linked_docs = client.get(f"/api/v2/workspaces/{workspace_id}/documents/blueprints/{blueprint_id}/links")
               assert linked_docs.status_code == 200, linked_docs.text
               assert linked_docs.json()["total"] == 1
+              temporary_document = client.post(
+                  f"/api/v2/workspaces/{workspace_id}/documents",
+                  json={"original_name": "Temporary Delete Test.txt", "scope": "workspace", "status": "registered"},
+              )
+              assert temporary_document.status_code == 201, temporary_document.text
+              deleted_document = client.delete(f"/api/v2/workspaces/{workspace_id}/documents/{temporary_document.json()['id']}")
+              assert deleted_document.status_code == 200, deleted_document.text
+              missing_document = client.get(f"/api/v2/workspaces/{workspace_id}/documents/{temporary_document.json()['id']}")
+              assert missing_document.status_code == 404, missing_document.text
               personas = client.get(f"/api/v2/workspaces/{workspace_id}/personas")
               assert personas.status_code == 200, personas.text
               assert personas.json()["total"] >= 2
