@@ -2232,9 +2232,9 @@
       Settings
     </div>
     <div class="sidebar-divider"></div>
-    <div class="user-item">
-      <div class="user-avatar">U</div>
-      AI Blueprint User
+    <div class="user-item" id="v2-auth-sidebar" onclick="openV2AuthFromSidebar()">
+      <div class="user-avatar" id="v2-auth-avatar">U</div>
+      <span id="v2-auth-sidebar-label">Sign in</span>
     </div>
   </div>
 </aside>
@@ -3717,6 +3717,7 @@ function showToast(msg, type = 'success') {
 async function init() {
   await initV2();
   await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadPersonas(), loadCouncils(), loadEmailMessages()]);
+  updateV2AuthSidebar();
   updateChatModeUI();
   renderEmailControls();
   checkFirstRun();
@@ -3729,6 +3730,7 @@ async function initV2() {
     if (!me.ok) {
       const setup = await fetch('/api/v2/auth/setup-state').then(r => r.ok ? r.json() : null).catch(() => null);
       App.v2.setupRequired = !!setup?.setup_required;
+      updateV2AuthSidebar();
       if (!App.v2.skipped) showV2AuthModal(App.v2.setupRequired ? 'setup' : 'login');
       return;
     }
@@ -3737,6 +3739,7 @@ async function initV2() {
     await refreshV2Workspace();
   } catch(e) {
     App.v2.enabled = false;
+    updateV2AuthSidebar();
   }
 }
 
@@ -3786,6 +3789,28 @@ function showV2AuthModal(mode) {
   document.getElementById('v2-auth-modal')?.classList.add('open');
 }
 
+function updateV2AuthSidebar() {
+  const label = document.getElementById('v2-auth-sidebar-label');
+  const avatar = document.getElementById('v2-auth-avatar');
+  if (!label || !avatar) return;
+  const name = App.v2.user?.display_name || App.v2.user?.email || '';
+  label.textContent = name || (App.v2.setupRequired ? 'Set up access' : 'Sign in');
+  avatar.textContent = name ? name.slice(0, 1).toUpperCase() : 'U';
+}
+
+async function openV2AuthFromSidebar() {
+  if (App.v2.enabled && App.v2.user) {
+    showToast(`Signed in as ${App.v2.user.display_name || App.v2.user.email}.`);
+    return;
+  }
+  const setup = await fetch('/api/v2/auth/setup-state').then(r => r.ok ? r.json() : null).catch(() => null);
+  App.v2.setupRequired = !!setup?.setup_required;
+  App.v2.skipped = false;
+  localStorage.removeItem('aibp_v2_skip');
+  updateV2AuthSidebar();
+  showV2AuthModal(App.v2.setupRequired ? 'setup' : 'login');
+}
+
 function closeV2AuthModal(event) {
   if (event && event.target.id !== 'v2-auth-modal') return;
   skipV2Auth();
@@ -3825,6 +3850,7 @@ async function submitV2Auth() {
     document.getElementById('v2-auth-modal')?.classList.remove('open');
     await refreshV2Workspace();
     await Promise.all([loadDocuments(), loadPersonas()]);
+    updateV2AuthSidebar();
     showToast('Multi-user access enabled.');
   } catch(e) {
     if (error) { error.textContent = e.message; error.style.display = 'block'; }
