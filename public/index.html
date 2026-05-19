@@ -297,6 +297,33 @@
     opacity: 0.75;
   }
 
+  .chat-filter-btn {
+    border: 1px solid var(--sidebar-border);
+    background: rgba(255,255,255,0.04);
+    color: var(--sidebar-text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), border-color var(--transition);
+  }
+
+  .chat-filter-btn:hover,
+  .chat-filter-btn.active {
+    background: var(--sidebar-active);
+    color: #f0ede6;
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  .chat-filter-btn.danger {
+    color: #fca5a5;
+  }
+
   .sidebar-bottom {
     padding: 10px;
     border-top: 1px solid var(--sidebar-border);
@@ -2181,14 +2208,14 @@
   <div class="sidebar-section">
     <div class="sidebar-label" id="chat-history-label">Recent Chats</div>
     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-      <button class="chat-menu-item" id="chat-active-filter" type="button" onclick="setChatArchiveFilter(false)" style="width:auto;padding:5px 8px">Active</button>
-      <button class="chat-menu-item" id="chat-archived-filter" type="button" onclick="setChatArchiveFilter(true)" style="width:auto;padding:5px 8px">Archived</button>
-      <button class="chat-menu-item" type="button" onclick="toggleChatSelectMode()" style="width:auto;padding:5px 8px">Select</button>
+      <button class="chat-filter-btn" id="chat-active-filter" type="button" onclick="setChatArchiveFilter(false)">Active</button>
+      <button class="chat-filter-btn" id="chat-archived-filter" type="button" onclick="setChatArchiveFilter(true)">Archived</button>
+      <button class="chat-filter-btn" type="button" onclick="toggleChatSelectMode()">Select</button>
     </div>
     <div id="chat-bulk-actions" style="display:none;gap:6px;margin-top:6px;flex-wrap:wrap">
-      <button class="chat-menu-item danger" type="button" onclick="deleteSelectedChats()" style="width:auto;padding:5px 8px">Delete selected</button>
-      <button class="chat-menu-item danger" type="button" onclick="deleteAllVisibleChats()" style="width:auto;padding:5px 8px">Delete all</button>
-      <button class="chat-menu-item" type="button" onclick="toggleChatSelectMode(false)" style="width:auto;padding:5px 8px">Cancel</button>
+      <button class="chat-filter-btn danger" type="button" onclick="deleteSelectedChats()">Delete selected</button>
+      <button class="chat-filter-btn danger" type="button" onclick="deleteAllVisibleChats()">Delete all</button>
+      <button class="chat-filter-btn" type="button" onclick="toggleChatSelectMode(false)">Cancel</button>
     </div>
   </div>
 
