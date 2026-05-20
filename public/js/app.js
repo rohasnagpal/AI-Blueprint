@@ -139,8 +139,8 @@ async function submitV2Auth() {
     if (error) { error.textContent = 'Username, password, and name are required.'; error.style.display = 'block'; }
     return;
   }
-  if (App.v2.setupRequired && password.length < 8) {
-    if (error) { error.textContent = 'Password must be at least 8 characters.'; error.style.display = 'block'; }
+  if (App.v2.setupRequired && password.length < 12) {
+    if (error) { error.textContent = 'Password must be at least 12 characters.'; error.style.display = 'block'; }
     return;
   }
   try {

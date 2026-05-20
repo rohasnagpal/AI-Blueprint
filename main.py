@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 import database
 from app.api.router import router as v2_router
 from app.core.bootstrap import ensure_default_admin
+from app.core.config import get_settings
 from app.core.database import run_migrations
 from routes.documents import router as doc_router
 from routes.chats import router as chat_router
@@ -89,7 +90,8 @@ async def request_context(request: Request, call_next):
 async def startup():
     database.init_db()
     run_migrations()
-    ensure_default_admin()
+    if get_settings().bootstrap_default_admin:
+        ensure_default_admin()
 
 
 @app.get("/api/health")

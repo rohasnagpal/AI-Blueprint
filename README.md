@@ -82,6 +82,11 @@ http://127.0.0.1:8000
 
 On first use, open Settings and add the model or provider keys you need.
 
+The multi-user workspace layer starts with an interactive admin setup flow. For
+closed local deployments that need a temporary bootstrap account, set
+`AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN=true` before starting the server, then sign
+in with the bootstrap credentials and immediately change them.
+
 ## Configuration
 
 AI Blueprint supports configurable model providers, document retrieval settings, personas, councils, email settings, and workspace behavior from inside the app.

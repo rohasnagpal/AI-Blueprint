@@ -12,6 +12,7 @@ class Settings(BaseModel):
     session_cookie_name: str = "ai_blueprint_session"
     session_days: int = 14
     secure_cookies: bool = False
+    bootstrap_default_admin: bool = False
     alembic_ini_path: Path = Path("alembic.ini")
 
 
@@ -24,5 +25,6 @@ def get_settings() -> Settings:
         session_cookie_name=os.getenv("AI_BLUEPRINT_SESSION_COOKIE", "ai_blueprint_session"),
         session_days=int(os.getenv("AI_BLUEPRINT_SESSION_DAYS", "14")),
         secure_cookies=os.getenv("AI_BLUEPRINT_SECURE_COOKIES", "false").lower() == "true",
+        bootstrap_default_admin=os.getenv("AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN", "false").lower() == "true",
         alembic_ini_path=Path(os.getenv("AI_BLUEPRINT_ALEMBIC_INI", "alembic.ini")),
     )

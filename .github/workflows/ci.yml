@@ -60,7 +60,7 @@ jobs:
               health = client.get("/api/v2/health")
               assert health.status_code == 200, health.text
               assert health.headers["x-request-id"]
-              assert health.json()["database"]["migration_revision"] == "0014_workspace_soft_delete"
+              assert health.json()["database"]["migration_revision"] == "0015_user_admin_bootstrap"
               assert client.get("/api/v2/auth/setup-state").json()["setup_required"] is True
               setup = client.post(
                   "/api/v2/auth/setup",
