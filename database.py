@@ -59,8 +59,8 @@ DEFAULTS = {
     "font_size": "14",
     "vector_store_id": "",
     "assistant_id": "",
-    "app_name": "AI Blueprint",
-    "app_intro": "Build, run and chat with AI agents, pipelines and tools. Powered by your documents.",
+    "app_name": "AI Blueprint by Rohas Nagpal",
+    "app_intro": "Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action.",
     "suggested_questions": '["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]',
 }
 
@@ -254,6 +254,17 @@ def init_db():
     if count == 0:
         for k, v in DEFAULTS.items():
             conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
+    conn.execute(
+        "UPDATE settings SET value = ? WHERE key = 'app_name' AND value = ?",
+        (DEFAULTS["app_name"], "AI Blueprint"),
+    )
+    conn.execute(
+        "UPDATE settings SET value = ? WHERE key = 'app_intro' AND value = ?",
+        (
+            DEFAULTS["app_intro"],
+            "Build, run and chat with AI agents, pipelines and tools. Powered by your documents.",
+        ),
+    )
     _seed_council_templates(conn)
     _ensure_builtin_template_updates(conn)
     _seed_ai_models(conn)

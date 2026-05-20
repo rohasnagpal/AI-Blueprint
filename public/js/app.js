@@ -1,5 +1,5 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -966,9 +966,8 @@ function applySettings() {
   if (s.font_size) document.body.style.fontSize = s.font_size + 'px';
   if (s.app_name) {
     const title = document.getElementById('welcome-title');
-    const brand = document.getElementById('sidebar-brand-name');
     if (title) title.textContent = s.app_name;
-    if (brand) brand.textContent = s.app_name;
+    document.title = s.app_name;
   }
   if (s.app_intro) { const el = document.getElementById('welcome-intro'); if (el) el.textContent = s.app_intro; }
   if (s.suggested_questions) {
@@ -990,6 +989,8 @@ function populateSettingsUI() {
   renderChatModelOptions();
   set('sel-chat-model', s.chat_model);
   set('sel-max-tokens', s.max_tokens);
+  set('sel-embedding-provider', s.embedding_provider || 'openai');
+  set('sel-embedding-model', s.embedding_model);
   const tempEl = document.getElementById('sl-temperature');
   if (tempEl && s.temperature) { tempEl.value = Math.round(parseFloat(s.temperature) * 100); tempEl.nextElementSibling.textContent = parseFloat(s.temperature).toFixed(1); }
   const topkEl = document.getElementById('sl-top-k');
@@ -1234,17 +1235,41 @@ async function testOllamaConnection() {
   } catch(e) { showToast('Ollama test failed: ' + e.message, 'error'); }
 }
 
+function saveChatModelSettings() {
+  const p = document.getElementById('sel-chat-provider')?.value;
+  const m = document.getElementById('sel-chat-model')?.value;
+  const t = document.getElementById('sel-max-tokens')?.value;
+  const temp = document.getElementById('sl-temperature')?.value;
+  const s = {};
+  if (p) s.local_llm_provider = p;
+  if (m) s.chat_model = m;
+  if (t) s.max_tokens = t;
+  if (temp) s.temperature = (parseFloat(temp)/100).toFixed(2);
+  saveSettings(s);
+}
+
+function saveEmbeddingModelSettings() {
+  const ep = document.getElementById('sel-embedding-provider')?.value;
+  const em = document.getElementById('sel-embedding-model')?.value;
+  const s = {};
+  if (ep) s.embedding_provider = ep;
+  if (em) s.embedding_model = em;
+  saveSettings(s);
+}
+
 function saveModelSettings() {
   const p = document.getElementById('sel-chat-provider')?.value;
   const m = document.getElementById('sel-chat-model')?.value;
   const t = document.getElementById('sel-max-tokens')?.value;
   const temp = document.getElementById('sl-temperature')?.value;
+  const ep = document.getElementById('sel-embedding-provider')?.value;
   const em = document.getElementById('sel-embedding-model')?.value;
   const s = {};
   if (p) s.local_llm_provider = p;
   if (m) s.chat_model = m;
   if (t) s.max_tokens = t;
   if (temp) s.temperature = (parseFloat(temp)/100).toFixed(2);
+  if (ep) s.embedding_provider = ep;
   if (em) s.embedding_model = em;
   saveSettings(s);
 }
@@ -1341,7 +1366,7 @@ function saveRagProviderSettings() {
 async function resetAllSettings() {
   if (!confirm('Reset all settings to defaults? API keys will be cleared.')) return;
   try {
-    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', openrouter_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint', app_intro:'Build, run and chat with AI agents, pipelines and tools. Powered by your documents.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]' };
+    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', openrouter_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint by Rohas Nagpal', app_intro:'Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]' };
     await saveSettings(defaults);
   } catch(e) { showToast('Reset failed.', 'error'); }
 }
@@ -1364,7 +1389,13 @@ function renderChatHistory() {
   const bulk = document.getElementById('chat-bulk-actions');
   if (bulk) bulk.style.display = App.chatSelectMode ? 'flex' : 'none';
   list.innerHTML = '';
-  for (const chat of App.chats) {
+  const query = App.chatSearchQuery.trim().toLowerCase();
+  const chats = query ? App.chats.filter(chat => (chat.title || 'New Chat').toLowerCase().includes(query)) : App.chats;
+  if (!chats.length && query) {
+    list.innerHTML = '<div style="padding:10px 8px;color:var(--sidebar-text-muted);font-size:12px">No matching chats.</div>';
+    return;
+  }
+  for (const chat of chats) {
     const item = document.createElement('div');
     item.className = 'chat-history-item' + (chat.id === App.currentChatId ? ' active' : '') + (chat.id === App.openChatMenuId ? ' menu-open' : '');
     const menu = chat.id === App.openChatMenuId ? `
@@ -1417,6 +1448,35 @@ function toggleSelectedChat(chatId, event) {
   if (App.selectedChatIds.has(chatId)) App.selectedChatIds.delete(chatId);
   else App.selectedChatIds.add(chatId);
   renderChatHistory();
+}
+
+function toggleChatSearch() {
+  const wrap = document.getElementById('topbar-chat-search');
+  const input = document.getElementById('chat-search-input');
+  if (!wrap || !input) return;
+  const open = !wrap.classList.contains('open');
+  wrap.classList.toggle('open', open);
+  if (open) {
+    input.focus();
+    input.select();
+  } else {
+    input.value = '';
+    searchChats('');
+  }
+}
+
+function searchChats(value) {
+  App.chatSearchQuery = value || '';
+  renderChatHistory();
+}
+
+function handleChatSearchKey(event) {
+  if (event.key !== 'Escape') return;
+  event.preventDefault();
+  const input = document.getElementById('chat-search-input');
+  if (input) input.value = '';
+  searchChats('');
+  document.getElementById('topbar-chat-search')?.classList.remove('open');
 }
 
 function toggleChatMenu(chatId, event) {
@@ -1929,8 +1989,23 @@ function docCard(d) {
 
 function updateDocsBadge() { el('docs-count-badge', App.documents.length); }
 function toggleChatModeMenu(event) {
-  event.stopPropagation();
-  document.getElementById('input-mode-menu')?.classList.toggle('open');
+  event?.stopPropagation();
+  const menu = document.getElementById('input-mode-menu');
+  if (!menu) return;
+  const trigger = event?.currentTarget;
+  const isTopbar = trigger?.id === 'doc-selector';
+  menu.classList.toggle('topbar-mode-menu', isTopbar);
+  if (isTopbar) {
+    const rect = trigger.getBoundingClientRect();
+    menu.style.left = rect.left + 'px';
+    menu.style.top = (rect.bottom + 8) + 'px';
+    menu.style.bottom = 'auto';
+  } else {
+    menu.style.left = '';
+    menu.style.top = '';
+    menu.style.bottom = '';
+  }
+  menu.classList.toggle('open');
 }
 
 function setChatMode(mode) {
@@ -2614,9 +2689,11 @@ async function sendMessage() {
   scrollBottom();
   App.isStreaming = true;
   document.querySelector('.send-btn').style.opacity = '0.5';
-  let content = '', sources = [];
+  let content = '', sources = [], hadError = false;
   try {
     const r = await fetch(`/api/chats/${App.currentChatId}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, web_search:App.webSearchEnabled})});
+    if (!r.ok) throw new Error(await apiError(r));
+    if (!r.body) throw new Error('The chat stream did not start.');
     const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
     while (true) {
       const {done, value} = await reader.read();
@@ -2629,7 +2706,12 @@ async function sendMessage() {
           const ev = JSON.parse(line.slice(6));
           if (ev.type === 'token') { content += ev.content; bubble.innerHTML = mdRender(content); scrollBottom(); }
           else if (ev.type === 'source') sources.push(ev);
-          else if (ev.type === 'error') showToast(ev.content, 'error');
+          else if (ev.type === 'error') {
+            hadError = true;
+            content = ev.content || 'Chat request failed.';
+            bubble.textContent = content;
+            showToast(content, 'error');
+          }
           else if (ev.type === 'done' && sources.length) {
             const sp = mkSources(sources);
             aiEl.insertBefore(sp, aiEl.querySelector('.msg-actions'));
@@ -2638,7 +2720,12 @@ async function sendMessage() {
         } catch(ex) {}
       }
     }
-  } catch(e) { showToast('Stream error: ' + e.message, 'error'); }
+    if (!content && !hadError) bubble.textContent = 'No response was returned.';
+  } catch(e) {
+    content = 'Stream error: ' + e.message;
+    bubble.textContent = content;
+    showToast(content, 'error');
+  }
   App.isStreaming = false;
   document.querySelector('.send-btn').style.opacity = '';
   await loadChats();
@@ -2676,8 +2763,52 @@ function copyMsg(btn) {
   navigator.clipboard.writeText(b.innerText).then(() => showToast('Copied.'));
 }
 
+async function downloadChatMarkdown() {
+  if (!App.currentChatId) {
+    showToast('Open or start a chat before downloading.', 'warning');
+    return;
+  }
+  try {
+    const chat = App.chats.find(c => c.id === App.currentChatId);
+    const r = await fetch(`/api/chats/${App.currentChatId}/messages`);
+    if (!r.ok) throw new Error(await apiError(r));
+    const messages = await r.json();
+    if (!messages.length) {
+      showToast('This chat has no messages to download.', 'warning');
+      return;
+    }
+    const title = chat?.title || 'AI Blueprint chat';
+    const lines = [`# ${title}`, '', `Exported: ${new Date().toLocaleString()}`, ''];
+    for (const message of messages) {
+      lines.push(`## ${message.role === 'user' ? 'User' : 'AI Blueprint'}`, '', message.content || '', '');
+      if (message.sources?.length) {
+        lines.push('Sources:', '');
+        for (const source of message.sources) {
+          const name = source.filename || source.url || 'Source';
+          const page = source.page != null ? `, chunk ${source.page}` : '';
+          const url = source.url ? ` - ${source.url}` : '';
+          lines.push(`- ${name}${page}${url}`);
+        }
+        lines.push('');
+      }
+    }
+    const blob = new Blob([lines.join('\n')], {type: 'text/markdown;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${slugify(title || 'chat')}.md`;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(a.href);
+    a.remove();
+    showToast('Chat downloaded.');
+  } catch(e) {
+    showToast('Download failed: ' + e.message, 'error');
+  }
+}
+
 // ── UTILS ─────────────────────────────────────────────────────────────────
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function slugify(s) { return String(s || 'chat').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').substring(0, 80) || 'chat'; }
 function fmtBytes(b) { if(!b)return'0 B'; if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; return(b/1048576).toFixed(1)+' MB'; }
 function mdRender(t) {
   const codeStyle = 'background:var(--badge-bg);padding:1px 4px;border-radius:3px;font-size:.9em';

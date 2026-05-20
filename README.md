@@ -1,47 +1,73 @@
-# AI Blueprint
+# AI Blueprint for Lawyers
 
-**Simple version:** AI Blueprint is a free, open source AI platform with local document intelligence, multi-agent councils, purpose-built personas, and email automation, all running privately on your machine.
+AI Blueprint is a private legal AI workspace for law firms, lawyers, and legal teams.
 
-**Geeky version:** AI Blueprint is a local-first FastAPI server with a zero-build single-page frontend. It supports document-grounded RAG (OpenAI or ChromaDB+LlamaIndex), SSE-streamed chat, web search, AES-256-encrypted settings, a live model registry, persona definitions, and configurable multi-agent council workflows with ordered execution phases. State lives in SQLite, the filesystem, and optional Chroma vector indexes. One python main.py and you're running.
+Instead of opening a generic chatbot, a lawyer opens a matter-specific blueprint: the right documents, legal personas, skills, rules, citations, and review workflows in one controlled workspace.
 
-**Here’s what you can do with AI Blueprint:**
+## The Idea
 
-1. Pull unread emails from your inbox, choose a persona to draft the reply, optionally ground it in your documents, review the draft, and send it without leaving the app.
-2. Chat with a folder of PDFs and get cited answers streamed back in real time. Upload files, drop in a URL, or ingest web pages so they become part of your local knowledge base. Toggle web search mid-conversation to combine live results with your documents.
-3. Run an AI council where one participant argues a position, another critiques it, and a third synthesizes the result. Use it for stress-testing decisions, writing both sides of a brief, comparing interpretations, or building structured review pipelines.
-4. Swap personas to change tone, expertise, and behavior without rewriting prompts.
-5. Switch models and providers from the UI without restarting the server.
-6. Manage your local chats, documents, personas, council templates, and model settings from one private workspace.
+Legal work depends on confidential documents, source-grounded reasoning, repeatable workflows, professional review, and auditability. AI Blueprint is being built around those requirements first.
 
-## Current Features
+The goal is not to replace legal judgment. The goal is to give lawyers a structured AI workspace for reviewing documents, preparing arguments, drafting client communications, testing positions, and organizing matter knowledge.
 
-- **Document chat with RAG** using either OpenAI Vector Stores or local LlamaIndex + ChromaDB.
-- **URL ingestion** for adding webpages to the document knowledge base.
-- **Web search in chat** with source citations.
-- **Free web search fallback** through DuckDuckGo HTML search, plus optional SearXNG and Brave Search support.
-- **Streaming chat responses** over server-sent events.
-- **Source citations** for document chunks and web results.
-- **Personas** for changing assistant behavior from the chat UI.
-- **Email reply drafting** from imported IMAP messages with selectable persona and RAG scope.
-- **AI Councils** for running multi-agent workflows in phases against an objective and document scope.
-- **Council templates and run history** stored locally.
-- **Model registry** for adding, editing, disabling, and deleting model options.
-- **Settings UI** for API keys, RAG behavior, chat preferences, appearance, and app text.
-- **Chat archive/delete** from the sidebar.
-- **GitHub Actions CI** and cross-platform package builds.
+## Local and Network Versions
+
+AI Blueprint can be used in two ways:
+
+- **Local version:** run AI Blueprint privately on one machine for solo lawyers, experiments, document review, research, and local-first workflows.
+- **Network/server version:** run AI Blueprint for a firm, team, or legal department with shared workspaces, matter access, permissions, audit trails, reusable blueprints, and centralized configuration.
+
+The local version is the fastest way to start. The network version is the direction for multi-user legal practice.
+
+## Core Capabilities
+
+- **Private document intelligence through internal and external RAG**  
+  Query firm files, matter documents, contracts, emails, precedents, policies, statutes, regulations, and approved external sources while keeping sensitive knowledge scoped and controlled.
+
+- **Citation-backed answers with source grounding**  
+  Every material claim can point back to the document, clause, page, email, case note, statute, regulation, or uploaded source it came from.
+
+- **Reusable expert personas**  
+  Configure role-specific AI behavior such as Commercial Lawyer, Litigation Associate, Contract Reviewer, Regulatory Counsel, Partner Reviewer, Plain-English Summarizer, or Evidence Analyst.
+
+- **Multi-agent legal councils**  
+  Run structured legal workflows where one agent drafts, another critiques, another checks evidence, and another synthesizes a final recommendation. Useful for arbitration preparation, litigation strategy, mediation planning, settlement analysis, contract negotiation, due diligence review, regulatory risk assessment, and internal partner review.
+
+- **Email and client communication drafting**  
+  Draft replies, follow-ups, summaries, client updates, negotiation responses, and internal matter emails using the right persona and document context.
+
+- **Matter, client, and workspace organization**  
+  Keep knowledge, chats, documents, runs, personas, permissions, and outputs organized by firm, team, client, matter, or project.
+
+- **Purpose-built legal workflows**  
+  Support contract review, legal research, issue spotting, risk analysis, diligence summaries, clause comparison, chronology building, and memo drafting as defined workflows rather than generic chat.
+
+- **Auditability, permissions, and trust controls**  
+  Track who ran what, which sources were used, what model produced the output, what changed between versions, and which users or roles can access each matter.
+
+- **Local-first and privacy-conscious deployment**  
+  Let firms use AI on sensitive legal material with stronger control over storage, retrieval, credentials, model routing, and data exposure.
+
+## Example Workflows
+
+- Review a contract against a playbook and produce a risk summary.
+- Prepare for arbitration by mapping facts, claims, evidence, and counterarguments.
+- Build a litigation chronology from pleadings, exhibits, emails, and notes.
+- Draft a legal research memo with citations and uncertainty clearly marked.
+- Compare clauses across versions of an agreement.
+- Prepare a mediation or settlement strategy memo.
+- Summarize a matter for a client or supervising partner.
+- Run a partner-review council before sending work product.
 
 ## Quick Start
 
-### Requirements
+Requirements:
 
 - Python 3.10 or newer
 - A browser
-- Optional API keys depending on provider:
-  - OpenAI for OpenAI RAG or OpenAI chat
-  - Groq for Groq chat
-  - Brave Search only if you want Brave instead of the free search fallback
+- Provider API keys depending on the models and retrieval mode you choose
 
-### Run Locally
+Run locally:
 
 ```bash
 git clone https://github.com/yourusername/ai-blueprint.git
@@ -60,293 +86,28 @@ Open:
 http://127.0.0.1:8000
 ```
 
-On first use, open **Settings -> API Keys** and add the provider keys you need.
+On first use, open Settings and add the model or provider keys you need.
 
-## Core Workflows
+## Configuration
 
-### Add Documents
+AI Blueprint supports configurable model providers, document retrieval settings, personas, councils, email settings, and workspace behavior from inside the app.
 
-Use **Add Documents** to upload files or paste a webpage URL.
+For legal use, configure the system around the matter:
 
-Supported uploads:
+- which documents are available
+- which sources are approved
+- which persona or workflow should be used
+- which users can access the matter
+- which outputs need review before use
 
-| Type | Extensions |
-|---|---|
-| PDF | `.pdf` |
-| Word | `.docx` |
-| Text | `.txt`, `.md` |
-| Data | `.csv`, `.xlsx`, `.json` |
-| HTML | `.html`, `.htm` |
+## Privacy Note
 
-URL ingestion fetches readable webpage text, saves it as a markdown document, and indexes it through the active RAG provider.
+AI Blueprint is designed as a local-first legal AI workspace. Sensitive runtime data such as uploaded documents, chat history, local databases, vector indexes, logs, and API keys should not be committed to version control.
 
-### Chat
+When using external model or retrieval providers, review where document text, prompts, embeddings, and outputs are sent before using the system with confidential material.
 
-The chat input supports:
+## Development Status
 
-- **General mode**: no document context.
-- **Documents mode**: answer using uploaded documents.
-- **Web search toggle**: adds live web results to the prompt and shows web citations.
-- **Persona selector**: applies a saved persona to the conversation.
+AI Blueprint is an evolving open-source platform being shaped into a legal AI blueprint system for lawyers, firms, and legal teams.
 
-### Web Search
-
-Search provider order:
-
-1. **SearXNG** if `searxng_base_url` is set in Settings.
-2. **Brave Search** if `brave_search_api_key` is set.
-3. **DuckDuckGo HTML** fallback with no API key.
-
-DuckDuckGo fallback is useful for local testing and free usage. For production reliability, use SearXNG or a paid search API.
-
-### AI Councils
-
-Councils let you run multiple AI participants in ordered phases.
-
-You can:
-
-- use built-in templates
-- create custom templates
-- configure participant roles, instructions, provider, model, temperature, and token limits
-- run phases sequentially or in parallel
-- scope runs to all documents or selected documents
-- review saved outputs and evidence
-
-### Email Replies
-
-The **Email** view is a review-first workflow for AI-assisted replies.
-
-You can:
-
-- save DreamHost-style IMAP settings for incoming mail
-- save SMTP2GO settings for outgoing mail
-- show saved IMAP and SMTP passwords as masked values in the UI
-- import unread messages into a local review queue
-- choose which persona drafts replies
-- choose no RAG, all documents, or a selected document as drafting context
-- generate an editable AI draft
-- approve and send manually
-
-The app does not auto-send replies. Every draft must be reviewed and sent by the user.
-
-For SMTP2GO, use SMTP credentials from SMTP2GO, not your normal account login. The default SMTP host is `mail.smtp2go.com`; common ports are `2525` and `587`. The from address must be allowed by your SMTP2GO sender/domain settings.
-
-## RAG Modes
-
-Switch providers in **Settings -> RAG Provider**.
-
-### OpenAI RAG
-
-Uses OpenAI files, vector stores, assistants, and file search.
-
-- Requires an OpenAI API key.
-- Documents are uploaded to OpenAI.
-- Easiest setup.
-
-### Local RAG
-
-Uses LlamaIndex, ChromaDB, and sentence-transformers.
-
-- Keeps document embeddings local.
-- Requires extra dependencies.
-- Still needs a chat model provider unless using Ollama.
-
-Install local RAG dependencies:
-
-```bash
-pip install chromadb --no-deps
-pip install -r requirements-local.txt
-```
-
-For Python 3.12 or earlier, this usually also works:
-
-```bash
-pip install chromadb
-pip install -r requirements-local.txt
-```
-
-## Model Providers
-
-The app currently supports chat generation through:
-
-- OpenAI
-- Groq
-- Ollama
-- Anthropic path in backend code
-
-Model dropdowns are driven by **Settings -> Model -> Model Registry**, so provider model lists can be updated without code changes.
-
-## Settings
-
-All settings are stored in SQLite. API keys are encrypted at rest.
-
-Important settings:
-
-| Setting | Purpose |
-|---|---|
-| `openai_api_key` | OpenAI chat and OpenAI RAG |
-| `groq_api_key` | Groq chat |
-| `brave_search_api_key` | Optional Brave Search |
-| `searxng_base_url` | Optional SearXNG endpoint |
-| `email_imap_host`, `email_imap_username` | Incoming email connection |
-| `email_smtp_host`, `email_smtp_username` | SMTP2GO outgoing email connection |
-| `email_smtp_verify_tls` | Whether SMTP STARTTLS certificate verification is enforced |
-| `email_persona_id`, `email_doc_context` | Default email drafting persona and RAG scope |
-| `rag_provider` | `openai` or `llamaindex` |
-| `local_llm_provider` | Chat provider |
-| `chat_model` | Active chat model |
-| `top_k` | Number of retrieved chunks |
-| `similarity_threshold` | Local RAG relevance threshold |
-| `chunk_size`, `chunk_overlap` | Document splitting controls |
-
-## GitHub Actions
-
-The repo includes two workflows.
-
-### CI
-
-`.github/workflows/ci.yml`
-
-- Runs on pull requests.
-- Runs on pushes to `main`.
-- Tests Python 3.10, 3.11, and 3.12.
-- Installs `requirements.txt`.
-- Compiles Python files.
-
-### Build Installers
-
-`.github/workflows/build-installers.yml`
-
-Builds portable packages for:
-
-- Linux: `ai-blueprint-linux.tar.gz`
-- macOS: `ai-blueprint-macos.dmg`
-- Windows: `ai-blueprint-windows.zip`
-
-It runs on:
-
-- any pushed tag, such as `alpha-4` or `v1.0.0`
-- published GitHub releases
-- manual workflow dispatch
-
-For an existing release, run the workflow manually and enter the release tag in `release_tag`.
-
-macOS builds are unsigned and not notarized, so Gatekeeper may show a warning.
-
-## Project Structure
-
-```text
-ai-blueprint/
-├── main.py                       # FastAPI entry point
-├── database.py                   # SQLite schema, settings, seeds, encryption
-├── webtools.py                   # URL fetch/extract and web search providers
-├── routes/
-│   ├── chats.py                  # Chat APIs and streaming responses
-│   ├── documents.py              # Uploads, URL ingestion, document deletion
-│   ├── email.py                  # IMAP import, AI drafts, SMTP sending
-│   ├── councils.py               # Council templates, runs, outputs
-│   ├── personas.py               # Built-in persona listing
-│   └── settings.py               # Settings and model registry APIs
-├── rag/
-│   ├── base.py                   # RAG provider interface
-│   ├── openai_rag.py             # OpenAI vector store RAG
-│   └── llamaindex_rag.py         # Local ChromaDB RAG
-├── public/
-│   └── index.html                # Single-page frontend
-├── uploads/                      # Runtime uploads, ignored by git
-├── chroma_db/                    # Runtime local vector store, ignored by git
-├── .github/workflows/
-│   ├── ci.yml
-│   └── build-installers.yml
-├── requirements.txt
-├── requirements-local.txt
-└── README.md
-```
-
-## Runtime Files
-
-These are created locally and intentionally ignored by git:
-
-- `ai_blueprint.db`
-- `.secret_key`
-- `uploads/`
-- `chroma_db/`
-
-Do not commit them. They may contain chat history, document data, vector indexes, or encrypted keys.
-
-## Troubleshooting
-
-### Port 8000 is already in use
-
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8080
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8080
-```
-
-### URL ingestion says Method Not Allowed
-
-Restart the FastAPI process. This usually means the browser is serving the updated frontend while the backend is still an older process.
-
-### Local RAG dependency errors
-
-Install the local dependency set:
-
-```bash
-pip install chromadb --no-deps
-pip install -r requirements-local.txt
-```
-
-### Ollama is not running
-
-Start Ollama before sending chat messages:
-
-```bash
-ollama serve
-```
-
-For the hosted Ollama API, set **Settings -> API Keys -> Ollama**:
-
-- Base URL: `https://ollama.com`
-- API key: your Ollama API key
-
-For local Ollama, keep the base URL as `http://localhost:11434` and leave the key blank.
-
-### Email send fails with incorrect authentication data
-
-SMTP2GO rejected the credentials. Use the SMTP username/password from SMTP2GO, not your web dashboard password. Also confirm the from address is a verified sender/domain in SMTP2GO.
-
-### Email send fails with certificate verify failed
-
-Some networks or SMTP paths present a self-signed certificate chain during STARTTLS. In **Email Settings**, set **Verify SMTP TLS certificate** to **No**, save, and retry. Keep it enabled when your SMTP certificate chain validates normally.
-
-### GitHub release only shows source code
-
-GitHub always adds source archives automatically. To attach app packages, make sure the **Build Installers** workflow has run for that tag or run it manually with `release_tag`.
-
-## Security Notes
-
-- API keys are encrypted with AES-GCM before storage.
-- The encryption key is stored in `.secret_key`.
-- Settings APIs return masked keys, not plaintext keys.
-- Email passwords are encrypted at rest and shown as masked placeholders in the UI.
-- Local RAG keeps document retrieval local.
-- OpenAI RAG uploads documents to your OpenAI account.
-- Web search and URL ingestion make outbound network requests from the server.
-- Email polling and sending connect to the configured IMAP/SMTP servers.
-
-## Current Limitations
-
-- Packaged desktop builds are portable server executables, not native GUI apps.
-- macOS DMG is unsigned and not notarized.
-- URL scraping is lightweight HTML/text extraction; JavaScript-heavy pages may not extract well.
-- DuckDuckGo HTML search is a free fallback, not a guaranteed production API.
-- Email support is a review queue MVP; it does not yet include automated scheduling, attachment-aware drafting, allowlists, blocklists, or threaded conversation reconstruction.
-
-## License
-
-MIT
+The current project includes the foundations for document intelligence, personas, councils, email drafting, legal research, contract review, workspaces, permissions, and auditability. The product direction is a practical legal AI workspace that can start locally and grow into a networked firm platform.

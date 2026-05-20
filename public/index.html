@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AI Blueprint</title>
+<title>AI Blueprint by Rohas Nagpal</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-<link rel="stylesheet" href="/css/app.css?v=20260519-admin-users"/>
+<link rel="stylesheet" href="/css/app.css?v=20260520-model-card-save"/>
 
 </head>
 <body>
@@ -98,19 +98,22 @@
   <!-- TOP BAR -->
   <div class="topbar">
     <span class="topbar-title" id="topbar-title">Chat</span>
-    <div class="doc-selector" id="doc-selector">
+    <div class="doc-selector" id="doc-selector" onclick="toggleChatModeMenu(event)" title="Choose chat context">
       <div class="dot"></div>
       <span id="topbar-doc-label">General</span>
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="topbar-spacer"></div>
     <div class="topbar-actions">
-      <div class="icon-btn" title="Search chats">
+      <div class="topbar-search" id="topbar-chat-search">
+        <input type="text" id="chat-search-input" placeholder="Search chats..." oninput="searchChats(this.value)" onkeydown="handleChatSearchKey(event)"/>
+      </div>
+      <button class="icon-btn" type="button" title="Search chats" onclick="toggleChatSearch()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </div>
-      <div class="icon-btn" title="Share">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-      </div>
+      </button>
+      <button class="icon-btn" type="button" title="Download chat as Markdown" aria-label="Download chat as Markdown" onclick="downloadChatMarkdown()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
     </div>
   </div>
 
@@ -123,7 +126,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </div>
         <h2 id="welcome-title">AI Blueprint</h2>
-        <p id="welcome-intro">Build, run and chat with AI agents, pipelines and tools. Powered by your documents.</p>
+        <p id="welcome-intro">Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action.</p>
         <div class="suggestion-chips" id="suggestion-chips-list">
           <div class="chip" onclick="fillInput(this)">Summarize the key points</div>
           <div class="chip" onclick="fillInput(this)">What are the main findings?</div>
@@ -627,7 +630,16 @@
         <!-- API KEYS -->
         <div class="settings-section active" id="stab-api-keys">
           <div class="settings-section-title">API Keys</div>
-          <div class="settings-section-desc">Connect your AI provider accounts. Keys are stored locally and never shared.</div>
+          <div class="settings-section-desc">Connect AI models, web search, and future external services. Keys are stored locally and never shared.</div>
+
+          <div class="api-key-category" data-category="ai">
+            <div class="api-key-category-header">
+              <div>
+                <div class="api-key-category-title">AI Providers</div>
+                <div class="api-key-category-desc">Model, embedding, and inference services used by chat, documents, and councils.</div>
+              </div>
+              <span class="api-key-category-count">11 providers</span>
+            </div>
 
           <!-- OpenAI -->
           <div class="provider-card">
@@ -869,6 +881,17 @@
             </div>
           </div>
 
+          </div>
+
+          <div class="api-key-category" data-category="search">
+            <div class="api-key-category-header">
+              <div>
+                <div class="api-key-category-title">Search Providers</div>
+                <div class="api-key-category-desc">Web search services used when search is enabled in chat.</div>
+              </div>
+              <span class="api-key-category-count">2 providers</span>
+            </div>
+
           <!-- Brave Search -->
           <div class="provider-card">
             <div class="provider-header">
@@ -906,6 +929,8 @@
               </div>
               <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
             </div>
+          </div>
+
           </div>
 
         </div>
@@ -968,6 +993,10 @@
                 </div>
               </div>
             </div>
+            <div class="settings-card-actions">
+              <button class="btn-secondary" type="button" onclick="loadSettings()">Reset</button>
+              <button class="btn-primary" type="button" onclick="saveChatModelSettings()">Save chat model</button>
+            </div>
           </div>
 
           <div class="settings-card">
@@ -981,10 +1010,10 @@
                 <div class="settings-row-desc">Can differ from your chat model provider</div>
               </div>
               <div class="settings-row-control">
-                <select class="s-select">
-                  <option>OpenAI</option>
-                  <option>Cohere</option>
-                  <option>Google</option>
+                <select class="s-select" id="sel-embedding-provider">
+                  <option value="openai">OpenAI</option>
+                  <option value="cohere">Cohere</option>
+                  <option value="google">Google</option>
                 </select>
               </div>
             </div>
@@ -1001,11 +1030,10 @@
                 </select>
               </div>
             </div>
-          </div>
-
-          <div class="settings-save-bar">
-            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
-            <button class="btn-primary" onclick="saveModelSettings()">Save changes</button>
+            <div class="settings-card-actions">
+              <button class="btn-secondary" type="button" onclick="loadSettings()">Reset</button>
+              <button class="btn-primary" type="button" onclick="saveEmbeddingModelSettings()">Save embedding model</button>
+            </div>
           </div>
 
           <div class="settings-card" style="margin-top:18px">
@@ -1364,7 +1392,7 @@
                 <div class="settings-row-desc">Displayed as the title on the main screen</div>
               </div>
               <div class="settings-row-control">
-                <input class="s-select" type="text" id="inp-app-name" placeholder="AI Blueprint" style="width:200px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px"/>
+                <input class="s-select" type="text" id="inp-app-name" placeholder="AI Blueprint by Rohas Nagpal" style="width:260px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px"/>
               </div>
             </div>
             <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
@@ -1372,7 +1400,7 @@
                 <div class="settings-row-label">Intro Text</div>
                 <div class="settings-row-desc">Subtitle shown below the app name</div>
               </div>
-              <textarea id="inp-app-intro" rows="2" placeholder="Build, run and chat with AI agents…" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+              <textarea id="inp-app-intro" rows="2" placeholder="Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action." style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
             </div>
             <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
               <div class="settings-row-info">
@@ -1644,6 +1672,6 @@
 <div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
 
-<script src="/js/app.js?v=20260519-admin-users"></script>
+<script src="/js/app.js?v=20260520-model-card-save"></script>
 </body>
 </html>
