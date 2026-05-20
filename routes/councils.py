@@ -445,7 +445,9 @@ async def _run_agent(
         content = await _complete_groq(settings.get("groq_api_key", ""), system, user, model, temperature, max_tokens)
     elif provider == "ollama":
         content = await _complete_ollama(system, user, model, temperature, max_tokens, settings)
-    elif settings.get("rag_provider") == "openai" and settings.get("vector_store_id"):
+    elif provider == "openrouter":
+        content = await _complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model, temperature, max_tokens)
+    elif provider == "openai" and settings.get("rag_provider") == "openai" and settings.get("vector_store_id"):
         content = await _complete_openai_file_search(settings.get("openai_api_key", ""), settings["vector_store_id"], system, user, model, temperature, max_tokens)
     else:
         content = await _complete_openai(settings.get("openai_api_key", ""), system, user, model, temperature, max_tokens)
@@ -502,8 +504,6 @@ def _agent_provider(agent: dict[str, Any], settings: dict) -> str:
     provider = agent.get("provider", "default")
     if provider and provider != "default":
         return provider
-    if settings.get("rag_provider") == "openai":
-        return "openai"
     return settings.get("local_llm_provider", "openai")
 
 
@@ -571,6 +571,28 @@ async def _complete_openai(key: str, system: str, user: str, model: str, tempera
     client = openai.AsyncOpenAI(api_key=key)
     response = await client.chat.completions.create(
         model=model,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content or ""
+
+
+async def _complete_openrouter(key: str, system: str, user: str, model: str, temperature: float, max_tokens: int) -> str:
+    if not key:
+        raise RuntimeError("OpenRouter API key not configured. Go to Settings -> API Keys.")
+    import openai
+
+    client = openai.AsyncOpenAI(
+        api_key=key,
+        base_url="https://openrouter.ai/api/v1",
+        default_headers={
+            "HTTP-Referer": "http://localhost",
+            "X-Title": "AI Blueprint",
+        },
+    )
+    response = await client.chat.completions.create(
+        model=model or "openrouter/auto",
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         temperature=temperature,
         max_tokens=max_tokens,

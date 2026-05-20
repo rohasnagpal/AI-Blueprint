@@ -11,6 +11,7 @@ SECRET_KEY_FILE = ".secret_key"
 DEFAULTS = {
     "rag_provider": "openai",
     "openai_api_key": "",
+    "openrouter_api_key": "",
     "anthropic_api_key": "",
     "groq_api_key": "",
     "gemini_api_key": "",
@@ -64,7 +65,7 @@ DEFAULTS = {
 }
 
 API_KEY_FIELDS = {
-    "openai_api_key", "anthropic_api_key", "groq_api_key", "gemini_api_key",
+    "openai_api_key", "openrouter_api_key", "anthropic_api_key", "groq_api_key", "gemini_api_key",
     "mistral_api_key", "cohere_api_key", "xai_api_key", "cloudflare_api_key", "together_api_key",
     "ollama_api_key",
     "brave_search_api_key",
@@ -1229,6 +1230,9 @@ def _seed_ai_models(conn: sqlite3.Connection):
         ("openai-gpt-4o-mini", "openai", "GPT-4o mini", "gpt-4o-mini"),
         ("openai-gpt-4-turbo", "openai", "GPT-4 Turbo", "gpt-4-turbo"),
         ("openai-gpt-35-turbo", "openai", "GPT-3.5 Turbo", "gpt-3.5-turbo"),
+        ("openrouter-auto", "openrouter", "OpenRouter Auto", "openrouter/auto"),
+        ("openrouter-gpt-4o-mini", "openrouter", "GPT-4o mini via OpenRouter", "openai/gpt-4o-mini"),
+        ("openrouter-claude-35-sonnet", "openrouter", "Claude 3.5 Sonnet via OpenRouter", "anthropic/claude-3.5-sonnet"),
         ("anthropic-claude-35-sonnet", "anthropic", "Claude 3.5 Sonnet", "claude-3-5-sonnet-latest"),
         ("anthropic-claude-35-haiku", "anthropic", "Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
         ("anthropic-claude-3-opus", "anthropic", "Claude 3 Opus", "claude-3-opus-latest"),
@@ -1253,6 +1257,9 @@ def _seed_ai_models(conn: sqlite3.Connection):
 def _ensure_builtin_ai_models(conn: sqlite3.Connection):
     now = datetime.now(timezone.utc).isoformat()
     models = [
+        ("openrouter-auto", "openrouter", "OpenRouter Auto", "openrouter/auto"),
+        ("openrouter-gpt-4o-mini", "openrouter", "GPT-4o mini via OpenRouter", "openai/gpt-4o-mini"),
+        ("openrouter-claude-35-sonnet", "openrouter", "Claude 3.5 Sonnet via OpenRouter", "anthropic/claude-3.5-sonnet"),
         ("anthropic-claude-35-sonnet", "anthropic", "Claude 3.5 Sonnet", "claude-3-5-sonnet-latest"),
         ("anthropic-claude-35-haiku", "anthropic", "Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
         ("anthropic-claude-3-opus", "anthropic", "Claude 3 Opus", "claude-3-opus-latest"),

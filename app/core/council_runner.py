@@ -156,7 +156,9 @@ async def _run_agent(
         content = await legacy_councils._complete_groq(settings.get("groq_api_key", ""), system, user, model, temperature, max_tokens)
     elif provider == "ollama":
         content = await legacy_councils._complete_ollama(system, user, model, temperature, max_tokens, settings)
-    elif settings.get("rag_provider") == "openai" and settings.get("vector_store_id"):
+    elif provider == "openrouter":
+        content = await legacy_councils._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model, temperature, max_tokens)
+    elif provider == "openai" and settings.get("rag_provider") == "openai" and settings.get("vector_store_id"):
         content = await legacy_councils._complete_openai_file_search(settings.get("openai_api_key", ""), settings["vector_store_id"], system, user, model, temperature, max_tokens)
     else:
         content = await legacy_councils._complete_openai(settings.get("openai_api_key", ""), system, user, model, temperature, max_tokens)
@@ -291,8 +293,6 @@ def _agent_provider(agent: dict[str, Any], settings: dict) -> str:
     provider = agent.get("provider", "default")
     if provider and provider != "default":
         return provider
-    if settings.get("rag_provider") == "openai":
-        return "openai"
     return settings.get("local_llm_provider", "openai")
 
 

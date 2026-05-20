@@ -637,11 +637,32 @@
                 <div class="provider-name">OpenAI</div>
                 <div class="provider-desc">GPT-4o, GPT-4 Turbo, GPT-3.5 — gpt.openai.com</div>
               </div>
-              <span class="provider-status connected">Connected</span>
+              <span class="provider-status not-connected">Not connected</span>
             </div>
             <div class="provider-key-row">
               <div class="key-input-wrap">
-                <input class="key-input" type="password" value="sk-proj-••••••••••••••••••••••••TZ9A" placeholder="sk-proj-…"/>
+                <input class="key-input" type="password" placeholder="sk-proj-…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- OpenRouter -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" style="background:#ede9fe;color:#6d28d9;">OR</div>
+              <div>
+                <div class="provider-name">OpenRouter</div>
+                <div class="provider-desc">OpenAI-compatible access to multiple model providers — openrouter.ai</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="sk-or-v1-…"/>
                 <button class="key-toggle" onclick="toggleKey(this)">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>

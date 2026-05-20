@@ -1025,10 +1025,16 @@ function populateSettingsUI() {
   // Show connected status for API keys
   document.querySelectorAll('.provider-card').forEach(card => {
     const name = card.querySelector('.provider-name')?.textContent?.trim();
-    const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
+    const keyMap = { 'OpenAI':'openai_api_key','OpenRouter':'openrouter_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
     const k = keyMap[name];
     const status = card.querySelector('.provider-status');
-    if (k && status && s[k] && s[k] !== '') { status.textContent = 'Connected'; status.className = 'provider-status connected'; }
+    const input = card.querySelector('.key-input');
+    const hasValue = !!(k && s[k] && s[k] !== '');
+    if (k && status) {
+      status.textContent = hasValue ? 'Connected' : (name === 'Ollama' ? 'Local default' : 'Not connected');
+      status.className = hasValue ? 'provider-status connected' : 'provider-status not-connected';
+    }
+    if (input && k) input.value = hasValue ? '••••••••' : '';
   });
 }
 
@@ -1053,7 +1059,7 @@ async function loadModels() {
 }
 
 function providerLabel(provider) {
-  const labels = {openai:'OpenAI', anthropic:'Anthropic', groq:'Groq', ollama:'Ollama'};
+  const labels = {openai:'OpenAI', openrouter:'OpenRouter', anthropic:'Anthropic', groq:'Groq', ollama:'Ollama'};
   return labels[provider] || provider;
 }
 
@@ -1182,7 +1188,7 @@ function saveApiKey(btn) {
   const val = input.value.trim();
   if (!val || val === '••••••••') return;
   const name = card.querySelector('.provider-name')?.textContent?.trim();
-  const keyMap = { 'OpenAI':'openai_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
+  const keyMap = { 'OpenAI':'openai_api_key','OpenRouter':'openrouter_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
   const k = keyMap[name];
   if (!k) { showToast('Unknown provider', 'error'); return; }
   saveSettings({[k]: val}).then(() => {
@@ -1234,10 +1240,6 @@ function saveModelSettings() {
   const t = document.getElementById('sel-max-tokens')?.value;
   const temp = document.getElementById('sl-temperature')?.value;
   const em = document.getElementById('sel-embedding-model')?.value;
-  if (App.settings.rag_provider === 'openai' && p && p !== 'openai') {
-    showToast('OpenAI RAG requires an OpenAI chat model. Use Local RAG for Anthropic, Groq, or Ollama chat models.', 'error');
-    return;
-  }
   const s = {};
   if (p) s.local_llm_provider = p;
   if (m) s.chat_model = m;
@@ -1339,7 +1341,7 @@ function saveRagProviderSettings() {
 async function resetAllSettings() {
   if (!confirm('Reset all settings to defaults? API keys will be cleared.')) return;
   try {
-    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint', app_intro:'Build, run and chat with AI agents, pipelines and tools. Powered by your documents.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]' };
+    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', openrouter_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint', app_intro:'Build, run and chat with AI agents, pipelines and tools. Powered by your documents.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]' };
     await saveSettings(defaults);
   } catch(e) { showToast('Reset failed.', 'error'); }
 }

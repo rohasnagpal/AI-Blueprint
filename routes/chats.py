@@ -581,6 +581,13 @@ async def _stream_general(message: str, settings: dict, persona: dict | None, we
             return
         async for token in _stream_groq(groq_key, system_prompt, message, model, temperature, max_tokens):
             yield token
+    elif llm_provider == "openrouter":
+        openrouter_key = settings.get("openrouter_api_key", "")
+        if not openrouter_key:
+            yield f'data: {json.dumps({"type": "error", "content": "OpenRouter API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_openrouter_chat(openrouter_key, system_prompt, message, model, temperature, max_tokens):
+            yield token
     else:
         openai_key = settings.get("openai_api_key", "")
         if not openai_key:
@@ -687,6 +694,13 @@ async def _stream_v2_documents(message: str, settings: dict, scope: dict, person
             yield f'data: {json.dumps({"type": "error", "content": "Groq API key not configured."})}\n\n'
             return
         async for token in _stream_groq(groq_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "openrouter":
+        openrouter_key = settings.get("openrouter_api_key", "")
+        if not openrouter_key:
+            yield f'data: {json.dumps({"type": "error", "content": "OpenRouter API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_openrouter_chat(openrouter_key, system_prompt, full_message, model, temperature, max_tokens):
             yield token
     else:
         openai_key = settings.get("openai_api_key", "")
@@ -954,6 +968,13 @@ async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None,
             return
         async for token in _stream_groq(groq_key, system_prompt, full_message, model, temperature, max_tokens):
             yield token
+    elif llm_provider == "openrouter":
+        openrouter_key = settings.get("openrouter_api_key", "")
+        if not openrouter_key:
+            yield f'data: {json.dumps({"type": "error", "content": "OpenRouter API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_openrouter_chat(openrouter_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
     else:
         openai_key = settings.get("openai_api_key", "")
         if not openai_key:
@@ -974,10 +995,22 @@ async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None,
 
 
 async def _stream_openai_chat(
-    key: str, system: str, user: str, model: str, temperature: float, max_tokens: int
+    key: str,
+    system: str,
+    user: str,
+    model: str,
+    temperature: float,
+    max_tokens: int,
+    base_url: str | None = None,
+    default_headers: dict[str, str] | None = None,
 ) -> AsyncGenerator[str, None]:
     import openai
-    client = openai.AsyncOpenAI(api_key=key)
+    client_kwargs = {"api_key": key}
+    if base_url:
+        client_kwargs["base_url"] = base_url
+    if default_headers:
+        client_kwargs["default_headers"] = default_headers
+    client = openai.AsyncOpenAI(**client_kwargs)
     try:
         async with await client.chat.completions.create(
             model=model,
@@ -992,6 +1025,25 @@ async def _stream_openai_chat(
                     yield f'data: {json.dumps({"type": "token", "content": delta})}\n\n'
     except Exception as e:
         yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
+
+
+async def _stream_openrouter_chat(
+    key: str, system: str, user: str, model: str, temperature: float, max_tokens: int
+) -> AsyncGenerator[str, None]:
+    async for token in _stream_openai_chat(
+        key,
+        system,
+        user,
+        model or "openrouter/auto",
+        temperature,
+        max_tokens,
+        base_url="https://openrouter.ai/api/v1",
+        default_headers={
+            "HTTP-Referer": "http://localhost",
+            "X-Title": "AI Blueprint",
+        },
+    ):
+        yield token
 
 
 async def _stream_groq(
