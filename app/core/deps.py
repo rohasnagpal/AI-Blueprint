@@ -36,6 +36,18 @@ def get_current_user(
     session, user = row
     if session.revoked_at or _as_aware(session.expires_at) <= now or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
+    if user.must_change_credentials and request.url.path not in {
+        "/api/v2/auth/me",
+        "/api/v2/auth/logout",
+        "/api/v2/auth/change-initial-credentials",
+    }:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Credential reset required")
+    return user
+
+
+def require_system_admin(user: User = Depends(get_current_user)) -> User:
+    if not user.is_system_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System admin access required")
     return user
 
 

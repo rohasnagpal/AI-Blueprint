@@ -4,7 +4,7 @@ import shutil
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from app.api import audit, auth, blueprints, contract_review, council, documents, escalations, jobs, legal_research, navigation, personas, plugins, secrets, settings, skills, workspaces
+from app.api import admin, audit, auth, blueprints, contract_review, council, documents, escalations, jobs, legal_research, navigation, personas, plugins, secrets, settings, skills, workspaces
 from app.core.config import get_settings
 from app.core.database import engine
 
@@ -44,6 +44,7 @@ async def health():
 
 
 router.include_router(auth.router)
+router.include_router(admin.router)
 router.include_router(navigation.router)
 router.include_router(workspaces.router)
 router.include_router(audit.router)

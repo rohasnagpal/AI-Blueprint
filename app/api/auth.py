@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
@@ -22,16 +22,25 @@ class SetupIn(BaseModel):
 
 
 class LoginIn(BaseModel):
-    email: str
+    identifier: str | None = None
+    email: str | None = None
     password: str
+
+
+class InitialCredentialsIn(BaseModel):
+    username: str = Field(min_length=3, max_length=100)
+    display_name: str = Field(min_length=1)
+    password: str = Field(min_length=8)
 
 
 def _format_user(user: User) -> dict:
     return {
         "id": user.id,
+        "username": user.username or user.email,
         "email": user.email,
         "display_name": user.display_name,
         "is_system_admin": user.is_system_admin,
+        "must_change_credentials": user.must_change_credentials,
         "created_at": user.created_at.isoformat(),
     }
 
@@ -71,6 +80,7 @@ async def setup_admin(body: SetupIn, response: Response, db: Session = Depends(g
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Setup has already been completed")
     user = User(
         id=str(uuid.uuid4()),
+        username=body.email.strip().lower(),
         email=body.email.strip().lower(),
         display_name=body.display_name.strip(),
         password_hash=hash_password(body.password),
@@ -86,11 +96,43 @@ async def setup_admin(body: SetupIn, response: Response, db: Session = Depends(g
 
 @router.post("/login")
 async def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
-    user = db.execute(select(User).where(User.email == body.email.strip().lower())).scalar_one_or_none()
+    identifier = (body.identifier or body.email or "").strip().lower()
+    if not identifier:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or email is required")
+    user = db.execute(select(User).where(or_(User.username == identifier, User.email == identifier))).scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
     _issue_session(db, response, user)
     record_audit_event(db, action="auth.login", resource_type="user", resource_id=user.id, user_id=user.id)
+    db.commit()
+    return {"user": _format_user(user)}
+
+
+@router.post("/change-initial-credentials")
+async def change_initial_credentials(
+    body: InitialCredentialsIn,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    username = body.username.strip().lower()
+    if username == "rohas" or body.password == "rohas":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose credentials different from the bootstrap defaults")
+    existing = db.execute(select(User).where(User.username == username, User.id != user.id)).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
+    email_existing = db.execute(select(User).where(User.email == username, User.id != user.id)).scalar_one_or_none()
+    if email_existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username conflicts with an existing email")
+    user.username = username
+    if user.email == "rohas":
+        user.email = username
+    user.display_name = body.display_name.strip()
+    user.password_hash = hash_password(body.password)
+    user.must_change_credentials = False
+    db.query(SessionToken).filter(SessionToken.user_id == user.id).update({SessionToken.revoked_at: func.now()})
+    _issue_session(db, response, user)
+    record_audit_event(db, action="auth.change_initial_credentials", resource_type="user", resource_id=user.id, user_id=user.id)
     db.commit()
     return {"user": _format_user(user)}
 
