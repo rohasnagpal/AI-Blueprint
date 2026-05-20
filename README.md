@@ -1,23 +1,8 @@
 # AI Blueprint for Lawyers
 
-AI Blueprint is a private legal AI workspace for law firms, lawyers, and legal teams.
-
-Instead of opening a generic chatbot, a lawyer opens a matter-specific blueprint: the right documents, legal personas, skills, rules, citations, and review workflows in one controlled workspace.
-
-## The Idea
-
 Legal work depends on confidential documents, source-grounded reasoning, repeatable workflows, professional review, and auditability. AI Blueprint is being built around those requirements first.
 
 The goal is not to replace legal judgment. The goal is to give lawyers a structured AI workspace for reviewing documents, preparing arguments, drafting client communications, testing positions, and organizing matter knowledge.
-
-## Local and Network Versions
-
-AI Blueprint can be used in two ways:
-
-- **Local version:** run AI Blueprint privately on one machine for solo lawyers, experiments, document review, research, and local-first workflows.
-- **Network/server version:** run AI Blueprint for a firm, team, or legal department with shared workspaces, matter access, permissions, audit trails, reusable blueprints, and centralized configuration.
-
-The local version is the fastest way to start. The network version is the direction for multi-user legal practice.
 
 ## Core Capabilities
 
@@ -58,6 +43,15 @@ The local version is the fastest way to start. The network version is the direct
 - Prepare a mediation or settlement strategy memo.
 - Summarize a matter for a client or supervising partner.
 - Run a partner-review council before sending work product.
+
+## Local and Network Versions
+
+AI Blueprint can be used in two ways:
+
+- **Local version:** run AI Blueprint privately on one machine for solo lawyers, experiments, document review, research, and local-first workflows.
+- **Network/server version:** run AI Blueprint for a firm, team, or legal department with shared workspaces, matter access, permissions, audit trails, reusable blueprints, and centralized configuration.
+
+The local version is the fastest way to start. The network version is the direction for multi-user legal practice.
 
 ## Quick Start
 
