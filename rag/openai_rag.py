@@ -7,6 +7,13 @@ import database
 from rag.base import RagProvider
 
 
+def _assistants_model() -> str:
+    model = database.get_setting("openai_assistants_model") or "gpt-4.1"
+    if model.lower().startswith("gpt-5"):
+        return "gpt-4.1"
+    return model
+
+
 class OpenAIRag(RagProvider):
 
     def _client(self) -> openai.AsyncOpenAI:
@@ -39,7 +46,7 @@ class OpenAIRag(RagProvider):
 
     async def _ensure_assistant(self, client: openai.AsyncOpenAI, vs_id: str) -> str:
         asst_id = database.get_setting("assistant_id")
-        model = database.get_setting("chat_model") or "gpt-4o"
+        model = _assistants_model()
         if asst_id:
             try:
                 await client.beta.assistants.update(

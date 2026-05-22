@@ -37,7 +37,8 @@ DEFAULTS = {
     "email_from_address": "",
     "email_persona_id": "",
     "email_doc_context": "none",
-    "chat_model": "gpt-4o",
+    "chat_model": "gpt-5.2",
+    "openai_assistants_model": "gpt-4.1",
     "embedding_model": "text-embedding-3-large",
     "local_embedding_model": "all-MiniLM-L6-v2",
     "local_llm_provider": "openai",
@@ -253,6 +254,9 @@ def init_db():
             conn.execute(f"ALTER TABLE chats ADD COLUMN {col} TEXT")
     count = conn.execute("SELECT COUNT(*) FROM settings").fetchone()[0]
     if count == 0:
+        for k, v in DEFAULTS.items():
+            conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
+    else:
         for k, v in DEFAULTS.items():
             conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
     conn.execute(
@@ -811,7 +815,8 @@ def _builtin_personas() -> list[dict]:
                 "You are an expert contract analyst and legal risk reviewer.\n\n"
                 "Your job is to review contracts, agreements, and contractual clauses with a critical, commercially aware eye and convert them into clear, actionable intelligence.\n\n"
                 "Your final answer must start directly with STEP 0. Do not include preamble, filler, or statements like 'I will start by'.\n\n"
-                "Use clean markdown with a blank line before every heading. Use only headings in the format '### STEP N — Heading'. Do not use four-hash headings.\n\n"
+                "Use clean markdown with a blank line before every heading. Use only headings in the format '### STEP N — Heading'. Do not use four-hash headings. Do not output HTML, JSON, or code fences unless the user explicitly asks for them.\n\n"
+                "LENGTH MANAGEMENT: If the document is long enough that you may not complete all steps in one response, prioritize completing STEP 0, STEP 1, and STEP 4 fully first, as these carry the most analytical value. If you run low on space, finish the current step, then state clearly: Remaining steps available on request — reply 'continue' for STEPS N through 8. Never silently truncate mid-table or mid-step.\n\n"
                 "Your analysis must follow this structured workflow.\n\n"
                 "STEP 0 — Document Classification\n\n"
                 "First determine what the user has provided.\n\n"
@@ -823,7 +828,7 @@ def _builtin_personas() -> list[dict]:
                 "The table must have these columns: #, Parameter, Status, Finding, Evidence.\n\n"
                 "For Status, use one of: Found, Not Found, Not Applicable, Ambiguous, or Not Reviewed Due to Missing Context.\n\n"
                 "For Finding, summarize the extracted term and its risk or importance in one concise sentence. Keep each Finding under 22 words.\n\n"
-                "For Evidence, cite a short clause reference, section heading, page, or very brief excerpt from the provided document context. Keep each Evidence cell under 16 words. If absent, say Not Found. Do not invent evidence.\n\n"
+                "For Evidence, cite a short clause reference, section heading, or very brief excerpt from the provided document context. Use a section or clause number where available; do not infer or invent page numbers. Keep each Evidence cell under 16 words. If absent, say Not Found. Do not invent evidence.\n\n"
                 "Use a valid markdown table. Do not wrap table rows across multiple lines. Do not add long citations or footnotes inside table cells.\n\n"
                 "Review exactly these 41 parameters in this order:\n"
                 "1. Document Name\n"
@@ -868,23 +873,16 @@ def _builtin_personas() -> list[dict]:
                 "40. Covenant Not to Sue\n"
                 "41. Third Party Beneficiary\n\n"
                 "After the table, briefly call out the 5 to 10 most commercially important findings from the table.\n\n"
-                "STEP 2 — Contract Snapshot (Structured Extraction)\n\n"
-                "Extract and display the key contract terms in structured form.\n\n"
+                "STEP 2 — Contract Snapshot (Operational Terms Not Already Tabled)\n\n"
+                "Extract key terms that the STEP 1 table does NOT already capture. Do not repeat findings from STEP 1; focus on operational and commercial detail that the CUAD parameters omit. If a core item below is already fully covered in STEP 1, write See STEP 1 rather than restating it.\n\n"
                 "First identify the document type, parties, and the likely role of the user, such as buyer, seller, customer, vendor, employer, employee, contractor, licensor, licensee, service provider, recipient, discloser, or similar.\n\n"
-                "Then review relevant clauses. For each item, summarize briefly. If absent, say Not Found. If irrelevant to this contract type, say Not Applicable. Never invent terms.\n\n"
-                "Always check these items.\n\n"
-                "Core Details: document type, parties, agreement date, effective date, expiration date, renewal term, and notice required to prevent renewal.\n\n"
-                "Commercial Terms: fees / pricing, payment terms, minimum commitments, volume commitments / restrictions, and service levels / performance obligations.\n\n"
-                "Termination: termination for convenience, termination for cause, cure periods, and suspension rights.\n\n"
-                "Liability / Risk Allocation: limitation of liability, liability cap, indemnification, warranty provisions, insurance obligations, and force majeure.\n\n"
-                "Control / Transfer Rights: assignment, change of control, and subcontracting rights.\n\n"
-                "Confidentiality / Data: confidentiality obligations, data protection / privacy obligations, and security obligations.\n\n"
-                "Legal Framework: governing law, jurisdiction, arbitration / dispute resolution, amendment rights, and survival clauses.\n\n"
-                "Check these items if relevant to the contract type.\n\n"
-                "Restrictive Obligations: non-compete, non-solicitation, exclusivity, and most-favored customer / MFN obligations.\n\n"
-                "Audit / Oversight: audit rights.\n\n"
-                "Intellectual Property: IP ownership, license grants, and source code escrow.\n\n"
-                "Compliance: export control / sanctions and anti-bribery / compliance obligations.\n\n"
+                "Then summarize each item briefly. If absent, say Not Found. If irrelevant to this contract type, say Not Applicable. Never invent terms.\n\n"
+                "Commercial Operation: fees / pricing detail, payment terms and timing, invoicing mechanics, minimum or volume commitments, service levels / performance obligations, and any price-adjustment mechanics.\n\n"
+                "Termination Mechanics: cure periods, notice mechanics, suspension rights, and post-termination transition obligations.\n\n"
+                "Risk Allocation Detail: indemnification scope and carve-outs, warranty content and duration, force majeure scope, and insurance specifics.\n\n"
+                "Confidentiality / Data: confidentiality obligations and carve-outs, data protection / privacy obligations, and security obligations.\n\n"
+                "Dispute Mechanics: jurisdiction, arbitration / dispute resolution venue and rules, amendment mechanics, and survival.\n\n"
+                "Compliance (if relevant): export control / sanctions and anti-bribery obligations.\n\n"
                 "STEP 3 — Plain English Summary\n\n"
                 "Explain the contract in simple language. Answer what this contract actually does, what obligations the user is taking on, what the other party gets, and what the practical business effect is. Use plain English. Maximum 3 short paragraphs.\n\n"
                 "STEP 4 — Risk Analysis\n\n"
@@ -904,7 +902,7 @@ def _builtin_personas() -> list[dict]:
                 "STEP 7 — Confidence / Ambiguity Notes\n\n"
                 "Explicitly flag uncertainty such as poor scan quality, incomplete document, missing referenced schedules, missing definitions, ambiguous drafting, clause cross-references that cannot be reviewed, and unclear jurisdiction assumptions.\n\n"
                 "STEP 8 — Overall Assessment\n\n"
-                "Rate the agreement as one of: Favorable, Balanced, Unfavorable, or Serious Concerns. Provide a concise explanation."
+                "Rate the agreement as one of: Favorable, Balanced, Unfavorable, or Serious Concerns. Provide a concise explanation. An overall rating is an analytical assessment, not a recommendation to sign or refrain from signing."
             ),
             "constraints": [
                 "Never advise the user to sign or not sign.",
@@ -913,6 +911,7 @@ def _builtin_personas() -> list[dict]:
                 "Different contract types require different review standards.",
                 "Do not penalize a contract for lacking clauses that are not relevant to its type.",
                 "If jurisdiction is unclear, say that legal interpretation may vary.",
+                "An overall rating, risk flag, or negotiation point is analysis, not advice to act.",
                 "For high-stakes matters such as employment, M&A, real estate, regulated contracts, investment, and major commercial agreements, remind the user that jurisdiction-specific legal review may be necessary.",
             ],
             "output_format": {},
@@ -1229,6 +1228,64 @@ def _ensure_builtin_template_updates(conn: sqlite3.Connection):
         )
 
 
+def _builtin_ai_models() -> list[tuple[str, str, str, str]]:
+    return [
+        ("openai-gpt-52", "openai", "GPT-5.2", "gpt-5.2"),
+        ("openai-gpt-52-chat-latest", "openai", "GPT-5.2 Chat Latest", "gpt-5.2-chat-latest"),
+        ("openai-gpt-52-pro", "openai", "GPT-5.2 Pro", "gpt-5.2-pro"),
+        ("openai-gpt-5-mini", "openai", "GPT-5 mini", "gpt-5-mini"),
+        ("openai-gpt-5-nano", "openai", "GPT-5 nano", "gpt-5-nano"),
+        ("openai-gpt-41", "openai", "GPT-4.1", "gpt-4.1"),
+        ("openai-gpt-41-mini", "openai", "GPT-4.1 mini", "gpt-4.1-mini"),
+        ("openai-gpt-4o", "openai", "GPT-4o", "gpt-4o"),
+        ("openai-gpt-4o-mini", "openai", "GPT-4o mini", "gpt-4o-mini"),
+        ("openai-gpt-4-turbo", "openai", "GPT-4 Turbo", "gpt-4-turbo"),
+        ("openrouter-auto", "openrouter", "OpenRouter Auto", "openrouter/auto"),
+        ("openrouter-claude-sonnet-46", "openrouter", "Claude Sonnet 4.6 via OpenRouter", "anthropic/claude-sonnet-4.6"),
+        ("openrouter-gemini-25-pro", "openrouter", "Gemini 2.5 Pro via OpenRouter", "google/gemini-2.5-pro"),
+        ("openrouter-grok-43", "openrouter", "Grok 4.3 via OpenRouter", "x-ai/grok-4.3"),
+        ("openrouter-llama-33-70b", "openrouter", "Llama 3.3 70B via OpenRouter", "meta-llama/llama-3.3-70b-instruct"),
+        ("anthropic-claude-opus-47", "anthropic", "Claude Opus 4.7", "claude-opus-4-7"),
+        ("anthropic-claude-sonnet-46", "anthropic", "Claude Sonnet 4.6", "claude-sonnet-4-6"),
+        ("anthropic-claude-haiku-45", "anthropic", "Claude Haiku 4.5", "claude-haiku-4-5"),
+        ("anthropic-claude-37-sonnet", "anthropic", "Claude Sonnet 3.7", "claude-3-7-sonnet-latest"),
+        ("groq-llama-31-8b", "groq", "Llama 3.1 8B Instant", "llama-3.1-8b-instant"),
+        ("groq-llama-33-70b", "groq", "Llama 3.3 70B Versatile", "llama-3.3-70b-versatile"),
+        ("groq-gpt-oss-120b", "groq", "GPT-OSS 120B", "openai/gpt-oss-120b"),
+        ("groq-gpt-oss-20b", "groq", "GPT-OSS 20B", "openai/gpt-oss-20b"),
+        ("gemini-25-pro", "gemini", "Gemini 2.5 Pro", "gemini-2.5-pro"),
+        ("gemini-25-flash", "gemini", "Gemini 2.5 Flash", "gemini-2.5-flash"),
+        ("gemini-25-flash-lite", "gemini", "Gemini 2.5 Flash-Lite", "gemini-2.5-flash-lite"),
+        ("mistral-large-3", "mistral", "Mistral Large 3", "mistral-large-2512"),
+        ("mistral-medium-35", "mistral", "Mistral Medium 3.5", "mistral-medium-3-5"),
+        ("mistral-small-4", "mistral", "Mistral Small 4", "mistral-small-2603"),
+        ("magistral-medium-12", "mistral", "Magistral Medium 1.2", "magistral-medium-2509"),
+        ("codestral-latest", "mistral", "Codestral", "codestral-latest"),
+        ("cohere-command-a-plus", "cohere", "Command A+", "command-a-plus-05-2026"),
+        ("cohere-command-a", "cohere", "Command A", "command-a-03-2025"),
+        ("cohere-command-a-reasoning", "cohere", "Command A Reasoning", "command-a-reasoning-08-2025"),
+        ("cohere-command-a-vision", "cohere", "Command A Vision", "command-a-vision-07-2025"),
+        ("cohere-command-r-plus", "cohere", "Command R+ 08-2024", "command-r-plus-08-2024"),
+        ("xai-grok-43", "xai", "Grok 4.3", "grok-4.3"),
+        ("xai-grok-43-latest", "xai", "Grok 4.3 Latest", "grok-4.3-latest"),
+        ("cloudflare-kimi-k26", "cloudflare", "Kimi K2.6", "@cf/moonshotai/kimi-k2.6"),
+        ("cloudflare-gpt-oss-120b", "cloudflare", "GPT-OSS 120B", "@cf/openai/gpt-oss-120b"),
+        ("cloudflare-llama-4-scout", "cloudflare", "Llama 4 Scout 17B", "@cf/meta/llama-4-scout-17b-16e-instruct"),
+        ("cloudflare-llama-33-70b-fast", "cloudflare", "Llama 3.3 70B Fast", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
+        ("together-minimax-m27", "together", "MiniMax M2.7", "MiniMaxAI/MiniMax-M2.7"),
+        ("together-kimi-k26", "together", "Kimi K2.6", "moonshotai/Kimi-K2.6"),
+        ("together-deepseek-v4-pro", "together", "DeepSeek-V4-Pro", "deepseek-ai/DeepSeek-V4-Pro"),
+        ("together-gpt-oss-120b", "together", "GPT-OSS 120B", "openai/gpt-oss-120b"),
+        ("together-llama-33-70b", "together", "Llama 3.3 70B Instruct Turbo", "meta-llama/Llama-3.3-70B-Instruct-Turbo"),
+        ("ollama-llama3", "ollama", "Llama 3", "llama3"),
+        ("ollama-llama32", "ollama", "Llama 3.2", "llama3.2"),
+        ("ollama-qwen3", "ollama", "Qwen 3", "qwen3"),
+        ("ollama-deepseek-r1", "ollama", "DeepSeek R1", "deepseek-r1"),
+        ("ollama-mistral", "ollama", "Mistral", "mistral"),
+        ("ollama-gemma", "ollama", "Gemma", "gemma"),
+    ]
+
+
 def _seed_ai_models(conn: sqlite3.Connection):
     from datetime import datetime, timezone
 
@@ -1237,23 +1294,7 @@ def _seed_ai_models(conn: sqlite3.Connection):
         return
 
     now = datetime.now(timezone.utc).isoformat()
-    models = [
-        ("openai-gpt-4o", "openai", "GPT-4o", "gpt-4o"),
-        ("openai-gpt-4o-mini", "openai", "GPT-4o mini", "gpt-4o-mini"),
-        ("openai-gpt-4-turbo", "openai", "GPT-4 Turbo", "gpt-4-turbo"),
-        ("openai-gpt-35-turbo", "openai", "GPT-3.5 Turbo", "gpt-3.5-turbo"),
-        ("openrouter-auto", "openrouter", "OpenRouter Auto", "openrouter/auto"),
-        ("openrouter-gpt-4o-mini", "openrouter", "GPT-4o mini via OpenRouter", "openai/gpt-4o-mini"),
-        ("openrouter-claude-35-sonnet", "openrouter", "Claude 3.5 Sonnet via OpenRouter", "anthropic/claude-3.5-sonnet"),
-        ("anthropic-claude-35-sonnet", "anthropic", "Claude 3.5 Sonnet", "claude-3-5-sonnet-latest"),
-        ("anthropic-claude-35-haiku", "anthropic", "Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
-        ("anthropic-claude-3-opus", "anthropic", "Claude 3 Opus", "claude-3-opus-latest"),
-        ("groq-llama-31-8b", "groq", "Llama 3.1 8B Instant", "llama-3.1-8b-instant"),
-        ("groq-llama-33-70b", "groq", "Llama 3.3 70B Versatile", "llama-3.3-70b-versatile"),
-        ("ollama-llama3", "ollama", "Llama 3", "llama3"),
-        ("ollama-mistral", "ollama", "Mistral", "mistral"),
-        ("ollama-gemma", "ollama", "Gemma", "gemma"),
-    ]
+    models = _builtin_ai_models()
     for model in models:
         conn.execute(
             """
@@ -1268,14 +1309,7 @@ def _seed_ai_models(conn: sqlite3.Connection):
 
 def _ensure_builtin_ai_models(conn: sqlite3.Connection):
     now = datetime.now(timezone.utc).isoformat()
-    models = [
-        ("openrouter-auto", "openrouter", "OpenRouter Auto", "openrouter/auto"),
-        ("openrouter-gpt-4o-mini", "openrouter", "GPT-4o mini via OpenRouter", "openai/gpt-4o-mini"),
-        ("openrouter-claude-35-sonnet", "openrouter", "Claude 3.5 Sonnet via OpenRouter", "anthropic/claude-3.5-sonnet"),
-        ("anthropic-claude-35-sonnet", "anthropic", "Claude 3.5 Sonnet", "claude-3-5-sonnet-latest"),
-        ("anthropic-claude-35-haiku", "anthropic", "Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
-        ("anthropic-claude-3-opus", "anthropic", "Claude 3 Opus", "claude-3-opus-latest"),
-    ]
+    models = _builtin_ai_models()
     for model in models:
         conn.execute(
             """
@@ -1285,6 +1319,21 @@ def _ensure_builtin_ai_models(conn: sqlite3.Connection):
             """,
             (*model, now, now),
         )
+        conn.execute(
+            """
+            UPDATE ai_models
+            SET provider = ?, display_name = ?, model_id = ?, enabled = 1, is_builtin = 1, updated_at = ?
+            WHERE id = ? AND is_builtin = 1
+            """,
+            (model[1], model[2], model[3], now, model[0]),
+        )
+    current_ids = [model[0] for model in models]
+    placeholders = ",".join("?" for _ in current_ids)
+    conn.execute(
+        f"UPDATE ai_models SET enabled = 0, updated_at = ? WHERE is_builtin = 1 AND id NOT IN ({placeholders})",
+        (now, *current_ids),
+    )
+    conn.execute("UPDATE settings SET value = 'gpt-5.2' WHERE key = 'chat_model' AND value IN ('gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo')")
 
 
 def get_setting(key: str) -> str:

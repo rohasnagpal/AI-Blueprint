@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css"/>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-<link rel="stylesheet" href="/css/app.css?v=20260520-model-card-save"/>
+<link rel="stylesheet" href="/css/app.css?v=20260522-model-registry-v1"/>
 
 </head>
 <body>
@@ -647,7 +647,7 @@
               <div class="provider-logo" style="background:#d4f0d4;color:#16a34a;">OAI</div>
               <div>
                 <div class="provider-name">OpenAI</div>
-                <div class="provider-desc">GPT-4o, GPT-4 Turbo, GPT-3.5 — gpt.openai.com</div>
+                <div class="provider-desc">GPT-5.2, GPT-5 mini, GPT-4.1 — platform.openai.com</div>
               </div>
               <span class="provider-status not-connected">Not connected</span>
             </div>
@@ -689,7 +689,7 @@
               <div class="provider-logo" style="background:#fde8d0;color:#c2410c;">ANT</div>
               <div>
                 <div class="provider-name">Anthropic</div>
-                <div class="provider-desc">Claude 3.5 Sonnet, Claude 3 Opus, Haiku — anthropic.com</div>
+                <div class="provider-desc">Claude Opus 4.7, Sonnet 4.6, Haiku 4.5 — anthropic.com</div>
               </div>
               <span class="provider-status not-connected">Not connected</span>
             </div>
@@ -710,7 +710,7 @@
               <div class="provider-logo" style="background:#dbeafe;color:#2563eb;">GEM</div>
               <div>
                 <div class="provider-name">Google Gemini</div>
-                <div class="provider-desc">Gemini 1.5 Pro, Flash — aistudio.google.com</div>
+                <div class="provider-desc">Gemini 2.5 Pro, Flash, Flash-Lite — aistudio.google.com</div>
               </div>
               <span class="provider-status not-connected">Not connected</span>
             </div>
@@ -731,7 +731,7 @@
               <div class="provider-logo" style="background:#ede9fe;color:#7c3aed;">MIS</div>
               <div>
                 <div class="provider-name">Mistral AI</div>
-                <div class="provider-desc">Mistral Large, Mixtral 8x7B — console.mistral.ai</div>
+                <div class="provider-desc">Mistral Large 3, Medium 3.5, Small 4 — console.mistral.ai</div>
               </div>
               <span class="provider-status not-connected">Not connected</span>
             </div>
@@ -752,7 +752,7 @@
               <div class="provider-logo" style="background:#d1fae5;color:#065f46;">COH</div>
               <div>
                 <div class="provider-name">Cohere</div>
-                <div class="provider-desc">Command R+, Embed v3 — dashboard.cohere.com</div>
+                <div class="provider-desc">Command A+, Command A, Command R+ — dashboard.cohere.com</div>
               </div>
               <span class="provider-status not-connected">Not connected</span>
             </div>
@@ -773,7 +773,7 @@
               <div class="provider-logo" style="background:#fef9c3;color:#854d0e;">GRQ</div>
               <div>
                 <div class="provider-name">Groq</div>
-                <div class="provider-desc">LLaMA 3, Mixtral via ultra-fast inference — console.groq.com</div>
+                <div class="provider-desc">GPT-OSS and Llama models via ultra-fast inference — console.groq.com</div>
               </div>
               <span class="provider-status not-connected">Not connected</span>
             </div>
@@ -824,7 +824,7 @@
               <div class="provider-logo" style="background:#f1f5f9;color:#0f172a;">XAI</div>
               <div>
                 <div class="provider-name">xAI (Grok)</div>
-                <div class="provider-desc">Grok-1, Grok-2 — console.x.ai</div>
+                <div class="provider-desc">Grok 4.3 models — console.x.ai</div>
               </div>
               <span class="provider-status not-connected">Not connected</span>
             </div>
@@ -845,7 +845,7 @@
               <div class="provider-logo" style="background:#fff7ed;color:#c2410c;">CF</div>
               <div>
                 <div class="provider-name">Cloudflare Workers AI</div>
-                <div class="provider-desc">LLaMA, Mistral via Cloudflare edge — dash.cloudflare.com</div>
+                <div class="provider-desc">Kimi, GPT-OSS, Llama via Cloudflare edge — dash.cloudflare.com</div>
               </div>
               <span class="provider-status not-connected">Not connected</span>
             </div>
@@ -866,7 +866,7 @@
               <div class="provider-logo" style="background:#f0fdf4;color:#15803d;">TOG</div>
               <div>
                 <div class="provider-name">Together AI</div>
-                <div class="provider-desc">Open-source models at scale — api.together.xyz</div>
+                <div class="provider-desc">Kimi, DeepSeek, GPT-OSS, Llama at scale — api.together.xyz</div>
               </div>
               <span class="provider-status not-connected">Not connected</span>
             </div>
@@ -1043,7 +1043,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Provider</div>
-                <div class="settings-row-desc">Use lowercase ids such as openai, anthropic, groq, or ollama</div>
+                <div class="settings-row-desc">Use lowercase ids such as openai, anthropic, groq, ollama, gemini, mistral, cohere, xai, cloudflare, or together</div>
               </div>
               <div class="settings-row-control"><input class="s-input" id="model-provider-input" placeholder="openai" style="width:140px"/></div>
             </div>
@@ -1059,7 +1059,7 @@
                 <div class="settings-row-label">Model ID</div>
                 <div class="settings-row-desc">Exact API/local model id</div>
               </div>
-              <div class="settings-row-control"><input class="s-input" id="model-id-input" placeholder="gpt-4o" style="width:180px"/></div>
+              <div class="settings-row-control"><input class="s-input" id="model-id-input" placeholder="gpt-5.2" style="width:180px"/></div>
             </div>
             <div class="settings-row">
               <div class="settings-row-info">
@@ -1672,6 +1672,6 @@
 <div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
 
-<script src="/js/app.js?v=20260520-model-card-save"></script>
+<script src="/js/app.js?v=20260522-model-registry-v1"></script>
 </body>
 </html>

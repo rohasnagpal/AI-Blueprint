@@ -85,6 +85,53 @@ def _format_message(row) -> dict:
     }
 
 
+def _is_contract_reviewer(persona: dict | None) -> bool:
+    if not persona:
+        return False
+    haystack = " ".join(
+        str(persona.get(key, ""))
+        for key in ("id", "name", "description", "system_prompt")
+    ).lower()
+    return "contract reviewer" in haystack or "contract review" in haystack or "cuad" in haystack
+
+
+def _document_review_query(message: str, persona: dict | None) -> str:
+    if not _is_contract_reviewer(persona):
+        return message
+    return (
+        f"{message}\n\n"
+        "Review the selected contract document. Retrieve broad contract context including parties, dates, "
+        "term, renewal, termination, assignment, governing law, payment, confidentiality, indemnity, "
+        "liability, warranties, IP, audit, insurance, and dispute clauses."
+    )
+
+
+def _document_review_message(message: str, persona: dict | None, filenames: list[str]) -> str:
+    if not _is_contract_reviewer(persona):
+        return message
+    names = ", ".join(name for name in filenames if name) or "the selected uploaded document(s)"
+    return (
+        f"The selected document(s) for review are: {names}.\n\n"
+        "Use the document search tool/context to review those document(s). Do not ask the user to identify "
+        "a document unless no selected document content is available.\n\n"
+        f"User request: {message}"
+    )
+
+
+def _status_event(message: str, progress: int | None = None) -> str:
+    payload = {"type": "status", "content": message}
+    if progress is not None:
+        payload["progress"] = progress
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+def _max_tokens_for_persona(settings: dict, persona: dict | None) -> int:
+    configured = int(settings.get("max_tokens", 2048))
+    if _is_contract_reviewer(persona):
+        return max(configured, 6000)
+    return configured
+
+
 def _parse_json(value, fallback):
     if not value:
         return fallback
@@ -115,8 +162,14 @@ def _apply_persona_prompt(prompt: str, persona: dict | None) -> str:
         "\nPersona:",
         f"Name: {persona.get('name', '')}",
         f"Instructions: {persona.get('system_prompt', '')}",
-        "Write the final answer in natural prose or markdown. Do not output JSON unless the user explicitly asks for JSON.",
     ]
+    output_format = persona.get("output_format") or {}
+    if output_format.get("type") == "json":
+        parts.append("Follow the persona's required output format exactly.")
+    elif _is_contract_reviewer(persona):
+        parts.append("Write the final answer in clean markdown using the persona's STEP structure. Do not output HTML, JSON, or code fences unless the user explicitly asks for them.")
+    else:
+        parts.append("Write the final answer in natural prose or markdown. Do not output JSON unless the user explicitly asks for JSON.")
     if constraints:
         parts.append("Constraints:\n" + "\n".join(f"- {c}" for c in constraints))
     return "\n".join(parts)
@@ -427,6 +480,17 @@ def _openai_vector_stores(client):
     )
 
 
+def _openai_assistants_model(settings: dict | None = None) -> str:
+    value = ""
+    if settings:
+        value = str(settings.get("openai_assistants_model") or "").strip()
+    if not value:
+        value = database.get_setting("openai_assistants_model") or "gpt-4.1"
+    if value.lower().startswith("gpt-5"):
+        return "gpt-4.1"
+    return value
+
+
 async def _ensure_openai_indexed_documents(rows) -> tuple[list[str], list[str]]:
     from rag.openai_rag import OpenAIRag
 
@@ -542,10 +606,11 @@ async def _stream(
     full_content = "".join(collected_content)
     if full_content:
         now = _now()
+        assistant_message_id = str(uuid.uuid4())
         conn = database.get_connection()
         conn.execute(
             "INSERT INTO messages (id, chat_id, role, content, sources, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (str(uuid.uuid4()), chat_id, "assistant", full_content, json.dumps(collected_sources), now),
+            (assistant_message_id, chat_id, "assistant", full_content, json.dumps(collected_sources), now),
         )
         conn.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (now, chat_id))
         conn.commit()
@@ -555,6 +620,7 @@ async def _stream(
 
 
 async def _stream_general(message: str, settings: dict, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
+    yield _status_event("Preparing model request", 20)
     system_prompt = _apply_persona_prompt(_build_general_system_prompt(settings), persona)
     if web_results:
         system_prompt += "\nUse the provided web search results when relevant and cite source titles or URLs in the answer."
@@ -562,7 +628,7 @@ async def _stream_general(message: str, settings: dict, persona: dict | None, we
     llm_provider = settings.get("local_llm_provider", "openai")
     model = settings.get("chat_model", "gpt-4o")
     temperature = float(settings.get("temperature", 0.2))
-    max_tokens = int(settings.get("max_tokens", 2048))
+    max_tokens = _max_tokens_for_persona(settings, persona)
 
     if llm_provider == "ollama":
         async for token in _stream_ollama(system_prompt, message, model, temperature, max_tokens, settings):
@@ -593,6 +659,7 @@ async def _stream_general(message: str, settings: dict, persona: dict | None, we
         if not openai_key:
             yield f'data: {json.dumps({"type": "error", "content": "OpenAI API key not configured. Go to Settings → API Keys."})}\n\n'
             return
+        yield _status_event("Waiting for model response", 55)
         async for token in _stream_openai_chat(openai_key, system_prompt, message, model, temperature, max_tokens):
             yield token
 
@@ -658,8 +725,12 @@ def _load_v2_chunks(scope: dict, message: str, top_k: int) -> list[dict]:
 
 
 async def _stream_v2_documents(message: str, settings: dict, scope: dict, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
+    yield _status_event(f"Searching {_v2_scope_name(scope)}", 10)
     top_k = int(settings.get("top_k", 5))
-    chunks = _load_v2_chunks(scope, message, top_k)
+    if _is_contract_reviewer(persona):
+        top_k = max(top_k, 12)
+    retrieval_query = _document_review_query(message, persona)
+    chunks = _load_v2_chunks(scope, retrieval_query, top_k)
     if not chunks:
         yield f'data: {json.dumps({"type": "error", "content": f"No indexed documents are available for {_v2_scope_name(scope)}."})}\n\n'
         return
@@ -667,16 +738,19 @@ async def _stream_v2_documents(message: str, settings: dict, scope: dict, person
     context = "\n\n---\n\n".join(
         f"[Source: {c['source']}]\n{c['content']}" for c in chunks
     )
+    yield _status_event(f"Found {len(chunks)} relevant document section{'s' if len(chunks) != 1 else ''}", 35)
     system_prompt = _apply_persona_prompt(_build_system_prompt(settings), persona)
     system_prompt += f"\nLimit document-grounded claims to {_v2_scope_name(scope)}. Respect workspace, matter, blueprint, and document permissions."
     web_context = f"\n\nWeb search results:\n{format_search_context(web_results)}" if web_results else ""
     if web_results:
         system_prompt += "\nUse the supplied web search results when relevant and cite source titles or URLs."
-    full_message = f"V2 document context:\n{context}{web_context}\n\nQuestion: {message}"
+    review_message = _document_review_message(message, persona, sorted({c["source"] for c in chunks}))
+    full_message = f"V2 document context:\n{context}{web_context}\n\nQuestion: {review_message}"
     llm_provider = settings.get("local_llm_provider", "openai")
     model = settings.get("chat_model", "gpt-4o")
     temperature = float(settings.get("temperature", 0.2))
-    max_tokens = int(settings.get("max_tokens", 2048))
+    max_tokens = _max_tokens_for_persona(settings, persona)
+    yield _status_event("Generating document-grounded answer", 60)
 
     if llm_provider == "ollama":
         async for token in _stream_ollama(system_prompt, full_message, model, temperature, max_tokens, settings):
@@ -773,6 +847,7 @@ async def _stream_openai(
                 pass
 
     try:
+        yield _status_event("Reading selected document list", 8)
         conn = database.get_connection()
         if doc_ids is None:
             rows = conn.execute(
@@ -794,6 +869,7 @@ async def _stream_openai(
         return
 
     try:
+        yield _status_event("Preparing selected documents for search", 18)
         file_ids, failed_indexing = await _ensure_openai_indexed_documents(rows)
         if not file_ids:
             detail = f": {', '.join(failed_indexing)}" if failed_indexing else "."
@@ -804,10 +880,12 @@ async def _stream_openai(
             msg = f"Some selected documents could not be indexed and were skipped: {', '.join(failed_indexing)}"
             yield f'data: {json.dumps({"type": "error", "content": msg})}\n\n'
 
+        yield _status_event("Creating scoped document search index", 32)
         scoped_vs = await vector_stores.create(name=f"AI Blueprint scoped chat {chat['id']}")
         scoped_vs_id = scoped_vs.id
         for file_id in file_ids:
             await vector_stores.files.create(vector_store_id=scoped_vs_id, file_id=file_id)
+        yield _status_event("Waiting for document search index to finish", 45)
         for file_id in file_ids:
             for _ in range(30):
                 vsf = await vector_stores.files.retrieve(vector_store_id=scoped_vs_id, file_id=file_id)
@@ -817,7 +895,8 @@ async def _stream_openai(
                     raise RuntimeError("OpenAI vector store indexing failed for a selected document")
                 import asyncio
                 await asyncio.sleep(1)
-        model = settings.get("chat_model", "gpt-4o")
+        model = _openai_assistants_model(settings)
+        yield _status_event("Starting document-grounded review", 60)
         scoped_asst = await client.beta.assistants.create(
             name="AI Blueprint Scoped Assistant",
             model=model,
@@ -852,6 +931,8 @@ async def _stream_openai(
         user_content = message
         if web_results:
             user_content = f"Web search results:\n{format_search_context(web_results)}\n\nQuestion: {message}"
+        selected_names = [row["original_name"] for row in rows]
+        user_content = _document_review_message(user_content, persona, selected_names)
         await client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
@@ -863,14 +944,16 @@ async def _stream_openai(
         return
 
     system_prompt = _apply_persona_prompt(_build_system_prompt(settings), persona)
+    if _is_contract_reviewer(persona):
+        system_prompt += "\nThe selected uploaded document(s) are available through file_search. Use file_search to retrieve and review them before answering. Do not ask the user to specify a document when selected documents are attached to this chat."
     if web_results:
         system_prompt += "\nWhen web search results are supplied, use them alongside document context and cite source titles or URLs."
     top_k = int(settings.get("top_k", 5))
     temperature = float(settings.get("temperature", 0.2))
-    max_tokens = int(settings.get("max_tokens", 2048))
+    max_tokens = _max_tokens_for_persona(settings, persona)
 
     try:
-        model = settings.get("chat_model", "gpt-4o")
+        model = _openai_assistants_model(settings)
         update_args = {
             "model": model,
             "tools": [{"type": "file_search", "file_search": {"max_num_results": top_k}}],
@@ -881,6 +964,7 @@ async def _stream_openai(
 
     seen_sources = set()
     try:
+        yield _status_event("Generating answer from selected documents", 70)
         async with client.beta.threads.runs.stream(
             thread_id=thread_id,
             assistant_id=asst_id,
@@ -924,12 +1008,17 @@ async def _stream_openai(
 async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
     from rag.llamaindex_rag import LlamaIndexRag
 
+    yield _status_event("Searching local document index", 10)
     provider = LlamaIndexRag()
     top_k = int(settings.get("top_k", 5))
     threshold = float(settings.get("similarity_threshold", 0.72))
+    retrieval_query = _document_review_query(message, persona)
+    if _is_contract_reviewer(persona):
+        top_k = max(top_k, 12)
+        threshold = min(threshold, 0.35)
 
     try:
-        chunks = await provider.retrieve(message, doc_ids, top_k, threshold)
+        chunks = await provider.retrieve(retrieval_query, doc_ids, top_k, threshold)
     except Exception as e:
         yield f'data: {json.dumps({"type": "error", "content": f"Retrieval failed: {e}"})}\n\n'
         return
@@ -940,16 +1029,19 @@ async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None,
         context = "\n\n---\n\n".join(
             f"[Source: {c['source']}]\n{c['content']}" for c in chunks
         )
+    yield _status_event(f"Found {len(chunks)} relevant document section{'s' if len(chunks) != 1 else ''}", 35)
 
     system_prompt = _apply_persona_prompt(_build_system_prompt(settings), persona)
     llm_provider = settings.get("local_llm_provider", "openai")
     web_context = f"\n\nWeb search results:\n{format_search_context(web_results)}" if web_results else ""
     if web_results:
         system_prompt += "\nUse the supplied web search results when relevant and cite source titles or URLs."
-    full_message = f"Document context:\n{context}{web_context}\n\nQuestion: {message}"
+    review_message = _document_review_message(message, persona, sorted({c["source"] for c in chunks}))
+    full_message = f"Document context:\n{context}{web_context}\n\nQuestion: {review_message}"
     model = settings.get("chat_model", "gpt-4o")
     temperature = float(settings.get("temperature", 0.2))
-    max_tokens = int(settings.get("max_tokens", 2048))
+    max_tokens = _max_tokens_for_persona(settings, persona)
+    yield _status_event("Generating document-grounded answer", 60)
 
     if llm_provider == "ollama":
         async for token in _stream_ollama(system_prompt, full_message, model, temperature, max_tokens, settings):
@@ -1011,14 +1103,9 @@ async def _stream_openai_chat(
     if default_headers:
         client_kwargs["default_headers"] = default_headers
     client = openai.AsyncOpenAI(**client_kwargs)
+    create_args = _chat_completion_args(model, system, user, temperature, max_tokens)
     try:
-        async with await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            stream=True,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        ) as stream:
+        async with await client.chat.completions.create(**create_args, stream=True) as stream:
             async for chunk in stream:
                 delta = chunk.choices[0].delta.content if chunk.choices else None
                 if delta:
@@ -1046,13 +1133,33 @@ async def _stream_openrouter_chat(
         yield token
 
 
+def _uses_reasoning_chat_params(model: str) -> bool:
+    model_id = (model or "").lower()
+    return model_id.startswith(("gpt-5", "o1", "o3", "o4"))
+
+
+def _chat_completion_args(model: str, system: str, user: str, temperature: float, max_tokens: int) -> dict:
+    args = {
+        "model": model,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+    }
+    if _uses_reasoning_chat_params(model):
+        args["max_completion_tokens"] = max_tokens
+        if (model or "").lower().startswith("gpt-5"):
+            args["reasoning_effort"] = "none"
+    else:
+        args["temperature"] = temperature
+        args["max_tokens"] = max_tokens
+    return args
+
+
 async def _stream_groq(
     key: str, system: str, user: str, model: str, temperature: float, max_tokens: int
 ) -> AsyncGenerator[str, None]:
     try:
         from groq import AsyncGroq
         client = AsyncGroq(api_key=key)
-        groq_model = model if "llama" in model.lower() or "mixtral" in model.lower() else "llama-3.1-8b-instant"
+        groq_model = model or "llama-3.1-8b-instant"
         stream = await client.chat.completions.create(
             model=groq_model,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],

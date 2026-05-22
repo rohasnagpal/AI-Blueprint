@@ -30,7 +30,6 @@ RISK_TERMS = {
     "payment": "Payment obligations",
 }
 
-
 def execute_contract_review(job_id: str, run_id: str) -> None:
     with SessionLocal() as db:
         job = db.get(Job, job_id)
@@ -53,6 +52,10 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
             db.commit()
 
             full_text = "\n\n".join(chunk.content for chunk, _document in chunks)
+            add_job_event(db, job=job, event_type="progress", message="Classifying document and extracting contract fields", metadata={"text_chars": len(full_text), "progress": 45})
+            job.progress = 45
+            job.heartbeat_at = utcnow()
+            db.commit()
             extraction = _extract_fields(full_text, config)
             record_skill_run(
                 db,
@@ -65,6 +68,10 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
                 sources=_sources(chunks),
                 metadata={"runner": "deterministic_contract_review"},
             )
+            add_job_event(db, job=job, event_type="progress", message="Building risk analysis", metadata={"progress": 60})
+            job.progress = 60
+            job.heartbeat_at = utcnow()
+            db.commit()
             risk_matrix = _risk_matrix(full_text)
             record_skill_run(
                 db,
@@ -102,6 +109,10 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
                 sources=sources,
                 metadata={"runner": "deterministic_contract_review"},
             )
+            add_job_event(db, job=job, event_type="progress", message="Saving contract review output", metadata={"progress": 90})
+            job.progress = 90
+            job.heartbeat_at = utcnow()
+            db.commit()
 
             output = ContractReviewOutput(
                 id=str(uuid.uuid4()),
@@ -113,7 +124,13 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
                 negotiation_memo=negotiation_memo,
                 client_summary=client_summary,
                 sources_json=json.dumps(sources, sort_keys=True),
-                metadata_json=json.dumps({"runner": "deterministic_contract_review", "review_depth": config.get("review_depth", "standard")}, sort_keys=True),
+                metadata_json=json.dumps(
+                    {
+                        "runner": "deterministic_contract_review",
+                        "review_depth": config.get("review_depth", "standard"),
+                    },
+                    sort_keys=True,
+                ),
             )
             db.add(output)
             for risk in risk_matrix:
@@ -211,7 +228,7 @@ def _sources(chunks) -> list[dict]:
         {
             "filename": document.original_name,
             "doc_id": document.id,
-            "page": chunk.chunk_index + 1,
+            "chunk": chunk.chunk_index + 1,
             "excerpt": chunk.content[:500],
         }
         for chunk, document in chunks[:10]

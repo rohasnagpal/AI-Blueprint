@@ -569,12 +569,7 @@ async def _complete_openai(key: str, system: str, user: str, model: str, tempera
     import openai
 
     client = openai.AsyncOpenAI(api_key=key)
-    response = await client.chat.completions.create(
-        model=model,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
+    response = await client.chat.completions.create(**_chat_completion_args(model, system, user, temperature, max_tokens))
     return response.choices[0].message.content or ""
 
 
@@ -591,13 +586,35 @@ async def _complete_openrouter(key: str, system: str, user: str, model: str, tem
             "X-Title": "AI Blueprint",
         },
     )
-    response = await client.chat.completions.create(
-        model=model or "openrouter/auto",
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
+    response = await client.chat.completions.create(**_chat_completion_args(model or "openrouter/auto", system, user, temperature, max_tokens))
     return response.choices[0].message.content or ""
+
+
+def _uses_reasoning_chat_params(model: str) -> bool:
+    model_id = (model or "").lower()
+    return model_id.startswith(("gpt-5", "o1", "o3", "o4"))
+
+
+def _chat_completion_args(model: str, system: str, user: str, temperature: float, max_tokens: int) -> dict:
+    args = {
+        "model": model,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+    }
+    if _uses_reasoning_chat_params(model):
+        args["max_completion_tokens"] = max_tokens
+        if (model or "").lower().startswith("gpt-5"):
+            args["reasoning_effort"] = "none"
+    else:
+        args["temperature"] = temperature
+        args["max_tokens"] = max_tokens
+    return args
+
+
+def _openai_assistants_model() -> str:
+    model = database.get_setting("openai_assistants_model") or "gpt-4.1"
+    if model.lower().startswith("gpt-5"):
+        return "gpt-4.1"
+    return model
 
 
 async def _complete_openai_file_search(
@@ -610,7 +627,7 @@ async def _complete_openai_file_search(
     client = openai.AsyncOpenAI(api_key=key)
     assistant = await client.beta.assistants.create(
         name="AI Blueprint Council Agent",
-        model=model,
+        model=_openai_assistants_model(),
         instructions=system,
         tools=[{"type": "file_search"}],
         tool_resources={"file_search": {"vector_store_ids": [vector_store_id]}},
@@ -648,7 +665,7 @@ async def _complete_groq(key: str, system: str, user: str, model: str, temperatu
     from groq import AsyncGroq
 
     client = AsyncGroq(api_key=key)
-    groq_model = model if "llama" in model.lower() or "mixtral" in model.lower() else "llama-3.1-8b-instant"
+    groq_model = model or "llama-3.1-8b-instant"
     response = await client.chat.completions.create(
         model=groq_model,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],

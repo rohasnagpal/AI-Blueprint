@@ -1,5 +1,5 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -682,6 +682,46 @@ function v2PluginRunFields(blueprint) {
   return '<div class="council-field"><label for="v2-plugin-run-title">Run title</label><input class="council-input" id="v2-plugin-run-title" placeholder="Contract review"/></div>';
 }
 
+function v2RunJob(runId) {
+  return App.v2.pluginJobs?.[runId] || null;
+}
+
+function v2JobElapsed(job) {
+  const started = Date.parse(job?.started_at || job?.created_at || '');
+  if (!started) return '0s';
+  return Math.max(0, Math.floor((Date.now() - started) / 1000)) + 's';
+}
+
+function renderV2RunProgress(run) {
+  const job = v2RunJob(run.id);
+  if (!job || !['pending','running'].includes(job.status || run.status)) return '';
+  const events = App.v2.pluginJobEvents?.[job.id] || [];
+  const latest = events.slice().reverse().find(e => e.content)?.content || job.status || run.status;
+  const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+  return `<div class="run-progress" data-job-id="${esc(job.id)}">
+    <div class="run-progress-head">
+      <span>${esc(latest)}</span>
+      <span>${v2JobElapsed(job)} elapsed · ${progress}%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+  </div>`;
+}
+
+function renderV2RunActions(blueprint, run) {
+  const segment = v2PluginApiSegment(blueprint.plugin_id);
+  const base = `/api/v2/workspaces/${encodeURIComponent(App.v2.workspaceId)}/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs/${encodeURIComponent(run.id)}`;
+  if (blueprint.plugin_id === 'contract_review') {
+    return `
+      <button class="btn-secondary" type="button" onclick="exportV2PluginRun('${esc(run.id)}')">Export</button>
+      <button class="danger-btn" type="button" onclick="deleteV2PluginRun('${esc(run.id)}')">Delete</button>
+    `;
+  }
+  return `
+    <button class="btn-secondary" type="button" onclick="exportV2PluginRun('${esc(run.id)}')">Export</button>
+    <button class="danger-btn" type="button" onclick="deleteV2PluginRun('${esc(run.id)}')">Delete</button>
+  `;
+}
+
 function renderV2PluginWorkspace() {
   const host = document.getElementById('v2-plugin-workspace');
   if (!host) return;
@@ -716,10 +756,10 @@ function renderV2PluginWorkspace() {
           <div><div class="council-card-title">${esc(run.title || 'Run')}</div><div class="council-card-meta">${esc(new Date(run.created_at).toLocaleString())}</div></div>
           <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
         </div>
+        ${renderV2RunProgress(run)}
         ${run.error ? `<div class="council-card-desc" style="color:var(--danger)">${esc(run.error)}</div>` : ''}
         <div class="council-actions">
-          <button class="btn-secondary" type="button" onclick="exportV2PluginRun('${esc(run.id)}')">Export</button>
-          <button class="danger-btn" type="button" onclick="deleteV2PluginRun('${esc(run.id)}')">Delete</button>
+          ${renderV2RunActions(blueprint, run)}
         </div>
       </div>`).join('') : '<div class="council-row"><div class="council-card-desc">No runs yet.</div></div>'}
     </div>
@@ -736,7 +776,23 @@ async function loadV2PluginData() {
   App.v2.pluginConfig = config?.ok ? (await config.json()).config : defaultV2PluginConfig(blueprint.plugin_id);
   const runs = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs?page_size=50`);
   if (runs?.ok) App.v2.pluginRuns = (await runs.json()).items || [];
+  await loadV2PluginJobs(blueprint);
   renderV2PluginWorkspace();
+}
+
+async function loadV2PluginJobs(blueprint) {
+  const r = await v2Fetch('/jobs?page_size=100');
+  if (!r?.ok) return;
+  const jobs = (await r.json()).items || [];
+  const next = {};
+  jobs.forEach(job => {
+    const meta = job.metadata || {};
+    if (meta.blueprint_id === blueprint.id && meta.run_id) {
+      next[meta.run_id] = job;
+      if (['pending','running'].includes(job.status)) startV2JobStream(job);
+    }
+  });
+  App.v2.pluginJobs = {...App.v2.pluginJobs, ...next};
 }
 
 async function saveV2PluginConfig() {
@@ -774,6 +830,11 @@ async function runV2Plugin() {
   try {
     const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
     if (!r?.ok) throw new Error(await apiError(r));
+    const data = await r.json();
+    if (data?.job) {
+      App.v2.pluginJobs[data.id] = data.job;
+      startV2JobStream(data.job);
+    }
     showToast('Run started.');
     await loadV2PluginData();
   } catch(e) { showToast('Run failed: ' + e.message, 'error'); }
@@ -805,6 +866,45 @@ async function exportV2PluginRun(runId) {
       w.document.close();
     }
   } catch(e) { showToast('Export failed: ' + e.message, 'error'); }
+}
+
+function startV2JobStream(job) {
+  if (!job?.id || !App.v2.workspaceId || App.v2.pluginJobStreams[job.id]) return;
+  const url = `/api/v2/workspaces/${encodeURIComponent(App.v2.workspaceId)}/jobs/${encodeURIComponent(job.id)}/events`;
+  const source = new EventSource(url);
+  App.v2.pluginJobStreams[job.id] = source;
+  App.v2.pluginJobEvents[job.id] = App.v2.pluginJobEvents[job.id] || [];
+  App.v2.pluginJobTimers[job.id] = setInterval(renderV2PluginWorkspace, 1000);
+  source.onmessage = event => {
+    let data;
+    try { data = JSON.parse(event.data); } catch(e) { return; }
+    const meta = data.metadata || {};
+    const currentJob = meta.id ? meta : (data.type === 'status' && meta.metadata ? meta : null);
+    if (currentJob?.id) {
+      const runId = currentJob.metadata?.run_id || job.metadata?.run_id;
+      if (runId) App.v2.pluginJobs[runId] = currentJob;
+    }
+    if (data.type && data.type !== 'status') {
+      App.v2.pluginJobEvents[job.id].push(data);
+      App.v2.pluginJobEvents[job.id] = App.v2.pluginJobEvents[job.id].slice(-8);
+    }
+    if (data.type === 'done') {
+      stopV2JobStream(job.id);
+      loadV2PluginData();
+    } else {
+      renderV2PluginWorkspace();
+    }
+  };
+  source.onerror = () => {
+    stopV2JobStream(job.id);
+  };
+}
+
+function stopV2JobStream(jobId) {
+  App.v2.pluginJobStreams[jobId]?.close();
+  delete App.v2.pluginJobStreams[jobId];
+  if (App.v2.pluginJobTimers[jobId]) clearInterval(App.v2.pluginJobTimers[jobId]);
+  delete App.v2.pluginJobTimers[jobId];
 }
 
 function openV2BlueprintChat(blueprintId) {
@@ -1060,8 +1160,26 @@ async function loadModels() {
 }
 
 function providerLabel(provider) {
-  const labels = {openai:'OpenAI', openrouter:'OpenRouter', anthropic:'Anthropic', groq:'Groq', ollama:'Ollama'};
+  const labels = {
+    openai:'OpenAI',
+    openrouter:'OpenRouter',
+    anthropic:'Anthropic',
+    groq:'Groq',
+    ollama:'Ollama',
+    gemini:'Google Gemini',
+    mistral:'Mistral AI',
+    cohere:'Cohere',
+    xai:'xAI',
+    cloudflare:'Cloudflare Workers AI',
+    together:'Together AI'
+  };
   return labels[provider] || provider;
+}
+
+function runnableModelProviders() {
+  const supported = ['openai', 'openrouter', 'anthropic', 'groq', 'ollama'];
+  const providers = modelProviders().filter(p => supported.includes(p));
+  return providers.length ? providers : ['openai', 'groq', 'ollama'];
 }
 
 function modelProviders() {
@@ -1077,8 +1195,9 @@ function renderChatProviderOptions() {
   const sel = document.getElementById('sel-chat-provider');
   if (!sel) return;
   const current = sel.value || App.settings.local_llm_provider || 'openai';
-  sel.innerHTML = modelProviders().map(p => `<option value="${esc(p)}">${esc(providerLabel(p))}</option>`).join('');
-  sel.value = modelProviders().includes(current) ? current : (modelProviders()[0] || 'openai');
+  const providers = runnableModelProviders();
+  sel.innerHTML = providers.map(p => `<option value="${esc(p)}">${esc(providerLabel(p))}</option>`).join('');
+  sel.value = providers.includes(current) ? current : (providers[0] || 'openai');
 }
 
 function renderChatModelOptions() {
@@ -1093,7 +1212,7 @@ function renderChatModelOptions() {
 }
 
 function providerOptions(selected) {
-  return modelProviders().map(p => `<option value="${esc(p)}" ${p === selected ? 'selected' : ''}>${esc(providerLabel(p))}</option>`).join('');
+  return runnableModelProviders().map(p => `<option value="${esc(p)}" ${p === selected ? 'selected' : ''}>${esc(providerLabel(p))}</option>`).join('');
 }
 
 function modelOptions(provider, selected, includeDefault = true) {
@@ -1366,7 +1485,7 @@ function saveRagProviderSettings() {
 async function resetAllSettings() {
   if (!confirm('Reset all settings to defaults? API keys will be cleared.')) return;
   try {
-    const defaults = { rag_provider:'openai', chat_model:'gpt-4o', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', openrouter_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint by Rohas Nagpal', app_intro:'Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]' };
+    const defaults = { rag_provider:'openai', chat_model:'gpt-5.2', openai_assistants_model:'gpt-4.1', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', openrouter_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint by Rohas Nagpal', app_intro:'Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents"]' };
     await saveSettings(defaults);
   } catch(e) { showToast('Reset failed.', 'error'); }
 }
@@ -1620,7 +1739,7 @@ async function openChat(chatId) {
   try {
     const r = await fetch(`/api/chats/${chatId}/messages`);
     const msgs = await r.json();
-    for (const m of msgs) conv.appendChild(m.role === 'user' ? mkUser(m.content) : mkAi(m.content, m.sources || []));
+    for (const m of msgs) conv.appendChild(m.role === 'user' ? mkUser(m.content) : mkAi(m.content, m.sources || [], m.id));
     scrollBottom();
   } catch(e) { showToast('Failed to load messages.', 'error'); }
 }
@@ -2689,6 +2808,7 @@ async function sendMessage() {
   scrollBottom();
   App.isStreaming = true;
   document.querySelector('.send-btn').style.opacity = '0.5';
+  const statusState = startChatStatus(bubble);
   let content = '', sources = [], hadError = false;
   try {
     const r = await fetch(`/api/chats/${App.currentChatId}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, web_search:App.webSearchEnabled})});
@@ -2704,9 +2824,19 @@ async function sendMessage() {
         if (!line.startsWith('data: ')) continue;
         try {
           const ev = JSON.parse(line.slice(6));
-          if (ev.type === 'token') { content += ev.content; bubble.innerHTML = mdRender(content); scrollBottom(); }
+          if (ev.type === 'token') {
+            stopChatStatus(statusState);
+            content += ev.content;
+            bubble.innerHTML = renderAssistantBubble(content, false);
+            scrollBottom();
+          }
+          else if (ev.type === 'status') {
+            updateChatStatus(statusState, ev.content || 'Working…', ev.progress);
+            scrollBottom();
+          }
           else if (ev.type === 'source') sources.push(ev);
           else if (ev.type === 'error') {
+            stopChatStatus(statusState);
             hadError = true;
             content = ev.content || 'Chat request failed.';
             bubble.textContent = content;
@@ -2720,8 +2850,11 @@ async function sendMessage() {
         } catch(ex) {}
       }
     }
+    stopChatStatus(statusState);
+    if (content) bubble.innerHTML = renderAssistantBubble(content, true);
     if (!content && !hadError) bubble.textContent = 'No response was returned.';
   } catch(e) {
+    stopChatStatus(statusState);
     content = 'Stream error: ' + e.message;
     bubble.textContent = content;
     showToast(content, 'error');
@@ -2737,12 +2870,73 @@ function mkUser(text) {
   return d;
 }
 
-function mkAi(content, sources) {
+function mkAi(content, sources, messageId = '') {
   const d = document.createElement('div'); d.className = 'msg ai';
   const docSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
-  d.innerHTML = `<div class="msg-meta"><div class="avatar ai-av">${docSvg}</div><span>AI Blueprint</span></div><div class="bubble">${content ? mdRender(content) : '<span style="opacity:.4">Thinking…</span>'}</div><div class="msg-actions"><div class="msg-action-btn" title="Copy" onclick="copyMsg(this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div></div>`;
+  d.dataset.messageId = messageId || '';
+  const body = content ? renderAssistantBubble(content, true) : '<span style="opacity:.4">Preparing response…</span>';
+  d.innerHTML = `<div class="msg-meta"><div class="avatar ai-av">${docSvg}</div><span>AI Blueprint</span></div><div class="bubble">${body}</div><div class="msg-actions"><div class="msg-action-btn" title="Copy" onclick="copyMsg(this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div></div>`;
   if (sources.length) d.insertBefore(mkSources(sources), d.querySelector('.msg-actions'));
   return d;
+}
+
+function startChatStatus(bubble) {
+  const state = {bubble, startedAt: Date.now(), message: 'Preparing response', progress: 6, timer: null, active: true};
+  state.timer = setInterval(() => renderChatStatus(state), 1000);
+  renderChatStatus(state);
+  return state;
+}
+
+function updateChatStatus(state, message, progress) {
+  if (!state?.active) return;
+  state.message = message || state.message;
+  if (progress != null && !Number.isNaN(Number(progress))) state.progress = Math.max(0, Math.min(95, Number(progress)));
+  renderChatStatus(state);
+}
+
+function stopChatStatus(state) {
+  if (!state) return;
+  state.active = false;
+  if (state.timer) clearInterval(state.timer);
+}
+
+function renderChatStatus(state) {
+  if (!state?.active || !state.bubble) return;
+  const elapsed = Math.max(0, Math.floor((Date.now() - state.startedAt) / 1000));
+  const progress = Math.max(6, Math.min(95, Math.round(state.progress || 6)));
+  state.bubble.innerHTML = `<div class="chat-status-card">
+    <div class="chat-status-title">${esc(state.message)}</div>
+    <div class="chat-status-meta">${elapsed}s elapsed · ${progress}%</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+  </div>`;
+}
+
+function renderAssistantBubble(content, includeContinueAction = true) {
+  const body = mdRender(content);
+  if (!includeContinueAction || !needsContinueAction(content)) return body;
+  return `${body}<div class="continue-card">
+    <div>
+      <div class="continue-title">More steps are available</div>
+      <div class="continue-desc">Continue in this same chat to complete the remaining review sections.</div>
+    </div>
+    <button class="btn-secondary" type="button" onclick="continueChatReview()">Continue</button>
+  </div>`;
+}
+
+function needsContinueAction(content) {
+  const text = String(content || '');
+  const upper = text.toUpperCase();
+  if (/Remaining steps available/i.test(text) || /reply ['"]?continue['"]?/i.test(text)) return true;
+  return upper.includes('STEP 0') && (upper.includes('STEP 1') || upper.includes('CUAD')) && !upper.includes('STEP 8');
+}
+
+function continueChatReview() {
+  if (App.isStreaming) return;
+  const input = document.getElementById('chat-input');
+  if (!input) return;
+  input.value = 'continue';
+  autoResize(input);
+  sendMessage();
 }
 
 function mkSources(sources) {

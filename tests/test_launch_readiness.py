@@ -61,7 +61,7 @@ class LaunchReadinessTest(unittest.TestCase):
     def test_public_launch_flow_and_guardrails(self) -> None:
         health = self.client.get("/api/v2/health")
         self.assertEqual(health.status_code, 200, health.text)
-        self.assertEqual(health.json()["database"]["migration_revision"], "0015_user_admin_bootstrap")
+        self.assertEqual(health.json()["database"]["migration_revision"], "0016_contract_review_reports")
         self.assertTrue(health.json()["secrets"]["key_configured"])
         self.assertEqual(health.headers["x-content-type-options"], "nosniff")
         self.assertEqual(health.headers["x-frame-options"], "DENY")
@@ -144,6 +144,33 @@ class LaunchReadinessTest(unittest.TestCase):
         )
         self.assertEqual(chat.status_code, 200, chat.text)
         self.assertEqual(chat.json()["v2_document_ids"], [upload.json()["id"]])
+
+        enable_contract_review = self.client.put(f"/api/v2/workspaces/{workspace_id}/plugins/contract_review", json={"enabled": True})
+        self.assertEqual(enable_contract_review.status_code, 200, enable_contract_review.text)
+        blueprint = self.client.post(
+            f"/api/v2/workspaces/{workspace_id}/blueprints",
+            json={"name": "Contract Review", "plugin_id": "contract_review", "matter_id": matter_id},
+        )
+        self.assertEqual(blueprint.status_code, 201, blueprint.text)
+        blueprint_id = blueprint.json()["id"]
+        link = self.client.post(
+            f"/api/v2/workspaces/{workspace_id}/documents/{upload.json()['id']}/links",
+            json={"blueprint_id": blueprint_id},
+        )
+        self.assertEqual(link.status_code, 201, link.text)
+        contract_run = self.client.post(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs",
+            json={"title": "Launch Contract Review"},
+        )
+        self.assertEqual(contract_run.status_code, 201, contract_run.text)
+        contract_job = self.wait_for_job(workspace_id, contract_run.json()["job"]["id"])
+        self.assertEqual(contract_job["job"]["status"], "completed", contract_job)
+        self.assertGreaterEqual(len(contract_job["events"]), 5)
+        export = self.client.get(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{contract_run.json()['id']}/export"
+        )
+        self.assertEqual(export.status_code, 200, export.text)
+        self.assertIn("# Launch Contract Review", export.text)
 
 
 if __name__ == "__main__":

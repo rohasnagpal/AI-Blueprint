@@ -111,7 +111,8 @@ def _contract_export_markdown(run: ContractReviewRun, output: ContractReviewOutp
         lines.append(f"- **{risk.get('issue')}** ({risk.get('severity')}): {risk.get('finding')}")
     lines.extend(["", "## Negotiation Memo", output.negotiation_memo, "", "## Sources"])
     for source in sources:
-        lines.append(f"- {source.get('filename')} p. {source.get('page')}: {source.get('excerpt')}")
+        locator = f"chunk {source.get('chunk')}" if source.get("chunk") else "indexed excerpt"
+        lines.append(f"- {source.get('filename')} {locator}: {source.get('excerpt')}")
     lines.extend(["", "## Review Status", "Human legal review required before external delivery."])
     return "\n".join(lines).strip() + "\n"
 
@@ -296,3 +297,19 @@ async def export_run(
     record_audit_event(db, action="contract_review.run.export", resource_type="contract_review_run", resource_id=run.id, user_id=user.id, workspace_id=workspace_id, metadata={"blueprint_id": blueprint_id})
     db.commit()
     return Response(content=_contract_export_markdown(run, output), media_type="text/markdown")
+
+
+def _get_run_output(db: Session, workspace_id: str, blueprint_id: str, run_id: str) -> tuple[ContractReviewRun, ContractReviewOutput]:
+    run = db.execute(
+        select(ContractReviewRun).where(
+            ContractReviewRun.workspace_id == workspace_id,
+            ContractReviewRun.blueprint_id == blueprint_id,
+            ContractReviewRun.id == run_id,
+        )
+    ).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract Review run not found")
+    output = db.execute(select(ContractReviewOutput).where(ContractReviewOutput.run_id == run_id)).scalar_one_or_none()
+    if not output:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract Review output not found")
+    return run, output

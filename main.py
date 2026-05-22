@@ -74,6 +74,8 @@ async def request_context(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
     response.headers.setdefault("X-Frame-Options", "DENY")
+    if request.url.path == "/" or request.url.path.endswith((".html", ".js", ".css")):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
     duration_ms = round((time.perf_counter() - started) * 1000, 2)
     print(
         json.dumps(
