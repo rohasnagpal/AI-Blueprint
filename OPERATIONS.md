@@ -49,3 +49,7 @@ curl -s http://127.0.0.1:8004/api/v2/health
 ```
 
 The health response should report `ok: true`, the expected Alembic revision, upload storage free space, and `secrets.key_configured: true`.
+
+## Monitoring
+
+Monitor `/api/v2/health`, request logs, failed job records, authentication failures, and free disk space on the uploads volume. Every response includes `X-Request-Id`; keep that value in support reports so a request can be traced through logs.

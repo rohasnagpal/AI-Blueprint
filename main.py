@@ -16,6 +16,7 @@ from app.api.router import router as v2_router
 from app.core.bootstrap import ensure_default_admin
 from app.core.config import get_settings
 from app.core.database import run_migrations
+from app.core.secrets import ensure_secret_key_configured
 from routes.documents import router as doc_router
 from routes.chats import router as chat_router
 from routes.councils import router as council_router
@@ -27,7 +28,7 @@ app = FastAPI(title="AI Blueprint")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000"],
+    allow_origins=get_settings().cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,6 +71,9 @@ async def request_context(request: Request, call_next):
     started = time.perf_counter()
     response = await call_next(request)
     response.headers["X-Request-Id"] = request_id
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    response.headers.setdefault("X-Frame-Options", "DENY")
     duration_ms = round((time.perf_counter() - started) * 1000, 2)
     print(
         json.dumps(
@@ -90,6 +94,7 @@ async def request_context(request: Request, call_next):
 async def startup():
     database.init_db()
     run_migrations()
+    ensure_secret_key_configured()
     if get_settings().bootstrap_default_admin:
         ensure_default_admin()
 

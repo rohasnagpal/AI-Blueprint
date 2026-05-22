@@ -11,7 +11,7 @@ ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".csv", ".xlsx", ".md", ".json", 
 
 
 async def store_upload(file: UploadFile, *, max_bytes: int) -> dict:
-    original_name = file.filename or "upload.bin"
+    original_name = Path(file.filename or "upload.bin").name
     ext = Path(original_name).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(

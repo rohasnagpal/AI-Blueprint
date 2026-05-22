@@ -13,7 +13,18 @@ class Settings(BaseModel):
     session_days: int = 14
     secure_cookies: bool = False
     bootstrap_default_admin: bool = False
+    cors_origins: list[str] = ["http://localhost:8000", "http://127.0.0.1:8000"]
+    max_upload_bytes: int = 25 * 1024 * 1024
+    auth_rate_limit_attempts: int = 10
+    auth_rate_limit_window_seconds: int = 60
     alembic_ini_path: Path = Path("alembic.ini")
+
+
+def _csv_env(name: str, default: list[str]) -> list[str]:
+    value = os.getenv(name)
+    if not value:
+        return default
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 @lru_cache
@@ -26,5 +37,9 @@ def get_settings() -> Settings:
         session_days=int(os.getenv("AI_BLUEPRINT_SESSION_DAYS", "14")),
         secure_cookies=os.getenv("AI_BLUEPRINT_SECURE_COOKIES", "false").lower() == "true",
         bootstrap_default_admin=os.getenv("AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN", "false").lower() == "true",
+        cors_origins=_csv_env("AI_BLUEPRINT_CORS_ORIGINS", ["http://localhost:8000", "http://127.0.0.1:8000"]),
+        max_upload_bytes=int(os.getenv("AI_BLUEPRINT_MAX_UPLOAD_BYTES", str(25 * 1024 * 1024))),
+        auth_rate_limit_attempts=int(os.getenv("AI_BLUEPRINT_AUTH_RATE_LIMIT_ATTEMPTS", "10")),
+        auth_rate_limit_window_seconds=int(os.getenv("AI_BLUEPRINT_AUTH_RATE_LIMIT_WINDOW_SECONDS", "60")),
         alembic_ini_path=Path(os.getenv("AI_BLUEPRINT_ALEMBIC_INI", "alembic.ini")),
     )

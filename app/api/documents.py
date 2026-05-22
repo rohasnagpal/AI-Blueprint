@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_blueprint_member, require_workspace_member
 from app.core.document_indexer import index_document
@@ -189,7 +190,7 @@ async def upload_document(
     require_workspace_member(workspace_id, user, db)
     _validate_matter(db, workspace_id, matter_id)
     _validate_document_scope(scope)
-    stored = await store_upload(file, max_bytes=25 * 1024 * 1024)
+    stored = await store_upload(file, max_bytes=get_settings().max_upload_bytes)
     document = _create_document(
         db,
         workspace_id=workspace_id,

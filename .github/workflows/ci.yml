@@ -39,11 +39,16 @@ jobs:
       - name: Compile Python files
         run: python -m compileall main.py database.py routes rag app migrations
 
+      - name: Launch readiness tests
+        run: python -m unittest discover -s tests
+
       - name: Smoke test v2 foundation
         env:
           AI_BLUEPRINT_DATABASE_URL: sqlite:////tmp/ai_blueprint_v2_ci.db
+          AI_BLUEPRINT_LEGACY_DATABASE_PATH: /tmp/ai_blueprint_legacy_ci.db
           AI_BLUEPRINT_UPLOADS_DIR: /tmp/ai_blueprint_v2_uploads
           AI_BLUEPRINT_SECRET_KEY_FILE: /tmp/ai_blueprint_v2_secret.key
+          AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE: /tmp/ai_blueprint_legacy_secret.key
         run: |
           rm -f /tmp/ai_blueprint_v2_ci.db*
           rm -f /tmp/ai_blueprint_v2_secret.key
@@ -548,8 +553,10 @@ jobs:
       - name: Smoke test v2 hardening
         env:
           AI_BLUEPRINT_DATABASE_URL: sqlite:////tmp/ai_blueprint_v2_hardening_ci.db
+          AI_BLUEPRINT_LEGACY_DATABASE_PATH: /tmp/ai_blueprint_legacy_hardening_ci.db
           AI_BLUEPRINT_UPLOADS_DIR: /tmp/ai_blueprint_v2_hardening_uploads
           AI_BLUEPRINT_SECRET_KEY_FILE: /tmp/ai_blueprint_v2_hardening_secret.key
+          AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE: /tmp/ai_blueprint_legacy_hardening_secret.key
         run: |
           rm -f /tmp/ai_blueprint_v2_hardening_ci.db*
           rm -f /tmp/ai_blueprint_v2_hardening_secret.key

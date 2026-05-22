@@ -5,8 +5,8 @@ import sqlite3
 from datetime import datetime, timezone
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-DB_PATH = "ai_blueprint.db"
-SECRET_KEY_FILE = ".secret_key"
+DB_PATH = os.getenv("AI_BLUEPRINT_LEGACY_DATABASE_PATH", "ai_blueprint.db")
+SECRET_KEY_FILE = os.getenv("AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE", ".secret_key")
 
 DEFAULTS = {
     "rag_provider": "openai",
@@ -80,6 +80,7 @@ def _get_secret_key() -> bytes:
     key = os.urandom(32)
     with open(SECRET_KEY_FILE, "wb") as f:
         f.write(base64.b64encode(key))
+    os.chmod(SECRET_KEY_FILE, 0o600)
     return key
 
 

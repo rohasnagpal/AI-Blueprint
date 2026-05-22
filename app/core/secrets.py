@@ -13,7 +13,12 @@ def _get_secret_key() -> bytes:
     key = os.urandom(32)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(base64.b64encode(key))
+    path.chmod(0o600)
     return key
+
+
+def ensure_secret_key_configured() -> None:
+    _get_secret_key()
 
 
 def encrypt_secret(value: str) -> str:

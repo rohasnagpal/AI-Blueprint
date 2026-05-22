@@ -105,6 +105,15 @@ AI Blueprint is designed as a local-first legal AI workspace. Sensitive runtime 
 
 When using external model or retrieval providers, review where document text, prompts, embeddings, and outputs are sent before using the system with confidential material.
 
+AI Blueprint supports legal workflows but does not replace professional legal judgment. Review all outputs before using them in client, court, regulatory, or transaction work.
+
+## Public Deployment
+
+Before exposing AI Blueprint to public users, review:
+
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Public Launch Checklist](docs/PUBLIC_LAUNCH_CHECKLIST.md)
+
 ## Development Status
 
 AI Blueprint is an evolving open-source platform being shaped into a legal AI blueprint system for lawyers, firms, and legal teams.

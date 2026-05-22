@@ -1,6 +1,8 @@
 import uuid
+from collections import defaultdict, deque
+from time import monotonic
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -13,6 +15,7 @@ from app.core.models import SessionToken, User, WorkspaceMember
 from app.core.security import hash_password, hash_session_token, new_session_token, session_expiry, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+_auth_attempts: dict[str, deque[float]] = defaultdict(deque)
 
 
 class SetupIn(BaseModel):
@@ -67,6 +70,26 @@ def _issue_session(db: Session, response: Response, user: User) -> None:
     )
 
 
+def _client_key(request: Request, identifier: str = "") -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    ip = forwarded_for.split(",", 1)[0].strip() or (request.client.host if request.client else "unknown")
+    return f"{ip}:{identifier.strip().lower()}"
+
+
+def _check_auth_rate_limit(request: Request, identifier: str = "") -> None:
+    settings = get_settings()
+    if settings.auth_rate_limit_attempts <= 0:
+        return
+    now = monotonic()
+    attempts = _auth_attempts[_client_key(request, identifier)]
+    window_start = now - settings.auth_rate_limit_window_seconds
+    while attempts and attempts[0] < window_start:
+        attempts.popleft()
+    if len(attempts) >= settings.auth_rate_limit_attempts:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many authentication attempts")
+    attempts.append(now)
+
+
 @router.get("/setup-state", include_in_schema=False)
 async def setup_state(db: Session = Depends(get_db)):
     user_count = db.execute(select(func.count(User.id))).scalar_one()
@@ -74,7 +97,8 @@ async def setup_state(db: Session = Depends(get_db)):
 
 
 @router.post("/setup")
-async def setup_admin(body: SetupIn, response: Response, db: Session = Depends(get_db)):
+async def setup_admin(body: SetupIn, request: Request, response: Response, db: Session = Depends(get_db)):
+    _check_auth_rate_limit(request, body.email)
     user_count = db.execute(select(func.count(User.id))).scalar_one()
     if user_count:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Setup has already been completed")
@@ -95,10 +119,11 @@ async def setup_admin(body: SetupIn, response: Response, db: Session = Depends(g
 
 
 @router.post("/login")
-async def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
+async def login(body: LoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
     identifier = (body.identifier or body.email or "").strip().lower()
     if not identifier:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or email is required")
+    _check_auth_rate_limit(request, identifier)
     user = db.execute(select(User).where(or_(User.username == identifier, User.email == identifier))).scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
