@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AI Blueprint by Rohas Nagpal</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css"/>
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-<link rel="stylesheet" href="/css/app.css?v=20260522-model-registry-v1"/>
+<link rel="stylesheet" href="/css/app.css?v=20260524-personas-v1"/>
 
 </head>
 <body>
@@ -26,10 +24,6 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       New Chat
     </div>
-    <div class="nav-item" onclick="switchView('blueprints')" id="nav-blueprints">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-      Blueprints
-    </div>
     <div class="nav-item" onclick="switchView('councils')" id="nav-councils">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Councils
@@ -38,23 +32,38 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
       Personas
     </div>
-    <div class="nav-item" onclick="switchView('email')" id="nav-email">
+    <div class="nav-item" onclick="toggleSidebarMore(event)" id="nav-more">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+      More
+    </div>
+  </div>
+
+  <div class="sidebar-more-menu" id="sidebar-more-menu">
+    <button type="button" onclick="switchViewFromMore('blueprints')" id="more-blueprints">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Blueprints
+    </button>
+    <button type="button" onclick="switchViewFromMore('email')" id="more-email">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
       Email
-    </div>
-    <div class="nav-item" onclick="switchView('add-doc')" id="nav-add-doc">
+    </button>
+    <button type="button" onclick="switchViewFromMore('add-doc')" id="more-add-doc">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Add Document
-    </div>
-    <div class="nav-item" onclick="switchView('view-docs')" id="nav-view-docs">
+    </button>
+    <button type="button" onclick="switchViewFromMore('view-docs')" id="more-view-docs">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
       View Documents
       <span class="nav-badge" id="docs-count-badge">0</span>
-    </div>
-    <div class="nav-item" onclick="switchView('admin-users')" id="nav-admin-users" style="display:none">
+    </button>
+    <button type="button" onclick="switchViewFromMore('settings')" id="more-settings">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Settings
+    </button>
+    <button type="button" onclick="switchViewFromMore('admin-users')" id="nav-admin-users" style="display:none">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Admin Users
-    </div>
+    </button>
   </div>
 
   <div class="sidebar-divider"></div>
@@ -76,16 +85,6 @@
   <div class="chat-history" id="chat-history-list"></div>
 
   <div class="sidebar-bottom">
-    <div class="theme-toggle" onclick="toggleTheme()">
-      <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-      Dark mode
-      <div class="toggle-pill"></div>
-    </div>
-    <div class="nav-item" onclick="switchView('settings')" id="nav-settings">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-      Settings
-    </div>
-    <div class="sidebar-divider"></div>
     <div class="user-item" id="v2-auth-sidebar" onclick="openV2AuthFromSidebar()">
       <div class="user-avatar" id="v2-auth-avatar">U</div>
       <span id="v2-auth-sidebar-label">Sign in</span>
@@ -113,6 +112,12 @@
       </button>
       <button class="icon-btn" type="button" title="Download chat as Markdown" aria-label="Download chat as Markdown" onclick="downloadChatMarkdown()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button class="icon-btn" id="theme-icon-btn" type="button" title="Toggle dark mode" aria-label="Toggle dark mode" onclick="toggleTheme()">
+        <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <button class="icon-btn" id="v2-logout-topbar" type="button" title="Log out" aria-label="Log out" onclick="logoutV2()" style="display:none">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
   </div>
@@ -151,6 +156,8 @@
             <svg class="input-mode-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <span class="input-doc-badge" id="input-doc-badge">No document search</span>
+          <select class="s-select input-scope-select" id="chat-workspace-select" onchange="setChatWorkspaceFromInput(this.value)" title="Choose workspace" style="display:none"></select>
+          <select class="s-select input-scope-select" id="chat-matter-select" onchange="setChatMatterFromInput(this.value)" title="Choose matter" style="display:none"></select>
           <select class="s-select input-persona-select" id="persona-select" onchange="setPersona(this.value)" title="Choose persona">
             <option value="">No persona</option>
           </select>
@@ -171,10 +178,10 @@
             <button class="web-search-btn" id="web-search-btn" type="button" onclick="toggleWebSearch()" title="Search web">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg>
             </button>
-            <div class="attach-btn" title="Attach file">
+            <button class="attach-btn" type="button" title="Upload document" aria-label="Upload document" onclick="openChatUpload()">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-            </div>
-            <button class="send-btn" onclick="sendMessage()">
+            </button>
+            <button class="send-btn" id="chat-send-btn" type="button" title="Send message" aria-label="Send message" onclick="sendMessage()">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
           </div>
@@ -444,9 +451,12 @@
   <!-- ── PERSONAS VIEW ── -->
   <div class="view" id="view-personas">
     <div class="add-doc-view">
-      <div class="view-header">
-        <h2>Personas</h2>
-        <p>Choose role-based AI behavior for chats without coding.</p>
+      <div class="view-header persona-view-header">
+        <div>
+          <h2>Personas</h2>
+          <p>Choose role-based AI behavior for chats without coding.</p>
+        </div>
+        <button class="btn-primary" type="button" onclick="openPersonaEditor()">Create Persona</button>
       </div>
       <div class="docs-stats" id="persona-category-pills"></div>
       <div class="docs-grid" id="personas-grid"></div>
@@ -543,6 +553,20 @@
         <button type="button" onclick="ingestUrl()">Add URL</button>
       </div>
 
+      <div class="connected-folders-panel">
+        <div class="connected-folders-head">
+          <div>
+            <div class="settings-card-title">Connected Folders</div>
+            <div class="settings-card-subtitle">Sync supported files from a local folder into your document library.</div>
+          </div>
+        </div>
+        <div class="connected-folder-add">
+          <input id="connected-folder-path" type="text" placeholder="/Users/you/Documents/Matter Folder"/>
+          <button type="button" onclick="addConnectedFolder()">Connect Folder</button>
+        </div>
+        <div class="connected-folders-list" id="connected-folders-list"></div>
+      </div>
+
       <!-- Upload queue -->
       <div class="upload-queue">
         <div class="upload-queue-title" id="upload-queue-title" style="display:none">Uploading</div>
@@ -596,7 +620,11 @@
         </div>
         <div class="settings-nav-item" onclick="switchSettingsTab('model', this)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          Model
+          Models
+        </div>
+        <div class="settings-nav-item" onclick="switchSettingsTab('rag-provider', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          RAG Provider
         </div>
         <div class="settings-nav-item" onclick="switchSettingsTab('rag', this)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
@@ -610,6 +638,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Documents
         </div>
+        <div class="settings-nav-item" id="settings-nav-workspaces" style="display:none" onclick="switchSettingsTab('workspaces', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          Workspaces
+        </div>
         <div class="settings-nav-item" onclick="switchSettingsTab('appearance', this)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 1 7 7c0 4-7 13-7 13S5 13 5 9a7 7 0 0 1 7-7z"/></svg>
           Appearance
@@ -617,10 +649,6 @@
         <div class="settings-nav-item" id="settings-nav-users" style="display:none" onclick="switchSettingsTab('users', this)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Users
-        </div>
-        <div class="settings-nav-item" onclick="switchSettingsTab('rag-provider', this)">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-          RAG Provider
         </div>
       </div>
 
@@ -937,7 +965,7 @@
 
         <!-- MODEL -->
         <div class="settings-section" id="stab-model">
-          <div class="settings-section-title">Model</div>
+          <div class="settings-section-title">Models</div>
           <div class="settings-section-desc">Choose the AI and embedding models that power AI Blueprint's responses.</div>
 
           <div class="settings-card">
@@ -1418,6 +1446,68 @@
           </div>
         </div>
 
+        <!-- WORKSPACES -->
+        <div class="settings-section" id="stab-workspaces">
+          <div class="settings-section-title">Workspaces</div>
+          <div class="settings-section-desc">Create workspaces, edit workspace details, and manage matters in the selected workspace.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">New Workspace</div><div class="settings-card-subtitle">Creating a workspace makes you its workspace admin.</div></div>
+            </div>
+            <div class="council-form">
+              <div class="council-form-row">
+                <div class="council-field"><label for="workspace-name">Name</label><input class="council-input" id="workspace-name" autocomplete="off"/></div>
+                <div class="council-field"><label for="workspace-slug">Slug</label><input class="council-input" id="workspace-slug" autocomplete="off" placeholder="Optional"/></div>
+              </div>
+              <div class="council-actions">
+                <button class="btn-primary" type="button" onclick="createWorkspaceManagerWorkspace()">Create Workspace</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">Workspace List</div><div class="settings-card-subtitle">Workspace admins can edit names, slugs, and delete workspaces.</div></div>
+              <button class="btn-secondary" type="button" onclick="loadWorkspaceManager()">Refresh</button>
+            </div>
+            <div class="council-list" id="workspace-manager-list"></div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title" id="workspace-manager-selected-title">Selected Workspace</div><div class="settings-card-subtitle" id="workspace-manager-selected-subtitle">Select a workspace to manage its details and matters.</div></div>
+            </div>
+            <div class="council-form" id="workspace-manager-detail"></div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">New Matter</div><div class="settings-card-subtitle">Matters are scoped to the selected workspace.</div></div>
+            </div>
+            <div class="council-form">
+              <div class="council-form-row">
+                <div class="council-field"><label for="matter-name">Matter name</label><input class="council-input" id="matter-name" autocomplete="off"/></div>
+                <div class="council-field"><label for="matter-client">Client</label><input class="council-input" id="matter-client" autocomplete="off" placeholder="Optional"/></div>
+              </div>
+              <div class="council-form-row">
+                <div class="council-field"><label for="matter-status">Status</label><select class="council-select" id="matter-status"><option value="active">Active</option><option value="paused">Paused</option><option value="closed">Closed</option></select></div>
+                <div class="council-field"><label for="matter-description">Description</label><input class="council-input" id="matter-description" autocomplete="off" placeholder="Optional"/></div>
+              </div>
+              <div class="council-actions">
+                <button class="btn-primary" type="button" onclick="createWorkspaceManagerMatter()">Create Matter</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">Matters</div><div class="settings-card-subtitle">Edit or remove matters in the selected workspace.</div></div>
+            </div>
+            <div class="council-list" id="workspace-manager-matters"></div>
+          </div>
+        </div>
+
         <!-- USERS -->
         <div class="settings-section" id="stab-users">
           <div class="settings-section-title">Users</div>
@@ -1605,6 +1695,52 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="persona-editor-modal" onclick="closePersonaEditor(event)">
+  <div class="settings-card detail-modal persona-editor-modal" onclick="event.stopPropagation()">
+    <div class="settings-card-header">
+      <div>
+        <div class="settings-card-title" id="persona-editor-title">Create Persona</div>
+        <div class="settings-card-subtitle" id="persona-editor-subtitle">Create a reusable role, style, and instruction set.</div>
+      </div>
+      <button class="btn-secondary" type="button" onclick="closePersonaEditor()">Close</button>
+    </div>
+    <div class="detail-modal-body">
+      <div class="council-form persona-editor-form">
+        <div class="council-form-row">
+          <div class="council-field">
+            <label for="persona-editor-name">Name</label>
+            <input class="council-input" id="persona-editor-name" autocomplete="off"/>
+          </div>
+          <div class="council-field">
+            <label for="persona-editor-category">Category</label>
+            <input class="council-input" id="persona-editor-category" autocomplete="off"/>
+          </div>
+        </div>
+        <div class="council-field">
+          <label for="persona-editor-description">Description</label>
+          <input class="council-input" id="persona-editor-description" autocomplete="off"/>
+        </div>
+        <div class="council-field">
+          <label for="persona-editor-system-prompt">System Prompt</label>
+          <textarea class="council-textarea persona-system-prompt" id="persona-editor-system-prompt"></textarea>
+        </div>
+        <div class="council-field">
+          <label for="persona-editor-constraints">Constraints</label>
+          <textarea class="council-textarea" id="persona-editor-constraints" placeholder="One per line"></textarea>
+        </div>
+        <div class="council-field">
+          <label for="persona-editor-tags">Tags</label>
+          <input class="council-input" id="persona-editor-tags" autocomplete="off" placeholder="Comma separated"/>
+        </div>
+        <div class="council-actions persona-editor-actions">
+          <button class="danger-btn" id="persona-editor-delete" type="button" onclick="deletePersonaFromEditor()" style="display:none">Delete</button>
+          <button class="btn-primary" type="button" onclick="savePersona()">Save Persona</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="v2-auth-modal" onclick="closeV2AuthModal(event)">
   <div class="settings-card detail-modal" onclick="event.stopPropagation()">
     <div class="settings-card-header">
@@ -1672,6 +1808,6 @@
 <div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
 
-<script src="/js/app.js?v=20260522-model-registry-v1"></script>
+<script src="/js/app.js?v=20260524-personas-v1"></script>
 </body>
 </html>

@@ -128,6 +128,25 @@ def init_db():
             uploaded_at   TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS connected_folders (
+            id             TEXT PRIMARY KEY,
+            path           TEXT NOT NULL UNIQUE,
+            enabled        INTEGER DEFAULT 1,
+            last_synced_at TEXT,
+            created_at     TEXT,
+            updated_at     TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS connected_folder_files (
+            id             TEXT PRIMARY KEY,
+            folder_id      TEXT NOT NULL REFERENCES connected_folders(id) ON DELETE CASCADE,
+            source_path    TEXT NOT NULL UNIQUE,
+            doc_id         TEXT REFERENCES documents(id) ON DELETE SET NULL,
+            size_bytes     INTEGER,
+            mtime          REAL,
+            synced_at      TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS chats (
             id           TEXT PRIMARY KEY,
             title        TEXT,

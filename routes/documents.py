@@ -2,7 +2,6 @@ import os
 import re
 import uuid
 import shutil
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,6 +19,10 @@ ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".csv", ".xlsx", ".md", ".json", 
 
 class UrlIngest(BaseModel):
     url: str
+
+
+class ConnectedFolderIn(BaseModel):
+    path: str
 
 
 def _safe_index_filename(name: str) -> str:
@@ -47,12 +50,174 @@ def _format_doc(row) -> dict:
     }
 
 
+def _format_folder(row, file_count: int = 0) -> dict:
+    return {
+        "id": row["id"],
+        "path": row["path"],
+        "enabled": bool(row["enabled"]),
+        "last_synced_at": row["last_synced_at"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "file_count": file_count,
+    }
+
+
+def _resolve_folder_path(path: str) -> str:
+    raw = path.strip()
+    if not raw:
+        raise HTTPException(400, detail="Folder path is required.")
+    resolved = Path(raw).expanduser().resolve()
+    if not resolved.exists() or not resolved.is_dir():
+        raise HTTPException(400, detail="Folder does not exist or is not a directory.")
+    return str(resolved)
+
+
+def _iter_folder_files(root: Path, max_files: int = 1000):
+    seen = 0
+    for path in root.rglob("*"):
+        if seen >= max_files:
+            break
+        if any(part.startswith(".") for part in path.relative_to(root).parts):
+            continue
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in ALLOWED_EXTENSIONS:
+            continue
+        seen += 1
+        yield path
+
+
 @router.get("/documents")
 async def list_documents():
     conn = database.get_connection()
     rows = conn.execute("SELECT * FROM documents ORDER BY uploaded_at DESC").fetchall()
     conn.close()
     return [_format_doc(r) for r in rows]
+
+
+@router.get("/connected-folders")
+async def list_connected_folders():
+    conn = database.get_connection()
+    rows = conn.execute("SELECT * FROM connected_folders ORDER BY created_at DESC").fetchall()
+    counts = {
+        row["folder_id"]: row["count"]
+        for row in conn.execute("SELECT folder_id, COUNT(*) AS count FROM connected_folder_files GROUP BY folder_id").fetchall()
+    }
+    conn.close()
+    return [_format_folder(row, counts.get(row["id"], 0)) for row in rows]
+
+
+@router.post("/connected-folders", status_code=201)
+async def add_connected_folder(body: ConnectedFolderIn):
+    folder_path = _resolve_folder_path(body.path)
+    now = datetime.now(timezone.utc).isoformat()
+    folder_id = str(uuid.uuid4())
+    conn = database.get_connection()
+    existing = conn.execute("SELECT * FROM connected_folders WHERE path = ?", (folder_path,)).fetchone()
+    if existing:
+        conn.close()
+        return _format_folder(existing)
+    conn.execute(
+        "INSERT INTO connected_folders (id, path, enabled, last_synced_at, created_at, updated_at) VALUES (?, ?, 1, NULL, ?, ?)",
+        (folder_id, folder_path, now, now),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM connected_folders WHERE id = ?", (folder_id,)).fetchone()
+    conn.close()
+    return _format_folder(row)
+
+
+@router.delete("/connected-folders/{folder_id}")
+async def remove_connected_folder(folder_id: str):
+    conn = database.get_connection()
+    row = conn.execute("SELECT * FROM connected_folders WHERE id = ?", (folder_id,)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, detail="Connected folder not found")
+    conn.execute("DELETE FROM connected_folder_files WHERE folder_id = ?", (folder_id,))
+    conn.execute("DELETE FROM connected_folders WHERE id = ?", (folder_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@router.post("/connected-folders/{folder_id}/sync")
+async def sync_connected_folder(folder_id: str, background_tasks: BackgroundTasks):
+    max_mb = int(database.get_setting("max_file_size_mb") or 25)
+    max_bytes = max_mb * 1024 * 1024
+    conn = database.get_connection()
+    folder = conn.execute("SELECT * FROM connected_folders WHERE id = ?", (folder_id,)).fetchone()
+    if not folder:
+        conn.close()
+        raise HTTPException(404, detail="Connected folder not found")
+
+    root = Path(folder["path"])
+    if not root.exists() or not root.is_dir():
+        conn.close()
+        raise HTTPException(400, detail="Connected folder is no longer available.")
+
+    UPLOADS_DIR.mkdir(exist_ok=True)
+    now = datetime.now(timezone.utc).isoformat()
+    added = 0
+    updated = 0
+    skipped = 0
+    too_large = 0
+    unsupported = 0
+
+    for source in _iter_folder_files(root):
+        stat = source.stat()
+        if stat.st_size > max_bytes:
+            too_large += 1
+            continue
+        source_path = str(source.resolve())
+        mapping = conn.execute("SELECT * FROM connected_folder_files WHERE source_path = ?", (source_path,)).fetchone()
+        if mapping and mapping["doc_id"] and mapping["size_bytes"] == stat.st_size and float(mapping["mtime"]) == stat.st_mtime:
+            skipped += 1
+            continue
+
+        ext = source.suffix.lower()
+        doc_id = str(uuid.uuid4())
+        safe_name = f"{doc_id}{ext}"
+        dest = UPLOADS_DIR / safe_name
+        shutil.copy2(source, dest)
+
+        old_doc_id = mapping["doc_id"] if mapping else None
+        old_filename = None
+        if old_doc_id:
+            old_doc = conn.execute("SELECT filename FROM documents WHERE id = ?", (old_doc_id,)).fetchone()
+            old_filename = old_doc["filename"] if old_doc else None
+            conn.execute("DELETE FROM documents WHERE id = ?", (old_doc_id,))
+
+        conn.execute(
+            "INSERT INTO documents (id, filename, original_name, size_bytes, page_count, file_type, openai_file_id, uploaded_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (doc_id, safe_name, str(source.relative_to(root)), stat.st_size, None, ext.lstrip(".").upper(), None, now),
+        )
+        if mapping:
+            conn.execute(
+                "UPDATE connected_folder_files SET doc_id = ?, size_bytes = ?, mtime = ?, synced_at = ? WHERE id = ?",
+                (doc_id, stat.st_size, stat.st_mtime, now, mapping["id"]),
+            )
+            updated += 1
+        else:
+            conn.execute(
+                "INSERT INTO connected_folder_files (id, folder_id, source_path, doc_id, size_bytes, mtime, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), folder_id, source_path, doc_id, stat.st_size, stat.st_mtime, now),
+            )
+            added += 1
+
+        background_tasks.add_task(_ingest_background, doc_id, str(dest), source.name)
+        if old_doc_id:
+            background_tasks.add_task(_delete_background, old_doc_id)
+        if old_filename:
+            old_path = UPLOADS_DIR / old_filename
+            if old_path.exists():
+                os.remove(old_path)
+
+    conn.execute("UPDATE connected_folders SET last_synced_at = ?, updated_at = ? WHERE id = ?", (now, now, folder_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "added": added, "updated": updated, "skipped": skipped, "too_large": too_large, "unsupported": unsupported}
 
 
 @router.post("/documents/upload")
@@ -158,6 +323,7 @@ async def delete_document(doc_id: str, background_tasks: BackgroundTasks):
         conn.close()
         raise HTTPException(404, detail="Document not found")
     filename = row["filename"]
+    conn.execute("DELETE FROM connected_folder_files WHERE doc_id = ?", (doc_id,))
     conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
     conn.commit()
     conn.close()
@@ -182,6 +348,7 @@ async def _delete_background(doc_id: str):
 async def delete_all_documents(background_tasks: BackgroundTasks):
     conn = database.get_connection()
     rows = conn.execute("SELECT filename FROM documents").fetchall()
+    conn.execute("UPDATE connected_folder_files SET doc_id = NULL")
     conn.execute("DELETE FROM documents")
     conn.commit()
     conn.close()

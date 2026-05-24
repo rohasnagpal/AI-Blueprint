@@ -37,7 +37,7 @@ async def navigation(page: int = Query(default=1, ge=1), page_size: int = Query(
     rows = db.execute(
         select(Workspace, WorkspaceMember.role)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
-        .where(WorkspaceMember.user_id == user.id)
+        .where(WorkspaceMember.user_id == user.id, Workspace.deleted_at.is_(None))
         .order_by(Workspace.name)
     ).all()
     return page_response(rows, lambda row: _workspace_nav(row[0], row[1]), page=page, page_size=page_size)

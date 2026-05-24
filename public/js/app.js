@@ -1,5 +1,5 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], connectedFolders: [], chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -14,12 +14,30 @@ function showToast(msg, type = 'success') {
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init() {
-  await initV2();
-  await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadPersonas(), loadCouncils(), loadEmailMessages()]);
+  await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadConnectedFolders(), loadPersonas()]);
   updateV2AuthSidebar();
   updateChatModeUI();
   renderEmailControls();
   checkFirstRun();
+  runAfterFirstPaint(async () => {
+    await initV2();
+    updateV2AuthSidebar();
+    updateChatModeUI();
+    renderEmailControls();
+  });
+  runAfterFirstPaint(() => {
+    loadCouncils();
+    loadEmailMessages();
+  });
+}
+
+function runAfterFirstPaint(task) {
+  const run = () => Promise.resolve().then(task).catch(() => {});
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(run, {timeout: 1200});
+  } else {
+    setTimeout(run, 0);
+  }
 }
 
 // ── V2 BACKEND BRIDGE ─────────────────────────────────────────────────────
@@ -48,7 +66,7 @@ async function initV2() {
   }
 }
 
-async function refreshV2Workspace() {
+async function refreshV2Workspace(autoCreate = true) {
   try {
     const nav = await fetch('/api/v2/me/navigation');
     if (!nav.ok) {
@@ -57,7 +75,7 @@ async function refreshV2Workspace() {
     }
     const navData = await nav.json();
     let workspaces = navData.items || [];
-    if (!workspaces.length) {
+    if (autoCreate && !workspaces.length) {
       const created = await fetch('/api/v2/workspaces', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -97,11 +115,49 @@ function showV2AuthModal(mode) {
 function updateV2AuthSidebar() {
   const label = document.getElementById('v2-auth-sidebar-label');
   const avatar = document.getElementById('v2-auth-avatar');
+  const logout = document.getElementById('v2-logout-topbar');
   if (!label || !avatar) return;
   const name = App.v2.user?.display_name || App.v2.user?.username || App.v2.user?.email || '';
   label.textContent = name || (App.v2.setupRequired ? 'Set up access' : 'Sign in');
   avatar.textContent = name ? name.slice(0, 1).toUpperCase() : 'U';
+  if (logout) logout.style.display = App.v2.user ? 'flex' : 'none';
   updateAdminNav();
+}
+
+async function logoutV2() {
+  const btn = document.getElementById('v2-logout-topbar');
+  try {
+    if (btn) btn.disabled = true;
+    const r = await fetch('/api/v2/auth/logout', {method:'POST'});
+    if (!r.ok) throw new Error(await apiError(r));
+    App.v2 = {
+      ...App.v2,
+      enabled: false,
+      user: null,
+      workspaceId: null,
+      workspaces: [],
+      matters: [],
+      blueprints: [],
+      plugins: [],
+      documents: [],
+      personas: [],
+      secrets: [],
+      activeMatterId: 'all',
+      activeBlueprintId: null,
+      skipped: true
+    };
+    localStorage.setItem('aibp_v2_skip', 'true');
+    App.workspaceManager = { workspaces: [], selectedId: null, matters: [] };
+    updateV2AuthSidebar();
+    renderWorkspaceManagerSignedOut();
+    renderV2Shell();
+    await Promise.all([loadDocuments(), loadPersonas()]);
+    showToast('Logged out.');
+  } catch(e) {
+    showToast('Logout failed: ' + e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function openV2AuthFromSidebar() {
@@ -172,10 +228,313 @@ async function submitV2Auth() {
 
 function updateAdminNav() {
   const show = App.v2.user?.is_system_admin ? 'flex' : 'none';
+  const workspaceShow = App.v2.user ? 'flex' : 'none';
+  const workspaceNav = document.getElementById('settings-nav-workspaces');
   const settingsNav = document.getElementById('settings-nav-users');
   const mainNav = document.getElementById('nav-admin-users');
+  if (workspaceNav) workspaceNav.style.display = workspaceShow;
   if (settingsNav) settingsNav.style.display = show;
   if (mainNav) mainNav.style.display = show;
+}
+
+function toggleSidebarMore(event) {
+  event?.stopPropagation();
+  document.getElementById('sidebar-more-menu')?.classList.toggle('open');
+}
+
+function closeSidebarMore() {
+  document.getElementById('sidebar-more-menu')?.classList.remove('open');
+}
+
+function switchViewFromMore(name) {
+  closeSidebarMore();
+  switchView(name);
+}
+
+// ── WORKSPACE MANAGER ─────────────────────────────────────────────────────
+function workspaceApi(workspaceId, path = '') {
+  return `/api/v2/workspaces/${encodeURIComponent(workspaceId)}${path}`;
+}
+
+function workspaceManagerSelected() {
+  return App.workspaceManager.workspaces.find(w => w.id === App.workspaceManager.selectedId) || null;
+}
+
+async function loadWorkspaceManager() {
+  if (!App.v2.user) {
+    renderWorkspaceManagerSignedOut();
+    return;
+  }
+  try {
+    const r = await fetch('/api/v2/workspaces?page_size=200');
+    if (!r.ok) throw new Error(await apiError(r));
+    const data = await r.json();
+    App.workspaceManager.workspaces = data.items || [];
+    if (!App.workspaceManager.workspaces.some(w => w.id === App.workspaceManager.selectedId)) {
+      App.workspaceManager.selectedId = App.v2.workspaceId || App.workspaceManager.workspaces[0]?.id || null;
+    }
+    await loadWorkspaceManagerMatters();
+    renderWorkspaceManager();
+  } catch(e) {
+    showToast('Failed to load workspaces: ' + e.message, 'error');
+  }
+}
+
+function renderWorkspaceManagerSignedOut() {
+  const empty = '<div class="council-row"><div class="council-card-desc">Sign in to manage workspaces and matters.</div></div>';
+  const list = document.getElementById('workspace-manager-list');
+  const detail = document.getElementById('workspace-manager-detail');
+  const matters = document.getElementById('workspace-manager-matters');
+  if (list) list.innerHTML = empty;
+  if (detail) detail.innerHTML = empty;
+  if (matters) matters.innerHTML = empty;
+}
+
+function renderWorkspaceManager() {
+  renderWorkspaceManagerList();
+  renderWorkspaceManagerDetail();
+  renderWorkspaceManagerMatters();
+}
+
+function renderWorkspaceManagerList() {
+  const list = document.getElementById('workspace-manager-list');
+  if (!list) return;
+  if (!App.workspaceManager.workspaces.length) {
+    list.innerHTML = '<div class="council-row"><div class="council-card-desc">No workspaces yet.</div></div>';
+    return;
+  }
+  list.innerHTML = App.workspaceManager.workspaces.map(w => {
+    const selected = w.id === App.workspaceManager.selectedId;
+    const canAdmin = w.role === 'admin' || App.v2.user?.is_system_admin;
+    return `<div class="council-row">
+      <div class="council-row-head">
+        <div>
+          <div class="council-card-title">${selected ? '✓ ' : ''}${esc(w.name)}</div>
+          <div class="council-card-meta">${esc(w.slug || '')} · ${esc(w.role || 'member')}</div>
+        </div>
+        <span class="council-status ${canAdmin ? 'running' : 'completed'}">${esc(w.role || 'member')}</span>
+      </div>
+      <div class="council-actions">
+        <button class="btn-secondary" type="button" onclick="selectWorkspaceManagerWorkspace('${esc(w.id)}')">${selected ? 'Selected' : 'Open'}</button>
+        ${canAdmin ? `<button class="danger-btn" type="button" onclick="deleteWorkspaceManagerWorkspace('${esc(w.id)}')">Delete</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderWorkspaceManagerDetail() {
+  const selected = workspaceManagerSelected();
+  const detail = document.getElementById('workspace-manager-detail');
+  el('workspace-manager-selected-title', selected ? selected.name : 'Selected Workspace');
+  el('workspace-manager-selected-subtitle', selected ? `${selected.slug || 'no-slug'} · ${selected.role || 'member'}` : 'Select a workspace to manage its details and matters.');
+  if (!detail) return;
+  if (!selected) {
+    detail.innerHTML = '<div class="council-row"><div class="council-card-desc">Select a workspace first.</div></div>';
+    return;
+  }
+  const canAdmin = selected.role === 'admin' || App.v2.user?.is_system_admin;
+  detail.innerHTML = `<div class="council-form-row">
+      <div class="council-field"><label for="workspace-edit-name">Name</label><input class="council-input" id="workspace-edit-name" value="${esc(selected.name)}" ${canAdmin ? '' : 'disabled'}/></div>
+      <div class="council-field"><label for="workspace-edit-slug">Slug</label><input class="council-input" id="workspace-edit-slug" value="${esc(selected.slug || '')}" ${canAdmin ? '' : 'disabled'}/></div>
+    </div>
+    <div class="council-actions">
+      <button class="btn-secondary" type="button" onclick="setV2Workspace('${esc(selected.id)}')">Use in Blueprints</button>
+      ${canAdmin ? '<button class="btn-primary" type="button" onclick="updateWorkspaceManagerWorkspace()">Save Workspace</button>' : '<span class="council-card-desc">Only workspace admins can edit workspace details.</span>'}
+    </div>`;
+}
+
+async function loadWorkspaceManagerMatters() {
+  App.workspaceManager.matters = [];
+  if (!App.workspaceManager.selectedId) return;
+  const r = await fetch(workspaceApi(App.workspaceManager.selectedId, '/matters?page_size=200'));
+  if (!r.ok) throw new Error(await apiError(r));
+  const data = await r.json();
+  App.workspaceManager.matters = data.items || [];
+}
+
+function renderWorkspaceManagerMatters() {
+  const list = document.getElementById('workspace-manager-matters');
+  if (!list) return;
+  const selected = workspaceManagerSelected();
+  if (!selected) {
+    list.innerHTML = '<div class="council-row"><div class="council-card-desc">Select a workspace first.</div></div>';
+    return;
+  }
+  if (!App.workspaceManager.matters.length) {
+    list.innerHTML = '<div class="council-row"><div class="council-card-desc">No matters in this workspace yet.</div></div>';
+    return;
+  }
+  list.innerHTML = App.workspaceManager.matters.map(m => `
+    <div class="council-row">
+      <div class="council-row-head">
+        <div>
+          <div class="council-card-title">${esc(m.name)}</div>
+          <div class="council-card-meta">${esc(m.status || 'active')}${m.client_name ? ' · ' + esc(m.client_name) : ''}</div>
+        </div>
+        <span class="council-status ${esc(m.status || 'active')}">${esc(m.status || 'active')}</span>
+      </div>
+      <div class="council-form-row">
+        <div class="council-field"><label>Name</label><input class="council-input matter-edit-name" data-id="${esc(m.id)}" value="${esc(m.name)}"/></div>
+        <div class="council-field"><label>Client</label><input class="council-input matter-edit-client" data-id="${esc(m.id)}" value="${esc(m.client_name || '')}"/></div>
+      </div>
+      <div class="council-form-row">
+        <div class="council-field"><label>Status</label><select class="council-select matter-edit-status" data-id="${esc(m.id)}"><option value="active" ${m.status === 'active' ? 'selected' : ''}>Active</option><option value="paused" ${m.status === 'paused' ? 'selected' : ''}>Paused</option><option value="closed" ${m.status === 'closed' ? 'selected' : ''}>Closed</option></select></div>
+        <div class="council-field"><label>Description</label><input class="council-input matter-edit-description" data-id="${esc(m.id)}" value="${esc(m.description || '')}"/></div>
+      </div>
+      <div class="council-actions">
+        <button class="btn-primary" type="button" onclick="updateWorkspaceManagerMatter('${esc(m.id)}')">Save Matter</button>
+        <button class="btn-secondary" type="button" onclick="focusWorkspaceManagerMatter('${esc(m.id)}')">Use Filter</button>
+        <button class="danger-btn" type="button" onclick="deleteWorkspaceManagerMatter('${esc(m.id)}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+async function selectWorkspaceManagerWorkspace(workspaceId) {
+  App.workspaceManager.selectedId = workspaceId;
+  await loadWorkspaceManagerMatters();
+  renderWorkspaceManager();
+}
+
+async function createWorkspaceManagerWorkspace() {
+  const name = document.getElementById('workspace-name')?.value.trim();
+  const slug = document.getElementById('workspace-slug')?.value.trim();
+  if (!name) {
+    showToast('Workspace name is required.', 'error');
+    return;
+  }
+  try {
+    const r = await fetch('/api/v2/workspaces', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, slug: slug || null})});
+    if (!r.ok) throw new Error(await apiError(r));
+    const workspace = await r.json();
+    App.workspaceManager.selectedId = workspace.id;
+    ['workspace-name','workspace-slug'].forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
+    await refreshV2Workspace(false);
+    await loadWorkspaceManager();
+    showToast('Workspace created.');
+  } catch(e) {
+    showToast('Failed to create workspace: ' + e.message, 'error');
+  }
+}
+
+async function updateWorkspaceManagerWorkspace() {
+  const selected = workspaceManagerSelected();
+  if (!selected) return;
+  const name = document.getElementById('workspace-edit-name')?.value.trim();
+  const slug = document.getElementById('workspace-edit-slug')?.value.trim();
+  if (!name) {
+    showToast('Workspace name is required.', 'error');
+    return;
+  }
+  try {
+    const r = await fetch(workspaceApi(selected.id), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, slug: slug || null})});
+    if (!r.ok) throw new Error(await apiError(r));
+    await refreshV2Workspace();
+    await loadWorkspaceManager();
+    showToast('Workspace saved.');
+  } catch(e) {
+    showToast('Failed to save workspace: ' + e.message, 'error');
+  }
+}
+
+async function deleteWorkspaceManagerWorkspace(workspaceId) {
+  const workspace = App.workspaceManager.workspaces.find(w => w.id === workspaceId);
+  if (!workspace || !confirm(`Delete workspace "${workspace.name}"? This is a soft delete.`)) return;
+  try {
+    const r = await fetch(workspaceApi(workspaceId), {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    if (App.workspaceManager.selectedId === workspaceId) App.workspaceManager.selectedId = null;
+    await refreshV2Workspace(false);
+    await loadWorkspaceManager();
+    showToast('Workspace deleted.');
+  } catch(e) {
+    showToast('Failed to delete workspace: ' + e.message, 'error');
+  }
+}
+
+async function createWorkspaceManagerMatter() {
+  const workspaceId = App.workspaceManager.selectedId;
+  if (!workspaceId) {
+    showToast('Select a workspace first.', 'error');
+    return;
+  }
+  const payload = {
+    name: document.getElementById('matter-name')?.value.trim(),
+    client_name: document.getElementById('matter-client')?.value.trim() || null,
+    status: document.getElementById('matter-status')?.value || 'active',
+    description: document.getElementById('matter-description')?.value.trim() || null
+  };
+  if (!payload.name) {
+    showToast('Matter name is required.', 'error');
+    return;
+  }
+  try {
+    const r = await fetch(workspaceApi(workspaceId, '/matters'), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    if (!r.ok) throw new Error(await apiError(r));
+    ['matter-name','matter-client','matter-description'].forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
+    await loadWorkspaceManagerMatters();
+    if (workspaceId === App.v2.workspaceId) await loadV2ShellData();
+    renderWorkspaceManager();
+    showToast('Matter created.');
+  } catch(e) {
+    showToast('Failed to create matter: ' + e.message, 'error');
+  }
+}
+
+function matterManagerInput(selector, matterId) {
+  return document.querySelector(`${selector}[data-id="${CSS.escape(matterId)}"]`);
+}
+
+async function updateWorkspaceManagerMatter(matterId) {
+  const workspaceId = App.workspaceManager.selectedId;
+  if (!workspaceId) return;
+  const payload = {
+    name: matterManagerInput('.matter-edit-name', matterId)?.value.trim(),
+    client_name: matterManagerInput('.matter-edit-client', matterId)?.value.trim() || null,
+    status: matterManagerInput('.matter-edit-status', matterId)?.value || 'active',
+    description: matterManagerInput('.matter-edit-description', matterId)?.value.trim() || null
+  };
+  if (!payload.name) {
+    showToast('Matter name is required.', 'error');
+    return;
+  }
+  try {
+    const r = await fetch(workspaceApi(workspaceId, `/matters/${encodeURIComponent(matterId)}`), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    if (!r.ok) throw new Error(await apiError(r));
+    await loadWorkspaceManagerMatters();
+    if (workspaceId === App.v2.workspaceId) await loadV2ShellData();
+    renderWorkspaceManager();
+    showToast('Matter saved.');
+  } catch(e) {
+    showToast('Failed to save matter: ' + e.message, 'error');
+  }
+}
+
+async function deleteWorkspaceManagerMatter(matterId) {
+  const workspaceId = App.workspaceManager.selectedId;
+  const matter = App.workspaceManager.matters.find(m => m.id === matterId);
+  if (!workspaceId || !matter || !confirm(`Delete matter "${matter.name}"? Linked blueprints and documents will be unassigned from this matter.`)) return;
+  try {
+    const r = await fetch(workspaceApi(workspaceId, `/matters/${encodeURIComponent(matterId)}`), {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    await loadWorkspaceManagerMatters();
+    if (workspaceId === App.v2.workspaceId) await loadV2ShellData();
+    renderWorkspaceManager();
+    showToast('Matter deleted.');
+  } catch(e) {
+    showToast('Failed to delete matter: ' + e.message, 'error');
+  }
+}
+
+async function focusWorkspaceManagerMatter(matterId) {
+  const workspaceId = App.workspaceManager.selectedId;
+  if (!workspaceId) return;
+  if (workspaceId !== App.v2.workspaceId) {
+    await setV2Workspace(workspaceId);
+  }
+  App.v2.activeMatterId = matterId;
+  renderV2MatterOptions();
+  renderV2Blueprints();
+  showToast('Matter filter updated.');
 }
 
 function showInitialCredentialReset() {
@@ -441,6 +800,7 @@ async function loadV2Plugins() {
 async function loadV2ShellData() {
   await Promise.all([loadV2Matters(), loadV2Blueprints(), loadV2Plugins(), loadV2Documents(), loadV2Personas(), loadV2Secrets()]);
   renderV2Shell();
+  updateChatScopeControls();
 }
 
 function v2DocumentByNameAndSize(doc) {
@@ -1783,6 +2143,86 @@ async function loadDocuments() {
   } catch(e) {}
 }
 
+async function loadConnectedFolders() {
+  try {
+    const r = await fetch('/api/connected-folders');
+    if (!r.ok) throw new Error(await apiError(r));
+    App.connectedFolders = await r.json();
+    renderConnectedFolders();
+  } catch(e) {
+    App.connectedFolders = [];
+    renderConnectedFolders();
+  }
+}
+
+function renderConnectedFolders() {
+  const list = document.getElementById('connected-folders-list');
+  if (!list) return;
+  if (!App.connectedFolders.length) {
+    list.innerHTML = '<div class="connected-folder-empty">No folders connected yet.</div>';
+    return;
+  }
+  list.innerHTML = App.connectedFolders.map(folder => `
+    <div class="connected-folder-row">
+      <div class="connected-folder-main">
+        <div class="connected-folder-path" title="${esc(folder.path)}">${esc(folder.path)}</div>
+        <div class="connected-folder-meta">${folder.file_count || 0} synced file${folder.file_count === 1 ? '' : 's'}${folder.last_synced_at ? ' · Last sync ' + esc(formatDate(folder.last_synced_at)) : ''}</div>
+      </div>
+      <div class="connected-folder-actions">
+        <button class="btn-secondary" type="button" onclick="syncConnectedFolder('${esc(folder.id)}')">Sync</button>
+        <button class="danger-btn" type="button" onclick="removeConnectedFolder('${esc(folder.id)}')">Remove</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function addConnectedFolder() {
+  const input = document.getElementById('connected-folder-path');
+  const path = input?.value.trim() || '';
+  if (!path) {
+    showToast('Folder path is required.', 'error');
+    return;
+  }
+  try {
+    const r = await fetch('/api/connected-folders', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({path})
+    });
+    if (!r.ok) throw new Error(await apiError(r));
+    if (input) input.value = '';
+    await loadConnectedFolders();
+    showToast('Folder connected.');
+  } catch(e) {
+    showToast('Could not connect folder: ' + e.message, 'error');
+  }
+}
+
+async function syncConnectedFolder(folderId) {
+  try {
+    const r = await fetch(`/api/connected-folders/${encodeURIComponent(folderId)}/sync`, {method:'POST'});
+    if (!r.ok) throw new Error(await apiError(r));
+    const result = await r.json();
+    await Promise.all([loadConnectedFolders(), loadDocuments()]);
+    showToast(`Folder synced: ${result.added || 0} added, ${result.updated || 0} updated, ${result.skipped || 0} unchanged.`);
+  } catch(e) {
+    showToast('Folder sync failed: ' + e.message, 'error');
+  }
+}
+
+async function removeConnectedFolder(folderId) {
+  const folder = App.connectedFolders.find(f => f.id === folderId);
+  if (!folder || !confirm(`Remove connected folder "${folder.path}"? Existing synced documents will remain.`)) return;
+  try {
+    const r = await fetch(`/api/connected-folders/${encodeURIComponent(folderId)}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    await loadConnectedFolders();
+    showToast('Connected folder removed.');
+  } catch(e) {
+    showToast('Could not remove folder: ' + e.message, 'error');
+  }
+}
+
 // ── PERSONAS ─────────────────────────────────────────────────────────────
 async function loadPersonas() {
   try {
@@ -1867,6 +2307,9 @@ function renderPersonas() {
         <button class="doc-action-btn" onclick="showPersonaDetails('${esc(p.id)}')">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>Details
         </button>
+        ${p.is_builtin ? '' : `<button class="doc-action-btn" onclick="openPersonaEditor('${esc(p.id)}')">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit
+        </button>`}
         <button class="doc-action-btn" onclick="usePersona('${esc(p.id)}')">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg>Use
         </button>
@@ -1921,6 +2364,100 @@ function showPersonaDetails(personaId) {
 function closePersonaDetails(event) {
   if (event && event.target.id !== 'persona-detail-modal') return;
   document.getElementById('persona-detail-modal')?.classList.remove('open');
+}
+
+function openPersonaEditor(personaId = null) {
+  const persona = personaId ? App.personas.find(p => p.id === personaId) : null;
+  if (persona?.is_builtin) {
+    showToast('Built-in personas cannot be edited.', 'warning');
+    return;
+  }
+  App.editingPersonaId = persona?.id || null;
+  el('persona-editor-title', persona ? 'Edit Persona' : 'Create Persona');
+  el('persona-editor-subtitle', persona ? 'Update this custom persona for future chats.' : 'Create a reusable role, style, and instruction set.');
+  setInputValue('persona-editor-name', persona?.name || '');
+  setInputValue('persona-editor-category', persona?.category || 'Custom');
+  setInputValue('persona-editor-description', persona?.description || '');
+  setInputValue('persona-editor-system-prompt', persona?.system_prompt || '');
+  setInputValue('persona-editor-constraints', (persona?.constraints || []).join('\n'));
+  setInputValue('persona-editor-tags', (persona?.tags || []).join(', '));
+  const deleteBtn = document.getElementById('persona-editor-delete');
+  if (deleteBtn) deleteBtn.style.display = persona ? 'inline-flex' : 'none';
+  document.getElementById('persona-editor-modal')?.classList.add('open');
+}
+
+function closePersonaEditor(event) {
+  if (event && event.target.id !== 'persona-editor-modal') return;
+  document.getElementById('persona-editor-modal')?.classList.remove('open');
+}
+
+function setInputValue(id, value) {
+  const input = document.getElementById(id);
+  if (input) input.value = value;
+}
+
+function personaEditorPayload() {
+  const constraints = (document.getElementById('persona-editor-constraints')?.value || '')
+    .split('\n')
+    .map(v => v.trim())
+    .filter(Boolean);
+  const tags = (document.getElementById('persona-editor-tags')?.value || '')
+    .split(',')
+    .map(v => v.trim())
+    .filter(Boolean);
+  return {
+    name: document.getElementById('persona-editor-name')?.value.trim() || '',
+    category: document.getElementById('persona-editor-category')?.value.trim() || 'Custom',
+    description: document.getElementById('persona-editor-description')?.value.trim() || '',
+    system_prompt: document.getElementById('persona-editor-system-prompt')?.value.trim() || '',
+    constraints,
+    output_format: {},
+    tags,
+    is_enabled: true
+  };
+}
+
+async function savePersona() {
+  const payload = personaEditorPayload();
+  if (!payload.name) {
+    showToast('Persona name is required.', 'error');
+    return;
+  }
+  if (!payload.system_prompt) {
+    showToast('System prompt is required.', 'error');
+    return;
+  }
+  const personaId = App.editingPersonaId;
+  const url = personaId ? `/api/personas/${encodeURIComponent(personaId)}` : '/api/personas';
+  const method = personaId ? 'PUT' : 'POST';
+  try {
+    const r = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    if (!r.ok) throw new Error(await apiError(r));
+    const saved = await r.json();
+    App.selectedPersonaCategory = saved.category;
+    closePersonaEditor();
+    await loadPersonas();
+    showToast(personaId ? 'Persona saved.' : 'Persona created.');
+  } catch(e) {
+    showToast('Failed to save persona: ' + e.message, 'error');
+  }
+}
+
+async function deletePersonaFromEditor() {
+  const personaId = App.editingPersonaId;
+  const persona = App.personas.find(p => p.id === personaId);
+  if (!persona || persona.is_builtin) return;
+  if (!confirm(`Delete persona "${persona.name}"?`)) return;
+  try {
+    const r = await fetch(`/api/personas/${encodeURIComponent(personaId)}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    if (App.selectedPersonaId === personaId) App.selectedPersonaId = '';
+    closePersonaEditor();
+    await loadPersonas();
+    showToast('Persona deleted.');
+  } catch(e) {
+    showToast('Failed to delete persona: ' + e.message, 'error');
+  }
 }
 
 // ── EMAIL ────────────────────────────────────────────────────────────────
@@ -2132,7 +2669,7 @@ function setChatMode(mode) {
     showToast('Wait for the current response to finish before changing modes.', 'warning');
     return;
   }
-  if (mode === 'documents' && !App.documents.length) {
+  if (mode === 'documents' && !App.documents.length && !App.v2.documents.length) {
     App.chatMode = 'general';
     updateChatModeUI();
     document.getElementById('input-mode-menu')?.classList.remove('open');
@@ -2154,7 +2691,7 @@ function setChatMode(mode) {
 }
 
 function updateChatModeUI() {
-  if (App.chatMode === 'documents' && !App.documents.length) App.chatMode = 'general';
+  if (App.chatMode === 'documents' && !App.documents.length && !App.v2.documents.length) App.chatMode = 'general';
   const label = document.getElementById('input-mode-label');
   const icon = document.getElementById('input-mode-icon');
   const input = document.getElementById('chat-input');
@@ -2168,6 +2705,7 @@ function updateChatModeUI() {
   docOpt?.classList.toggle('active', App.chatMode === 'documents');
   generalOpt?.classList.toggle('active', App.chatMode === 'general');
   updateDocSelector();
+  updateChatScopeControls();
 }
 
 function updateDocSelector() {
@@ -2175,11 +2713,12 @@ function updateDocSelector() {
   const topbarLabel = document.getElementById('topbar-doc-label');
   if (!badge && !topbarLabel) return;
   if (App.chatMode === 'general') {
+    const scopeLabel = v2ChatScopeLabel();
     if (badge) {
-      badge.textContent = 'No document search';
+      badge.textContent = scopeLabel ? `${scopeLabel} · No document search` : 'No document search';
       badge.style.display = 'inline-flex';
     }
-    if (topbarLabel) topbarLabel.textContent = 'General';
+    if (topbarLabel) topbarLabel.textContent = scopeLabel || 'General';
     return;
   }
   const v2Label = v2ChatScopeLabel();
@@ -2191,8 +2730,51 @@ function updateDocSelector() {
   if (topbarLabel) topbarLabel.textContent = docText;
 }
 
+function updateChatScopeControls() {
+  const workspaceSelect = document.getElementById('chat-workspace-select');
+  const matterSelect = document.getElementById('chat-matter-select');
+  if (!workspaceSelect || !matterSelect) return;
+  const show = !!(App.v2.enabled && App.v2.workspaces.length);
+  workspaceSelect.style.display = show ? 'block' : 'none';
+  matterSelect.style.display = show ? 'block' : 'none';
+  if (!show) return;
+  workspaceSelect.innerHTML = App.v2.workspaces
+    .map(w => `<option value="${esc(w.workspace_id)}">${esc(w.workspace_name || w.name || 'Workspace')}</option>`)
+    .join('');
+  workspaceSelect.value = App.v2.workspaceId || '';
+  matterSelect.innerHTML = `<option value="all">All matters</option><option value="">No matter</option>` +
+    App.v2.matters.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+  matterSelect.value = App.v2.activeMatterId || 'all';
+}
+
+function prepareNewChatForScopeChange() {
+  if (!App.currentChatId) return;
+  const draft = document.getElementById('chat-input')?.value || '';
+  newChat();
+  const input = document.getElementById('chat-input');
+  if (input) {
+    input.value = draft;
+    autoResize(input);
+  }
+}
+
+async function setChatWorkspaceFromInput(workspaceId) {
+  if (!workspaceId || workspaceId === App.v2.workspaceId) return;
+  prepareNewChatForScopeChange();
+  await setV2Workspace(workspaceId);
+  updateChatModeUI();
+}
+
+function setChatMatterFromInput(matterId) {
+  prepareNewChatForScopeChange();
+  App.v2.activeMatterId = matterId || '';
+  App.v2.activeBlueprintId = null;
+  renderV2Shell();
+  updateChatModeUI();
+}
+
 function v2ChatScopeLabel() {
-  if (!App.v2.enabled || App.chatMode !== 'documents' || !App.v2.workspaceId) return '';
+  if (!App.v2.enabled || !App.v2.workspaceId) return '';
   const blueprint = App.v2.activeBlueprintId ? App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId) : null;
   if (blueprint) return `Blueprint: ${blueprint.name}`;
   const matterId = App.v2.activeMatterId;
@@ -2200,13 +2782,14 @@ function v2ChatScopeLabel() {
     const matter = App.v2.matters.find(m => m.id === matterId);
     return matter ? `Matter: ${matter.name}` : 'Matter documents';
   }
-  return `Workspace documents (${App.v2.documents.length})`;
+  const workspace = App.v2.workspaces.find(w => w.workspace_id === App.v2.workspaceId);
+  return workspace ? `Workspace: ${workspace.workspace_name || workspace.name}` : 'Workspace';
 }
 
 function v2ChatScopePayload() {
-  if (!App.v2.enabled || App.chatMode !== 'documents' || !App.v2.workspaceId) return {};
+  if (!App.v2.enabled || !App.v2.workspaceId) return {};
   let v2DocIds = [];
-  if (Array.isArray(App.selectedDocIds)) {
+  if (App.chatMode === 'documents' && Array.isArray(App.selectedDocIds)) {
     v2DocIds = App.selectedDocIds
       .map(id => App.documents.find(d => d.id === id))
       .map(doc => doc ? v2DocumentByNameAndSize(doc) : null)
@@ -2713,6 +3296,19 @@ function handleFiles(files) {
   }
 }
 
+function openChatUpload() {
+  if (App.isStreaming) {
+    showToast('Wait for the current response to finish before uploading.', 'warning');
+    return;
+  }
+  const input = document.getElementById('file-input');
+  if (!input) {
+    showToast('Upload control is not available.', 'error');
+    return;
+  }
+  input.click();
+}
+
 async function uploadFile(file) {
   const queueEl = document.getElementById('upload-queue-list');
   const ext = file.name.split('.').pop().toUpperCase();
@@ -2783,8 +3379,36 @@ async function ingestUrl() {
 }
 
 // ── CHAT ──────────────────────────────────────────────────────────────────
+function chatPrimaryAction() {
+  if (App.isStreaming) {
+    stopChatResponse();
+    return;
+  }
+  sendMessage();
+}
+
+function setChatStreaming(active) {
+  App.isStreaming = active;
+  const btn = document.getElementById('chat-send-btn');
+  if (!btn) return;
+  btn.title = active ? 'Stop response' : 'Send message';
+  btn.setAttribute('aria-label', active ? 'Stop response' : 'Send message');
+  btn.classList.toggle('stopping', active);
+  btn.innerHTML = active
+    ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>'
+    : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+}
+
+function stopChatResponse() {
+  if (!App.isStreaming) return;
+  App.activeChatController?.abort();
+}
+
 async function sendMessage() {
-  if (App.isStreaming) return;
+  if (App.isStreaming) {
+    stopChatResponse();
+    return;
+  }
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   if (!text) return;
@@ -2806,12 +3430,13 @@ async function sendMessage() {
   const bubble = aiEl.querySelector('.bubble');
   conv.appendChild(aiEl);
   scrollBottom();
-  App.isStreaming = true;
-  document.querySelector('.send-btn').style.opacity = '0.5';
+  const controller = new AbortController();
+  App.activeChatController = controller;
+  setChatStreaming(true);
   const statusState = startChatStatus(bubble);
-  let content = '', sources = [], hadError = false;
+  let content = '', sources = [], hadError = false, wasStopped = false;
   try {
-    const r = await fetch(`/api/chats/${App.currentChatId}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, web_search:App.webSearchEnabled})});
+    const r = await fetch(`/api/chats/${App.currentChatId}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, web_search:App.webSearchEnabled}), signal: controller.signal});
     if (!r.ok) throw new Error(await apiError(r));
     if (!r.body) throw new Error('The chat stream did not start.');
     const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
@@ -2855,12 +3480,19 @@ async function sendMessage() {
     if (!content && !hadError) bubble.textContent = 'No response was returned.';
   } catch(e) {
     stopChatStatus(statusState);
-    content = 'Stream error: ' + e.message;
-    bubble.textContent = content;
-    showToast(content, 'error');
+    if (e.name === 'AbortError') {
+      wasStopped = true;
+      if (!content) bubble.textContent = 'Response stopped.';
+      showToast('Response stopped.', 'warning');
+    } else {
+      content = 'Stream error: ' + e.message;
+      bubble.textContent = content;
+      showToast(content, 'error');
+    }
   }
-  App.isStreaming = false;
-  document.querySelector('.send-btn').style.opacity = '';
+  if (wasStopped && content) bubble.innerHTML = renderAssistantBubble(content, true);
+  App.activeChatController = null;
+  setChatStreaming(false);
   await loadChats();
 }
 
@@ -3004,6 +3636,7 @@ async function downloadChatMarkdown() {
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function slugify(s) { return String(s || 'chat').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').substring(0, 80) || 'chat'; }
 function fmtBytes(b) { if(!b)return'0 B'; if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; return(b/1048576).toFixed(1)+' MB'; }
+function formatDate(value) { try { return new Date(value).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); } catch(e) { return value || ''; } }
 function mdRender(t) {
   const codeStyle = 'background:var(--badge-bg);padding:1px 4px;border-radius:3px;font-size:.9em';
   const lines = esc(t || '').split('\n');
@@ -3076,6 +3709,7 @@ function el(id, val) { const e=document.getElementById(id); if(e) e.textContent=
 
 document.addEventListener('click', () => {
   document.getElementById('input-mode-menu')?.classList.remove('open');
+  closeSidebarMore();
 });
 
 // ── VIEW SWITCHING ────────────────────────────────────────────────────────
@@ -3088,12 +3722,18 @@ function switchView(name) {
   Object.values(NAVS).forEach(id => document.getElementById(id)?.classList.remove('active'));
   document.getElementById(VIEWS[name])?.classList.add('active');
   document.getElementById(NAVS[name])?.classList.add('active');
+  const moreViews = ['blueprints', 'email', 'add-doc', 'view-docs', 'settings', 'admin-users'];
+  document.getElementById('nav-more')?.classList.toggle('active', moreViews.includes(name));
+  document.querySelectorAll('.sidebar-more-menu button').forEach(b => b.classList.remove('active'));
+  const moreActive = document.getElementById('more-' + name) || (name === 'admin-users' ? document.getElementById('nav-admin-users') : null);
+  moreActive?.classList.add('active');
   document.getElementById('topbar-title').textContent = TITLES[name] || name;
   document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
   if (name === 'view-docs') renderDocuments();
   if (name === 'blueprints') loadV2Shell();
   if (name === 'councils') loadCouncils();
   if (name === 'personas') renderPersonas();
+  if (name === 'add-doc') renderConnectedFolders();
   if (name === 'email') { renderEmailControls(); loadEmailMessages(); }
   if (name === 'admin-users') {
     const usersNav = document.getElementById('settings-nav-users');
@@ -3111,6 +3751,7 @@ function switchSettingsTab(tab, el) {
   document.querySelectorAll('.settings-nav-item').forEach(s => s.classList.remove('active'));
   document.getElementById('stab-' + tab)?.classList.add('active');
   el.classList.add('active');
+  if (tab === 'workspaces') loadWorkspaceManager();
   if (tab === 'users') loadAdminUsers();
 }
 
@@ -3126,8 +3767,6 @@ function toggleTheme() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const newDark = !isDark;
   document.documentElement.setAttribute('data-theme', newDark ? 'dark' : 'light');
-  const label = document.querySelector('.theme-toggle');
-  if (label && label.childNodes[2]) label.childNodes[2].textContent = newDark ? ' Light mode' : ' Dark mode';
   const appTog = document.getElementById('appearance-dark-toggle');
   if (appTog) appTog.classList.toggle('on', newDark);
   saveSettings({ dark_mode: newDark ? 'true' : 'false' });
@@ -3137,8 +3776,6 @@ function toggleThemeFromSettings(el) {
   el.classList.toggle('on');
   const isDark = el.classList.contains('on');
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  const label = document.querySelector('.theme-toggle');
-  if (label && label.childNodes[2]) label.childNodes[2].textContent = isDark ? ' Light mode' : ' Dark mode';
   saveSettings({ dark_mode: isDark ? 'true' : 'false' });
 }
 
