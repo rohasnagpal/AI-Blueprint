@@ -1,5 +1,5 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], connectedFolders: [], chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], connectedFolders: [], importedFolders: JSON.parse(localStorage.getItem('aibp_imported_folders') || '[]'), chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -2156,24 +2156,94 @@ async function loadConnectedFolders() {
 }
 
 function renderConnectedFolders() {
-  const list = document.getElementById('connected-folders-list');
-  if (!list) return;
-  if (!App.connectedFolders.length) {
-    list.innerHTML = '<div class="connected-folder-empty">No folders connected yet.</div>';
-    return;
-  }
-  list.innerHTML = App.connectedFolders.map(folder => `
+  const lists = document.querySelectorAll('.connected-folders-list');
+  if (!lists.length) return;
+  const importedFolders = mergedImportedFolders();
+  const connectedRows = App.connectedFolders.map(folder => `
     <div class="connected-folder-row">
       <div class="connected-folder-main">
         <div class="connected-folder-path" title="${esc(folder.path)}">${esc(folder.path)}</div>
-        <div class="connected-folder-meta">${folder.file_count || 0} synced file${folder.file_count === 1 ? '' : 's'}${folder.last_synced_at ? ' · Last sync ' + esc(formatDate(folder.last_synced_at)) : ''}</div>
+        <div class="connected-folder-meta">${folder.file_count || 0} synced file${folder.file_count === 1 ? '' : 's'} · Connected folder${folder.last_synced_at ? ' · Last sync ' + esc(formatDate(folder.last_synced_at)) : ''}</div>
       </div>
       <div class="connected-folder-actions">
         <button class="btn-secondary" type="button" onclick="syncConnectedFolder('${esc(folder.id)}')">Sync</button>
         <button class="danger-btn" type="button" onclick="removeConnectedFolder('${esc(folder.id)}')">Remove</button>
       </div>
     </div>
-  `).join('');
+  `);
+  const importedRows = importedFolders.map(folder => `
+    <div class="connected-folder-row">
+      <div class="connected-folder-main">
+        <div class="connected-folder-path" title="${esc(folder.name)}">${esc(folder.name)}</div>
+        <div class="connected-folder-meta">${folder.file_count || 0} imported file${folder.file_count === 1 ? '' : 's'} · Browse import${folder.imported_at ? ' · Last import ' + esc(formatDate(folder.imported_at)) : ''}</div>
+      </div>
+      <div class="connected-folder-actions">
+        <button class="btn-secondary" type="button" onclick="syncImportedFolder('${esc(folder.id)}')">Sync</button>
+        <button class="danger-btn" type="button" onclick="removeImportedFolder('${esc(folder.id)}')">Remove</button>
+      </div>
+    </div>
+  `);
+  const html = connectedRows.concat(importedRows).join('') || '<div class="connected-folder-empty">No folder sources yet.</div>';
+  lists.forEach(list => { list.innerHTML = html; });
+}
+
+function mergedImportedFolders() {
+  const inferred = new Map();
+  App.documents.forEach(doc => {
+    const originalName = doc.original_name || '';
+    if (!originalName.includes('/')) return;
+    const rootName = originalName.split('/')[0];
+    if (!rootName) return;
+    const id = rootName.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+    const existing = inferred.get(id) || {id, name: rootName, file_count: 0, imported_at: doc.uploaded_at || ''};
+    existing.file_count += 1;
+    if (doc.uploaded_at && (!existing.imported_at || new Date(doc.uploaded_at) > new Date(existing.imported_at))) {
+      existing.imported_at = doc.uploaded_at;
+    }
+    inferred.set(id, existing);
+  });
+  App.importedFolders.forEach(folder => {
+    const existing = inferred.get(folder.id);
+    if (existing) {
+      inferred.set(folder.id, {...folder, file_count: Math.max(folder.file_count || 0, existing.file_count || 0)});
+    } else {
+      inferred.set(folder.id, folder);
+    }
+  });
+  return Array.from(inferred.values()).sort((a, b) => new Date(b.imported_at || 0) - new Date(a.imported_at || 0));
+}
+
+function saveImportedFolders() {
+  localStorage.setItem('aibp_imported_folders', JSON.stringify(App.importedFolders));
+}
+
+function rememberImportedFolder(files) {
+  const allowed = ['.pdf','.docx','.txt','.csv','.xlsx','.md','.json','.html','.htm'];
+  const selected = Array.from(files || []);
+  const firstRelativePath = selected.find(f => f.webkitRelativePath)?.webkitRelativePath || '';
+  const rootName = firstRelativePath.split('/')[0];
+  if (!rootName) return;
+  const fileCount = selected.filter(f => allowed.includes('.' + f.name.split('.').pop().toLowerCase())).length;
+  if (!fileCount) return;
+  const imported = {
+    id: rootName.toLowerCase().replace(/[^a-z0-9._-]+/g, '-'),
+    name: rootName,
+    file_count: fileCount,
+    imported_at: new Date().toISOString()
+  };
+  App.importedFolders = [imported, ...App.importedFolders.filter(f => f.id !== imported.id)].slice(0, 20);
+  saveImportedFolders();
+  renderConnectedFolders();
+}
+
+function removeImportedFolder(folderId) {
+  App.importedFolders = App.importedFolders.filter(f => f.id !== folderId);
+  saveImportedFolders();
+  renderConnectedFolders();
+}
+
+function syncImportedFolder(_folderId) {
+  browseConnectedFolder();
 }
 
 async function addConnectedFolder() {
@@ -2198,13 +2268,22 @@ async function addConnectedFolder() {
   }
 }
 
+async function browseConnectedFolder() {
+  const input = document.getElementById('folder-input');
+  if (!input) {
+    showToast('Folder browser is not available.', 'error');
+    return;
+  }
+  input.click();
+}
+
 async function syncConnectedFolder(folderId) {
   try {
     const r = await fetch(`/api/connected-folders/${encodeURIComponent(folderId)}/sync`, {method:'POST'});
     if (!r.ok) throw new Error(await apiError(r));
     const result = await r.json();
     await Promise.all([loadConnectedFolders(), loadDocuments()]);
-    showToast(`Folder synced: ${result.added || 0} added, ${result.updated || 0} updated, ${result.skipped || 0} unchanged.`);
+    showToast(`Folder synced: ${result.added || 0} added, ${result.updated || 0} updated, ${result.removed || 0} removed, ${result.skipped || 0} unchanged.`);
   } catch(e) {
     showToast('Folder sync failed: ' + e.message, 'error');
   }
@@ -2461,6 +2540,14 @@ async function deletePersonaFromEditor() {
 }
 
 // ── EMAIL ────────────────────────────────────────────────────────────────
+function toggleEmailSettingsAccordion(forceOpen) {
+  const card = document.getElementById('email-settings-card');
+  if (!card) return;
+  const shouldOpen = forceOpen ?? card.classList.contains('collapsed');
+  card.classList.toggle('collapsed', !shouldOpen);
+  card.querySelector('.email-accordion-trigger')?.setAttribute('aria-expanded', String(shouldOpen));
+}
+
 async function loadEmailMessages() {
   try {
     const r = await fetch('/api/email/messages');
@@ -3276,18 +3363,54 @@ async function apiError(response) {
 function initUpload() {
   const zone = document.getElementById('upload-zone');
   const input = document.getElementById('file-input');
+  const folderInput = document.getElementById('folder-input');
   if (!zone || !input) return;
   zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='var(--accent)'; });
   zone.addEventListener('dragleave', () => { zone.style.borderColor=''; });
   zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor=''; handleFiles(e.dataTransfer.files); });
   input.addEventListener('change', () => { handleFiles(input.files); input.value=''; });
+  if (folderInput) {
+    folderInput.addEventListener('change', async () => {
+      await removeStaleImportedFolderDocuments(folderInput.files);
+      rememberImportedFolder(folderInput.files);
+      handleFiles(folderInput.files);
+      folderInput.value = '';
+    });
+  }
+}
+
+function updateUploadQueueVisibility() {
+  const title = document.getElementById('upload-queue-title');
+  const list = document.getElementById('upload-queue-list');
+  if (title) title.style.display = list && list.children.length ? 'block' : 'none';
+}
+
+function folderImportRoot(files) {
+  const selected = Array.from(files || []);
+  const firstRelativePath = selected.find(f => f.webkitRelativePath)?.webkitRelativePath || '';
+  return firstRelativePath.split('/')[0] || '';
+}
+
+async function removeStaleImportedFolderDocuments(files) {
+  const rootName = folderImportRoot(files);
+  if (!rootName) return;
+  const docs = App.documents.filter(doc => (doc.original_name || '').startsWith(rootName + '/'));
+  if (!docs.length) return;
+  for (const doc of docs) {
+    try {
+      const r = await fetch(`/api/documents/${doc.id}`, {method:'DELETE'});
+      if (!r.ok) throw new Error(await apiError(r));
+      await deleteV2DocumentForLegacyDoc(doc);
+    } catch(e) {
+      showToast(`Could not remove stale folder file: ${doc.original_name || doc.id}`, 'error');
+    }
+  }
+  await loadDocuments();
 }
 
 function handleFiles(files) {
   const allowed = ['.pdf','.docx','.txt','.csv','.xlsx','.md','.json','.html','.htm'];
   const maxMb = parseInt(App.settings.max_file_size_mb || 25);
-  const title = document.getElementById('upload-queue-title');
-  if (title) title.style.display = 'block';
   for (const f of files) {
     const ext = '.' + f.name.split('.').pop().toLowerCase();
     if (!allowed.includes(ext)) { showToast(`${f.name}: File type not supported.`, 'error'); continue; }
@@ -3311,18 +3434,22 @@ function openChatUpload() {
 
 async function uploadFile(file) {
   const queueEl = document.getElementById('upload-queue-list');
+  const displayName = file.webkitRelativePath || file.name;
   const ext = file.name.split('.').pop().toUpperCase();
   const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt',JSON:'icon-txt',HTML:'icon-html',HTM:'icon-html'}[ext]||'icon-txt';
   const item = document.createElement('div');
   item.className = 'upload-item';
-  item.innerHTML = `<div class="upload-item-icon ${cls}">${ext}</div><div class="upload-item-info"><div class="upload-item-name">${esc(file.name)}</div><div class="progress-bar"><div class="progress-fill" style="width:5%"></div></div></div><div class="upload-item-size">${fmtBytes(file.size)}</div><div class="upload-item-status status-loading"></div>`;
+  item.innerHTML = `<div class="upload-item-icon ${cls}">${ext}</div><div class="upload-item-info"><div class="upload-item-name">${esc(displayName)}</div><div class="progress-bar"><div class="progress-fill" style="width:5%"></div></div></div><div class="upload-item-size">${fmtBytes(file.size)}</div><div class="upload-item-status status-loading"></div>`;
   queueEl.appendChild(item);
+  updateUploadQueueVisibility();
   const fill = item.querySelector('.progress-fill');
   const status = item.querySelector('.upload-item-status');
   let pct = 5;
   const iv = setInterval(() => { pct = Math.min(pct + Math.random() * 12, 85); fill.style.width = pct + '%'; }, 300);
   try {
-    const fd = new FormData(); fd.append('file', file);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('original_path', displayName);
     const r = await fetch('/api/documents/upload', {method:'POST', body:fd});
     clearInterval(iv);
     if (!r.ok) {
@@ -3335,7 +3462,7 @@ async function uploadFile(file) {
       fill.style.width='100%';
       status.className='upload-item-status status-done';
       status.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-      showToast(`${file.name} uploaded.`);
+      showToast(`${displayName} uploaded.`);
       await mirrorUploadToV2(file);
       await loadDocuments();
       if (!App.currentChatId && !App.isStreaming && uploaded.id) {
@@ -3345,20 +3472,22 @@ async function uploadFile(file) {
       }
     }
   } catch(e) { clearInterval(iv); showToast('Upload failed: ' + e.message, 'error'); }
-  setTimeout(() => item.remove(), 4000);
+  setTimeout(() => {
+    item.remove();
+    updateUploadQueueVisibility();
+  }, 4000);
 }
 
 async function ingestUrl() {
   const input = document.getElementById('url-ingest-input');
   const url = input?.value.trim();
   if (!url) return;
-  const title = document.getElementById('upload-queue-title');
-  if (title) title.style.display = 'block';
   const queueEl = document.getElementById('upload-queue-list');
   const item = document.createElement('div');
   item.className = 'upload-item';
   item.innerHTML = `<div class="upload-item-icon icon-html">URL</div><div class="upload-item-info"><div class="upload-item-name">${esc(url)}</div><div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div></div><div class="upload-item-size">Web</div><div class="upload-item-status status-loading"></div>`;
   queueEl.appendChild(item);
+  updateUploadQueueVisibility();
   const fill = item.querySelector('.progress-fill');
   const status = item.querySelector('.upload-item-status');
   try {
@@ -3375,7 +3504,10 @@ async function ingestUrl() {
     status.className='upload-item-status'; status.textContent='x'; status.style.color='var(--danger)';
     showToast('URL ingest failed: ' + e.message, 'error');
   }
-  setTimeout(() => item.remove(), 5000);
+  setTimeout(() => {
+    item.remove();
+    updateUploadQueueVisibility();
+  }, 5000);
 }
 
 // ── CHAT ──────────────────────────────────────────────────────────────────
@@ -3729,7 +3861,7 @@ function switchView(name) {
   moreActive?.classList.add('active');
   document.getElementById('topbar-title').textContent = TITLES[name] || name;
   document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
-  if (name === 'view-docs') renderDocuments();
+  if (name === 'view-docs') { renderDocuments(); renderConnectedFolders(); }
   if (name === 'blueprints') loadV2Shell();
   if (name === 'councils') loadCouncils();
   if (name === 'personas') renderPersonas();

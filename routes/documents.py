@@ -5,7 +5,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 
 import database
 from pydantic import BaseModel
@@ -23,6 +23,9 @@ class UrlIngest(BaseModel):
 
 class ConnectedFolderIn(BaseModel):
     path: str
+
+
+MACOS_ROOT_PATH_PREFIXES = ("Users", "Volumes", "Applications", "System", "Library", "private", "tmp")
 
 
 def _safe_index_filename(name: str) -> str:
@@ -62,14 +65,36 @@ def _format_folder(row, file_count: int = 0) -> dict:
     }
 
 
-def _resolve_folder_path(path: str) -> str:
+def _normalize_folder_path_input(path: str) -> str:
     raw = path.strip()
     if not raw:
         raise HTTPException(400, detail="Folder path is required.")
+    if Path(raw).expanduser().is_absolute():
+        return raw
+    if raw.startswith("./") or raw.startswith("../"):
+        return raw
+    first_part = raw.replace("\\", "/").split("/", 1)[0]
+    if first_part in MACOS_ROOT_PATH_PREFIXES:
+        return f"/{raw}"
+    return raw
+
+
+def _resolve_folder_path(path: str) -> str:
+    raw = _normalize_folder_path_input(path)
     resolved = Path(raw).expanduser().resolve()
     if not resolved.exists() or not resolved.is_dir():
         raise HTTPException(400, detail="Folder does not exist or is not a directory.")
     return str(resolved)
+
+
+def _safe_display_path(path: str) -> str:
+    parts = []
+    for part in path.replace("\\", "/").split("/"):
+        clean = part.strip()
+        if not clean or clean in {".", ".."}:
+            continue
+        parts.append(clean[:160])
+    return "/".join(parts)[:500]
 
 
 def _iter_folder_files(root: Path, max_files: int = 1000):
@@ -163,6 +188,8 @@ async def sync_connected_folder(folder_id: str, background_tasks: BackgroundTask
     skipped = 0
     too_large = 0
     unsupported = 0
+    removed = 0
+    seen_source_paths = set()
 
     for source in _iter_folder_files(root):
         stat = source.stat()
@@ -170,6 +197,7 @@ async def sync_connected_folder(folder_id: str, background_tasks: BackgroundTask
             too_large += 1
             continue
         source_path = str(source.resolve())
+        seen_source_paths.add(source_path)
         mapping = conn.execute("SELECT * FROM connected_folder_files WHERE source_path = ?", (source_path,)).fetchone()
         if mapping and mapping["doc_id"] and mapping["size_bytes"] == stat.st_size and float(mapping["mtime"]) == stat.st_mtime:
             skipped += 1
@@ -214,14 +242,32 @@ async def sync_connected_folder(folder_id: str, background_tasks: BackgroundTask
             if old_path.exists():
                 os.remove(old_path)
 
+    mappings = conn.execute("SELECT * FROM connected_folder_files WHERE folder_id = ?", (folder_id,)).fetchall()
+    for mapping in mappings:
+        if mapping["source_path"] in seen_source_paths:
+            continue
+        old_doc_id = mapping["doc_id"]
+        old_filename = None
+        if old_doc_id:
+            old_doc = conn.execute("SELECT filename FROM documents WHERE id = ?", (old_doc_id,)).fetchone()
+            old_filename = old_doc["filename"] if old_doc else None
+            conn.execute("DELETE FROM documents WHERE id = ?", (old_doc_id,))
+            background_tasks.add_task(_delete_background, old_doc_id)
+        conn.execute("DELETE FROM connected_folder_files WHERE id = ?", (mapping["id"],))
+        if old_filename:
+            old_path = UPLOADS_DIR / old_filename
+            if old_path.exists():
+                os.remove(old_path)
+        removed += 1
+
     conn.execute("UPDATE connected_folders SET last_synced_at = ?, updated_at = ? WHERE id = ?", (now, now, folder_id))
     conn.commit()
     conn.close()
-    return {"ok": True, "added": added, "updated": updated, "skipped": skipped, "too_large": too_large, "unsupported": unsupported}
+    return {"ok": True, "added": added, "updated": updated, "removed": removed, "skipped": skipped, "too_large": too_large, "unsupported": unsupported}
 
 
 @router.post("/documents/upload")
-async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...), original_path: str = Form("")):
     max_mb = int(database.get_setting("max_file_size_mb") or 25)
     ext = Path(file.filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
@@ -243,18 +289,19 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
             out.write(chunk)
 
     now = datetime.now(timezone.utc).isoformat()
+    display_name = _safe_display_path(original_path) or file.filename
     conn = database.get_connection()
     conn.execute(
         "INSERT INTO documents (id, filename, original_name, size_bytes, page_count, file_type, openai_file_id, uploaded_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (doc_id, safe_name, file.filename, size_bytes, None, ext.lstrip(".").upper(), None, now),
+        (doc_id, safe_name, display_name, size_bytes, None, ext.lstrip(".").upper(), None, now),
     )
     conn.commit()
     conn.close()
 
-    background_tasks.add_task(_ingest_background, doc_id, str(dest), file.filename)
+    background_tasks.add_task(_ingest_background, doc_id, str(dest), display_name)
 
-    return {"id": doc_id, "original_name": file.filename, "size_bytes": size_bytes, "status": "processing"}
+    return {"id": doc_id, "original_name": display_name, "size_bytes": size_bytes, "status": "processing"}
 
 
 @router.post("/web/ingest-url")

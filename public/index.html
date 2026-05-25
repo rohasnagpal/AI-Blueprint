@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AI Blueprint by Rohas Nagpal</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/app.css?v=20260524-personas-v1"/>
+<link rel="stylesheet" href="/css/app.css?v=20260525-email-settings-accordion-v1"/>
 
 </head>
 <body>
@@ -471,11 +471,14 @@
         <p>Import unread email, draft replies with a selected persona and document scope, then review before sending.</p>
       </div>
 
-      <div class="settings-card" style="max-width:980px;margin:0 auto 18px">
-        <div class="settings-card-header">
+      <div class="settings-card email-settings-card collapsed" id="email-settings-card" style="max-width:980px;margin:0 auto 18px">
+        <button class="settings-card-header email-accordion-trigger" type="button" onclick="toggleEmailSettingsAccordion()" aria-expanded="false" aria-controls="email-settings-body">
           <div><div class="settings-card-title">Email Settings</div><div class="settings-card-subtitle">DreamHost IMAP for incoming mail and SMTP2GO for outgoing mail.</div></div>
-        </div>
-        <div class="email-form">
+          <span class="email-accordion-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+        </button>
+        <div class="email-form" id="email-settings-body">
           <div class="email-grid">
             <div class="email-field"><label>IMAP host</label><input class="council-input" id="email-imap-host" placeholder="imap.dreamhost.com"/></div>
             <div class="email-field"><label>IMAP port</label><input class="council-input" id="email-imap-port" placeholder="993"/></div>
@@ -557,11 +560,13 @@
         <div class="connected-folders-head">
           <div>
             <div class="settings-card-title">Connected Folders</div>
-            <div class="settings-card-subtitle">Sync supported files from a local folder into your document library.</div>
+            <div class="settings-card-subtitle">Browse a folder to import files, or enter a local path for repeat sync.</div>
           </div>
         </div>
         <div class="connected-folder-add">
+          <input type="file" id="folder-input" style="display:none" webkitdirectory directory multiple/>
           <input id="connected-folder-path" type="text" placeholder="/Users/you/Documents/Matter Folder"/>
+          <button type="button" onclick="browseConnectedFolder()">Browse</button>
           <button type="button" onclick="addConnectedFolder()">Connect Folder</button>
         </div>
         <div class="connected-folders-list" id="connected-folders-list"></div>
@@ -587,6 +592,16 @@
         <div class="stat-pill"><strong id="stat-docs-count">0</strong> documents</div>
         <div class="stat-pill"><strong id="stat-total-size">0 B</strong> total size</div>
         <div class="stat-pill"><strong id="stat-file-types">0</strong> file types</div>
+      </div>
+
+      <div class="connected-folders-panel docs-folder-sources">
+        <div class="connected-folders-head">
+          <div>
+            <div class="settings-card-title">Folder Sources</div>
+            <div class="settings-card-subtitle">Folders connected for repeat sync and folders imported through Browse.</div>
+          </div>
+        </div>
+        <div class="connected-folders-list"></div>
       </div>
 
       <div class="docs-toolbar">
@@ -1808,6 +1823,6 @@
 <div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
 
-<script src="/js/app.js?v=20260524-personas-v1"></script>
+<script src="/js/app.js?v=20260525-email-settings-accordion-v1"></script>
 </body>
 </html>

@@ -1203,12 +1203,13 @@
 
   .connected-folder-add {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 12px;
   }
 
   .connected-folder-add input {
-    flex: 1;
+    flex: 1 1 280px;
     min-width: 0;
     background: var(--surface);
     border: 1px solid var(--input-border);
@@ -1221,6 +1222,7 @@
 
   .connected-folder-add button {
     flex-shrink: 0;
+    min-height: 40px;
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--text);
@@ -1777,6 +1779,47 @@
     font: inherit;
     font-size: 12px;
     padding: 0 0 0 3px;
+  }
+
+  .email-accordion-trigger {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+  }
+
+  .email-accordion-icon {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: transform var(--transition), color var(--transition), border-color var(--transition);
+  }
+
+  .email-accordion-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .email-accordion-trigger:hover .email-accordion-icon {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .email-settings-card.collapsed .email-form {
+    display: none;
+  }
+
+  .email-settings-card:not(.collapsed) .email-accordion-icon {
+    transform: rotate(180deg);
   }
 
   .email-form {
