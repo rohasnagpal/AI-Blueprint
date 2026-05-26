@@ -2200,6 +2200,24 @@
 
   .settings-row-control { flex-shrink: 0; }
 
+  .settings-warning {
+    max-width: 320px;
+    margin-top: 7px;
+    border: 1px solid #facc15;
+    border-radius: var(--radius-sm);
+    background: #fef9c3;
+    color: #854d0e;
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 8px 10px;
+  }
+
+  [data-theme="dark"] .settings-warning {
+    background: #2f2708;
+    border-color: #a16207;
+    color: #fde68a;
+  }
+
   .settings-card-actions {
     display: flex;
     justify-content: flex-end;

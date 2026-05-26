@@ -654,6 +654,20 @@ async def _stream_general(message: str, settings: dict, persona: dict | None, we
             return
         async for token in _stream_openrouter_chat(openrouter_key, system_prompt, message, model, temperature, max_tokens):
             yield token
+    elif llm_provider == "gemini":
+        gemini_key = settings.get("gemini_api_key", "")
+        if not gemini_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Google Gemini API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_gemini(gemini_key, system_prompt, message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "xai":
+        xai_key = settings.get("xai_api_key", "")
+        if not xai_key:
+            yield f'data: {json.dumps({"type": "error", "content": "xAI API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_xai_chat(xai_key, system_prompt, message, model, temperature, max_tokens):
+            yield token
     else:
         openai_key = settings.get("openai_api_key", "")
         if not openai_key:
@@ -775,6 +789,20 @@ async def _stream_v2_documents(message: str, settings: dict, scope: dict, person
             yield f'data: {json.dumps({"type": "error", "content": "OpenRouter API key not configured. Go to Settings -> API Keys."})}\n\n'
             return
         async for token in _stream_openrouter_chat(openrouter_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "gemini":
+        gemini_key = settings.get("gemini_api_key", "")
+        if not gemini_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Google Gemini API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_gemini(gemini_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "xai":
+        xai_key = settings.get("xai_api_key", "")
+        if not xai_key:
+            yield f'data: {json.dumps({"type": "error", "content": "xAI API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_xai_chat(xai_key, system_prompt, full_message, model, temperature, max_tokens):
             yield token
     else:
         openai_key = settings.get("openai_api_key", "")
@@ -1067,6 +1095,20 @@ async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None,
             return
         async for token in _stream_openrouter_chat(openrouter_key, system_prompt, full_message, model, temperature, max_tokens):
             yield token
+    elif llm_provider == "gemini":
+        gemini_key = settings.get("gemini_api_key", "")
+        if not gemini_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Google Gemini API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_gemini(gemini_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "xai":
+        xai_key = settings.get("xai_api_key", "")
+        if not xai_key:
+            yield f'data: {json.dumps({"type": "error", "content": "xAI API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_xai_chat(xai_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
     else:
         openai_key = settings.get("openai_api_key", "")
         if not openai_key:
@@ -1131,6 +1173,62 @@ async def _stream_openrouter_chat(
         },
     ):
         yield token
+
+
+async def _stream_xai_chat(
+    key: str, system: str, user: str, model: str, temperature: float, max_tokens: int
+) -> AsyncGenerator[str, None]:
+    async for token in _stream_openai_chat(
+        key,
+        system,
+        user,
+        model or "grok-4.3",
+        temperature,
+        max_tokens,
+        base_url="https://api.x.ai/v1",
+    ):
+        yield token
+
+
+async def _stream_gemini(
+    key: str, system: str, user: str, model: str, temperature: float, max_tokens: int
+) -> AsyncGenerator[str, None]:
+    import httpx
+
+    gemini_model = model or "gemini-2.5-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:streamGenerateContent"
+    payload = {
+        "system_instruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "user", "parts": [{"text": user}]}],
+        "generationConfig": {
+            "temperature": temperature,
+            "maxOutputTokens": max_tokens,
+        },
+    }
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST",
+                url,
+                params={"alt": "sse"},
+                headers={"content-type": "application/json", "x-goog-api-key": key},
+                json=payload,
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    try:
+                        data = json.loads(line[6:])
+                    except Exception:
+                        continue
+                    for candidate in data.get("candidates", []):
+                        for part in candidate.get("content", {}).get("parts", []):
+                            text = part.get("text", "")
+                            if text:
+                                yield f'data: {json.dumps({"type": "token", "content": text})}\n\n'
+    except Exception as e:
+        yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
 
 
 def _uses_reasoning_chat_params(model: str) -> bool:

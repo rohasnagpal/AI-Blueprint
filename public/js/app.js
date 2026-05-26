@@ -1472,8 +1472,9 @@ function populateSettingsUI() {
   const tog = (id, on) => { const el = document.getElementById(id); if (el) { el.classList.toggle('on', !!on); } };
   const chatProvider = document.getElementById('sel-chat-provider');
   if (chatProvider) chatProvider.value = s.local_llm_provider || 'openai';
-  renderChatModelOptions();
   set('sel-chat-model', s.chat_model);
+  renderChatProviderOptions();
+  renderChatModelOptions();
   set('sel-max-tokens', s.max_tokens);
   set('sel-embedding-provider', s.embedding_provider || 'openai');
   set('sel-embedding-model', s.embedding_model);
@@ -1562,15 +1563,46 @@ function providerLabel(provider) {
   return labels[provider] || provider;
 }
 
+function providerKeyField(provider) {
+  const fields = {
+    openai: 'openai_api_key',
+    openrouter: 'openrouter_api_key',
+    anthropic: 'anthropic_api_key',
+    groq: 'groq_api_key',
+    gemini: 'gemini_api_key',
+    mistral: 'mistral_api_key',
+    cohere: 'cohere_api_key',
+    xai: 'xai_api_key',
+    cloudflare: 'cloudflare_api_key',
+    together: 'together_api_key',
+    ollama: 'ollama_api_key'
+  };
+  return fields[provider] || '';
+}
+
+function providerNeedsApiKey(provider) {
+  if (provider === 'ollama') {
+    const baseUrl = (App.settings.ollama_base_url || 'http://localhost:11434').trim();
+    return !['http://localhost:11434', 'http://127.0.0.1:11434'].includes(baseUrl);
+  }
+  return !!providerKeyField(provider);
+}
+
+function providerHasApiKey(provider) {
+  if (!providerNeedsApiKey(provider)) return true;
+  const field = providerKeyField(provider);
+  return !!(field && App.settings[field] && App.settings[field] !== '');
+}
+
 function runnableModelProviders() {
-  const supported = ['openai', 'openrouter', 'anthropic', 'groq', 'ollama'];
+  const supported = ['openai', 'openrouter', 'anthropic', 'groq', 'ollama', 'gemini', 'xai'];
   const providers = modelProviders().filter(p => supported.includes(p));
-  return providers.length ? providers : ['openai', 'groq', 'ollama'];
+  return providers;
 }
 
 function modelProviders() {
-  const providers = [...new Set(App.models.map(m => m.provider))];
-  return providers.length ? providers : ['openai', 'groq', 'ollama'];
+  const providers = [...new Set(App.models.filter(m => m.enabled).map(m => m.provider))];
+  return providers;
 }
 
 function enabledModels(provider) {
@@ -1582,8 +1614,15 @@ function renderChatProviderOptions() {
   if (!sel) return;
   const current = sel.value || App.settings.local_llm_provider || 'openai';
   const providers = runnableModelProviders();
+  if (!providers.length) {
+    sel.innerHTML = '<option value="">No enabled runnable models</option>';
+    sel.value = '';
+    updateChatProviderKeyWarning();
+    return;
+  }
   sel.innerHTML = providers.map(p => `<option value="${esc(p)}">${esc(providerLabel(p))}</option>`).join('');
   sel.value = providers.includes(current) ? current : (providers[0] || 'openai');
+  updateChatProviderKeyWarning();
 }
 
 function renderChatModelOptions() {
@@ -1595,6 +1634,25 @@ function renderChatModelOptions() {
   sel.innerHTML = models.map(m => `<option value="${esc(m.model_id)}">${esc(m.display_name)} (${esc(m.model_id)})</option>`).join('');
   if (models.some(m => m.model_id === current)) sel.value = current;
   else if (App.settings.chat_model && models.some(m => m.model_id === App.settings.chat_model)) sel.value = App.settings.chat_model;
+  updateChatProviderKeyWarning();
+}
+
+function updateChatProviderKeyWarning() {
+  const warning = document.getElementById('chat-provider-key-warning');
+  const provider = document.getElementById('sel-chat-provider')?.value || '';
+  if (!warning) return;
+  if (!provider) {
+    warning.textContent = '';
+    warning.hidden = true;
+    return;
+  }
+  if (!providerHasApiKey(provider)) {
+    warning.textContent = `${providerLabel(provider)} is selected, but its API key is not saved. Add the key in API Keys before using this provider.`;
+    warning.hidden = false;
+  } else {
+    warning.textContent = '';
+    warning.hidden = true;
+  }
 }
 
 function providerOptions(selected) {
@@ -1745,6 +1803,11 @@ function saveChatModelSettings() {
   const m = document.getElementById('sel-chat-model')?.value;
   const t = document.getElementById('sel-max-tokens')?.value;
   const temp = document.getElementById('sl-temperature')?.value;
+  if (p && !providerHasApiKey(p)) {
+    showToast(`${providerLabel(p)} needs an API key before it can be saved as the chat provider.`, 'error');
+    updateChatProviderKeyWarning();
+    return;
+  }
   const s = {};
   if (p) s.local_llm_provider = p;
   if (m) s.chat_model = m;
@@ -1769,6 +1832,11 @@ function saveModelSettings() {
   const temp = document.getElementById('sl-temperature')?.value;
   const ep = document.getElementById('sel-embedding-provider')?.value;
   const em = document.getElementById('sel-embedding-model')?.value;
+  if (p && !providerHasApiKey(p)) {
+    showToast(`${providerLabel(p)} needs an API key before it can be saved as the chat provider.`, 'error');
+    updateChatProviderKeyWarning();
+    return;
+  }
   const s = {};
   if (p) s.local_llm_provider = p;
   if (m) s.chat_model = m;

@@ -22,6 +22,10 @@ def configured_llm_provider(settings: dict) -> str | None:
         return provider
     if provider == "openrouter" and settings.get("openrouter_api_key"):
         return provider
+    if provider == "gemini" and settings.get("gemini_api_key"):
+        return provider
+    if provider == "xai" and settings.get("xai_api_key"):
+        return provider
     if provider == "ollama":
         return provider
     return None
@@ -40,6 +44,10 @@ def complete_with_configured_llm(settings: dict, system: str, user: str, *, mode
         return run_async(legacy_councils._complete_groq(settings.get("groq_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "openrouter":
         return run_async(legacy_councils._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model_id, temperature, max_tokens))
+    if provider == "gemini":
+        return run_async(legacy_councils._complete_gemini(settings.get("gemini_api_key", ""), system, user, model_id, temperature, max_tokens))
+    if provider == "xai":
+        return run_async(legacy_councils._complete_xai(settings.get("xai_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "ollama":
         return run_async(legacy_councils._complete_ollama(system, user, model_id, temperature, max_tokens, settings))
     return None
@@ -63,6 +71,10 @@ async def complete_async(
         return await legacy_councils._complete_ollama(system, user, model, temperature, max_tokens, settings)
     if provider == "openrouter":
         return await legacy_councils._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model, temperature, max_tokens)
+    if provider == "gemini":
+        return await legacy_councils._complete_gemini(settings.get("gemini_api_key", ""), system, user, model, temperature, max_tokens)
+    if provider == "xai":
+        return await legacy_councils._complete_xai(settings.get("xai_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "openai_file_search":
         return await legacy_councils._complete_openai_file_search(
             settings.get("openai_api_key", ""),

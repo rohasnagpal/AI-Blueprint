@@ -447,6 +447,10 @@ async def _run_agent(
         content = await _complete_ollama(system, user, model, temperature, max_tokens, settings)
     elif provider == "openrouter":
         content = await _complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model, temperature, max_tokens)
+    elif provider == "gemini":
+        content = await _complete_gemini(settings.get("gemini_api_key", ""), system, user, model, temperature, max_tokens)
+    elif provider == "xai":
+        content = await _complete_xai(settings.get("xai_api_key", ""), system, user, model, temperature, max_tokens)
     elif provider == "openai" and settings.get("rag_provider") == "openai" and settings.get("vector_store_id"):
         content = await _complete_openai_file_search(settings.get("openai_api_key", ""), settings["vector_store_id"], system, user, model, temperature, max_tokens)
     else:
@@ -588,6 +592,45 @@ async def _complete_openrouter(key: str, system: str, user: str, model: str, tem
     )
     response = await client.chat.completions.create(**_chat_completion_args(model or "openrouter/auto", system, user, temperature, max_tokens))
     return response.choices[0].message.content or ""
+
+
+async def _complete_xai(key: str, system: str, user: str, model: str, temperature: float, max_tokens: int) -> str:
+    if not key:
+        raise RuntimeError("xAI API key not configured. Go to Settings -> API Keys.")
+    import openai
+
+    client = openai.AsyncOpenAI(api_key=key, base_url="https://api.x.ai/v1")
+    response = await client.chat.completions.create(**_chat_completion_args(model or "grok-4.3", system, user, temperature, max_tokens))
+    return response.choices[0].message.content or ""
+
+
+async def _complete_gemini(key: str, system: str, user: str, model: str, temperature: float, max_tokens: int) -> str:
+    if not key:
+        raise RuntimeError("Google Gemini API key not configured. Go to Settings -> API Keys.")
+    import httpx
+
+    gemini_model = model or "gemini-2.5-flash"
+    async with httpx.AsyncClient(timeout=180) as client:
+        response = await client.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent",
+            headers={"content-type": "application/json", "x-goog-api-key": key},
+            json={
+                "system_instruction": {"parts": [{"text": system}]},
+                "contents": [{"role": "user", "parts": [{"text": user}]}],
+                "generationConfig": {
+                    "temperature": temperature,
+                    "maxOutputTokens": max_tokens,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+    parts = []
+    for candidate in data.get("candidates", []):
+        for part in candidate.get("content", {}).get("parts", []):
+            if part.get("text"):
+                parts.append(part["text"])
+    return "".join(parts)
 
 
 def _uses_reasoning_chat_params(model: str) -> bool:
