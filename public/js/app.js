@@ -15,6 +15,7 @@ function showToast(msg, type = 'success') {
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init() {
   await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadConnectedFolders(), loadPersonas()]);
+  restoreSavedView();
   updateV2AuthSidebar();
   updateChatModeUI();
   renderEmailControls();
@@ -220,7 +221,10 @@ async function submitV2Auth() {
     updateV2AuthSidebar();
     showToast('Multi-user access enabled.');
   } catch(e) {
-    if (error) { error.textContent = e.message; error.style.display = 'block'; }
+    const message = e instanceof TypeError && e.message === 'Failed to fetch'
+      ? 'Cannot reach AI Blueprint server. Start the app with python main.py and open http://127.0.0.1:8000.'
+      : e.message;
+    if (error) { error.textContent = message; error.style.display = 'block'; }
   } finally {
     if (submit) submit.disabled = false;
   }
@@ -664,7 +668,7 @@ function renderAdminUsers() {
           <input class="council-input admin-user-username" data-id="${esc(user.id)}" value="${esc(user.username || '')}" placeholder="Username"/>
           <input class="council-input admin-user-display" data-id="${esc(user.id)}" value="${esc(user.display_name || '')}" placeholder="Display name"/>
           <input class="council-input admin-user-email" data-id="${esc(user.id)}" value="${esc(user.email || '')}" placeholder="Email"/>
-          <input class="council-input admin-user-password" data-id="${esc(user.id)}" type="password" placeholder="New password"/>
+          <input class="council-input admin-user-password" data-id="${esc(user.id)}" type="password" value="" placeholder="New password" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')"/>
         </div>
         <div class="admin-user-memberships">${memberships}</div>
         <div class="council-form-row">
@@ -924,11 +928,11 @@ function renderV2MatterOptions() {
   const blueprintMatter = document.getElementById('v2-blueprint-matter');
   const options = App.v2.matters.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
   if (filter) {
-    filter.innerHTML = `<option value="all">All matters</option><option value="">No matter</option>${options}`;
-    filter.value = App.v2.activeMatterId || 'all';
+    filter.innerHTML = `<option value="all">All matters</option>${options}`;
+    filter.value = App.v2.activeMatterId && App.v2.activeMatterId !== '' ? App.v2.activeMatterId : 'all';
   }
   if (blueprintMatter) {
-    blueprintMatter.innerHTML = `<option value="">No matter</option>${options}`;
+    blueprintMatter.innerHTML = options;
     const active = App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : '';
     blueprintMatter.value = active;
   }
@@ -980,11 +984,12 @@ function renderV2Blueprints() {
   }
   list.innerHTML = rows.map(b => {
     const matter = App.v2.matters.find(m => m.id === b.matter_id);
+    const metaParts = [v2PluginLabel(b.plugin_id), matter?.name, b.role || 'member'].filter(Boolean);
     return `<div class="council-row">
       <div class="council-row-head">
         <div>
           <div class="council-card-title">${esc(b.name)}</div>
-          <div class="council-card-meta">${esc(v2PluginLabel(b.plugin_id))} · ${esc(matter?.name || 'No matter')} · ${esc(b.role || 'member')}</div>
+          <div class="council-card-meta">${esc(metaParts.join(' · '))}</div>
         </div>
         <span class="council-status ${esc(b.status || 'active')}">${esc(b.status || 'active')}</span>
       </div>
@@ -1100,29 +1105,31 @@ function renderV2PluginWorkspace() {
       <div><div class="settings-card-title">${esc(blueprint.name)}</div><div class="settings-card-subtitle">${esc(v2PluginLabel(blueprint.plugin_id))}${matter ? ' · ' + esc(matter.name) : ''}</div></div>
       <button class="btn-secondary" type="button" onclick="openV2BlueprintChat('${esc(blueprint.id)}')">Chat</button>
     </div>
-    <div class="settings-section-desc">Plugin config</div>
-    <div class="council-field"><textarea class="council-textarea" id="v2-plugin-config-json" style="min-height:150px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(JSON.stringify(config, null, 2))}</textarea></div>
-    <div class="council-actions">
-      <button class="btn-secondary" type="button" onclick="saveV2PluginConfig()">Save Config</button>
-      <button class="btn-secondary" type="button" onclick="loadV2PluginData()">Refresh</button>
-    </div>
-    <div class="settings-section-desc" style="margin-top:14px">New run</div>
-    ${v2PluginRunFields(blueprint)}
-    <div class="council-actions"><button class="btn-primary" type="button" onclick="runV2Plugin()">Run ${esc(v2PluginLabel(blueprint.plugin_id))}</button></div>
-    <div class="settings-section-desc" style="margin-top:14px">Runs</div>
-    <div class="council-list">
-      ${runs.length ? runs.map(run => `<div class="council-row">
-        <div class="council-row-head">
-          <div><div class="council-card-title">${esc(run.title || 'Run')}</div><div class="council-card-meta">${esc(new Date(run.created_at).toLocaleString())}</div></div>
-          <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
+    <div class="council-form v2-plugin-workspace-body">
+      <div class="settings-section-desc">Plugin config</div>
+      <div class="council-field"><textarea class="council-textarea" id="v2-plugin-config-json">${esc(JSON.stringify(config, null, 2))}</textarea></div>
+      <div class="council-actions">
+        <button class="btn-secondary" type="button" onclick="saveV2PluginConfig()">Save Config</button>
+        <button class="btn-secondary" type="button" onclick="loadV2PluginData()">Refresh</button>
+      </div>
+      <div class="settings-section-desc">New run</div>
+      ${v2PluginRunFields(blueprint)}
+      <div class="council-actions"><button class="btn-primary" type="button" onclick="runV2Plugin()">Run ${esc(v2PluginLabel(blueprint.plugin_id))}</button></div>
+      <div class="settings-section-desc">Runs</div>
+      <div class="council-list">
+        ${runs.length ? runs.map(run => `<div class="council-row">
+          <div class="council-row-head">
+            <div><div class="council-card-title">${esc(run.title || 'Run')}</div><div class="council-card-meta">${esc(new Date(run.created_at).toLocaleString())}</div></div>
+            <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
+          </div>
+          ${renderV2RunProgress(run)}
+          ${run.error ? `<div class="council-card-desc" style="color:var(--danger)">${esc(run.error)}</div>` : ''}
+          <div class="council-actions">
+            ${renderV2RunActions(blueprint, run)}
+          </div>
+        </div>`).join('') : '<div class="council-row"><div class="council-card-desc">No runs yet.</div></div>'}
+      </div>
         </div>
-        ${renderV2RunProgress(run)}
-        ${run.error ? `<div class="council-card-desc" style="color:var(--danger)">${esc(run.error)}</div>` : ''}
-        <div class="council-actions">
-          ${renderV2RunActions(blueprint, run)}
-        </div>
-      </div>`).join('') : '<div class="council-row"><div class="council-card-desc">No runs yet.</div></div>'}
-    </div>
   `;
 }
 
@@ -2175,10 +2182,10 @@ function renderConnectedFolders() {
     <div class="connected-folder-row">
       <div class="connected-folder-main">
         <div class="connected-folder-path" title="${esc(folder.name)}">${esc(folder.name)}</div>
-        <div class="connected-folder-meta">${folder.file_count || 0} imported file${folder.file_count === 1 ? '' : 's'} · Browse import${folder.imported_at ? ' · Last import ' + esc(formatDate(folder.imported_at)) : ''}</div>
+        <div class="connected-folder-meta">${folder.file_count || 0} imported file${folder.file_count === 1 ? '' : 's'} · One-time browse import${folder.imported_at ? ' · Last import ' + esc(formatDate(folder.imported_at)) : ''}</div>
       </div>
       <div class="connected-folder-actions">
-        <button class="btn-secondary" type="button" onclick="syncImportedFolder('${esc(folder.id)}')">Sync</button>
+        <button class="btn-secondary" type="button" onclick="reimportFolderSource('${esc(folder.id)}')">Re-import</button>
         <button class="danger-btn" type="button" onclick="removeImportedFolder('${esc(folder.id)}')">Remove</button>
       </div>
     </div>
@@ -2236,13 +2243,30 @@ function rememberImportedFolder(files) {
   renderConnectedFolders();
 }
 
-function removeImportedFolder(folderId) {
-  App.importedFolders = App.importedFolders.filter(f => f.id !== folderId);
-  saveImportedFolders();
-  renderConnectedFolders();
+async function removeImportedFolder(folderId) {
+  const folder = mergedImportedFolders().find(f => f.id === folderId);
+  if (!folder || !confirm(`Remove imported folder "${folder.name}" and its imported documents?`)) return;
+  const prefix = `${folder.name}/`;
+  const docs = App.documents.filter(doc => (doc.original_name || '').startsWith(prefix));
+  try {
+    for (const doc of docs) {
+      const r = await fetch(`/api/documents/${encodeURIComponent(doc.id)}`, {method:'DELETE'});
+      if (!r.ok) throw new Error(await apiError(r));
+      await deleteV2DocumentForLegacyDoc(doc);
+    }
+    App.importedFolders = App.importedFolders.filter(f => f.id !== folderId);
+    saveImportedFolders();
+    await loadDocuments();
+    renderConnectedFolders();
+    showToast(`Imported folder removed${docs.length ? `: ${docs.length} document${docs.length === 1 ? '' : 's'} deleted.` : '.'}`);
+  } catch(e) {
+    showToast('Could not remove imported folder: ' + e.message, 'error');
+  }
 }
 
-function syncImportedFolder(_folderId) {
+function reimportFolderSource(folderId) {
+  const folder = mergedImportedFolders().find(f => f.id === folderId);
+  showToast(folder ? `Select "${folder.name}" again to re-import it.` : 'Select the folder again to re-import it.');
   browseConnectedFolder();
 }
 
@@ -2829,9 +2853,9 @@ function updateChatScopeControls() {
     .map(w => `<option value="${esc(w.workspace_id)}">${esc(w.workspace_name || w.name || 'Workspace')}</option>`)
     .join('');
   workspaceSelect.value = App.v2.workspaceId || '';
-  matterSelect.innerHTML = `<option value="all">All matters</option><option value="">No matter</option>` +
+  matterSelect.innerHTML = `<option value="all">All matters</option>` +
     App.v2.matters.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
-  matterSelect.value = App.v2.activeMatterId || 'all';
+  matterSelect.value = App.v2.activeMatterId && App.v2.activeMatterId !== '' ? App.v2.activeMatterId : 'all';
 }
 
 function prepareNewChatForScopeChange() {
@@ -3848,8 +3872,11 @@ document.addEventListener('click', () => {
 const VIEWS = {chat:'view-chat',blueprints:'view-blueprints',councils:'view-councils',personas:'view-personas',email:'view-email','add-doc':'view-add-doc','view-docs':'view-view-docs',settings:'view-settings','admin-users':'view-settings'};
 const NAVS = {chat:'nav-chat',blueprints:'nav-blueprints',councils:'nav-councils',personas:'nav-personas',email:'nav-email','add-doc':'nav-add-doc','view-docs':'nav-view-docs',settings:'nav-settings','admin-users':'nav-admin-users'};
 const TITLES = {chat:'Chat',blueprints:'Blueprints',councils:'Councils',personas:'Personas',email:'Email','add-doc':'Add Document','view-docs':'View Documents',settings:'Settings','admin-users':'Admin Users'};
+const LAST_VIEW_KEY = 'aibp_last_view';
 
 function switchView(name) {
+  if (!VIEWS[name]) name = 'chat';
+  localStorage.setItem(LAST_VIEW_KEY, name);
   Object.values(VIEWS).forEach(id => document.getElementById(id)?.classList.remove('active'));
   Object.values(NAVS).forEach(id => document.getElementById(id)?.classList.remove('active'));
   document.getElementById(VIEWS[name])?.classList.add('active');
@@ -3875,6 +3902,11 @@ function switchView(name) {
     document.getElementById('welcome-screen').style.display = 'flex';
     document.getElementById('chat-conversation').style.display = 'none';
   }
+}
+
+function restoreSavedView() {
+  const saved = localStorage.getItem(LAST_VIEW_KEY);
+  if (saved && VIEWS[saved]) switchView(saved);
 }
 
 // ── SETTINGS TABS ─────────────────────────────────────────────────────────

@@ -1723,6 +1723,22 @@
     min-height: 78px;
   }
 
+  .v2-plugin-workspace-body .settings-section-desc {
+    margin-bottom: 0;
+  }
+
+  #v2-plugin-config-json {
+    box-sizing: border-box;
+    min-height: 220px;
+    max-height: 420px;
+    overflow: auto;
+    resize: vertical;
+    white-space: pre;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
   .council-input:focus,
   .council-textarea:focus,
   .council-select:focus {
