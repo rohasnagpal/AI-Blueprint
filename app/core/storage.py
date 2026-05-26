@@ -59,4 +59,19 @@ async def store_upload(file: UploadFile, *, max_bytes: int) -> dict:
 
 
 def stored_path(storage_key: str) -> Path:
-    return get_settings().uploads_dir / storage_key
+    root = get_settings().uploads_dir.resolve()
+    path = (root / storage_key).resolve()
+    if root != path and root not in path.parents:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid storage key")
+    return path
+
+
+def delete_stored_file(storage_key: str | None) -> bool:
+    if not storage_key:
+        return False
+    path = stored_path(storage_key)
+    try:
+        path.unlink()
+        return True
+    except FileNotFoundError:
+        return False

@@ -4,13 +4,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
+from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.models import User
 from app.core.security import hash_password
 
 
 DEFAULT_ADMIN_USERNAME = "rohas"
-DEFAULT_ADMIN_PASSWORD = "rohas"
 
 
 def ensure_default_admin() -> None:
@@ -19,12 +19,17 @@ def ensure_default_admin() -> None:
 
 
 def _ensure_default_admin(db: Session) -> None:
+    settings = get_settings()
+    username = (settings.bootstrap_admin_username or DEFAULT_ADMIN_USERNAME).strip().lower()
+    if not settings.bootstrap_admin_password:
+        raise RuntimeError("Bootstrap admin password is not configured")
+    password = settings.bootstrap_admin_password
     user_count = db.execute(select(func.count(User.id))).scalar_one()
     system_admin_count = db.execute(select(func.count(User.id)).where(User.is_system_admin == True)).scalar_one()
     if user_count and system_admin_count:
         return
 
-    existing = db.execute(select(User).where(User.username == DEFAULT_ADMIN_USERNAME)).scalar_one_or_none()
+    existing = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
     if existing:
         existing.is_system_admin = True
         existing.is_active = True
@@ -34,10 +39,10 @@ def _ensure_default_admin(db: Session) -> None:
 
     user = User(
         id=str(uuid.uuid4()),
-        username=DEFAULT_ADMIN_USERNAME,
-        email=DEFAULT_ADMIN_USERNAME,
+        username=username,
+        email=username,
         display_name="Default Admin",
-        password_hash=hash_password(DEFAULT_ADMIN_PASSWORD),
+        password_hash=hash_password(password),
         is_system_admin=True,
         must_change_credentials=True,
     )

@@ -9,8 +9,9 @@ from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_admin, require_workspace_member
 from app.core.models import Secret, User, utcnow
-from app.core.pagination import page_response
+from app.core.pagination import page_query_response
 from app.core.secrets import encrypt_secret
+from app.core.validation import validate_choice
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/secrets", tags=["secrets"])
 
@@ -41,9 +42,8 @@ def _format_secret(secret: Secret) -> dict:
     }
 
 
-def _validate_scope(scope: str) -> None:
-    if scope not in {"user", "workspace", "admin"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid secret scope")
+def _validate_scope(scope: str) -> str:
+    return validate_choice(scope, {"user", "workspace", "admin"}, "secret scope")
 
 
 def _authorize_scope(workspace_id: str, scope: str, user: User, db: Session) -> None:
@@ -66,21 +66,21 @@ def _query_visible(workspace_id: str, user: User, db: Session):
 
 @router.get("")
 async def list_secrets(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    secrets = db.execute(_query_visible(workspace_id, user, db).order_by(Secret.name)).scalars().all()
-    return page_response(secrets, _format_secret, page=page, page_size=page_size)
+    secrets = _query_visible(workspace_id, user, db).order_by(Secret.name)
+    return page_query_response(db, secrets, _format_secret, page=page, page_size=page_size, scalars=True)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_secret(workspace_id: str, body: SecretIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    _validate_scope(body.scope)
-    _authorize_scope(workspace_id, body.scope, user, db)
-    owner_user_id = user.id if body.scope == "user" else None
+    scope = _validate_scope(body.scope)
+    _authorize_scope(workspace_id, scope, user, db)
+    owner_user_id = user.id if scope == "user" else None
     existing = db.execute(
         select(Secret).where(
             Secret.workspace_id == workspace_id,
             Secret.owner_user_id == owner_user_id,
             Secret.name == body.name.strip(),
-            Secret.scope == body.scope,
+            Secret.scope == scope,
         )
     ).scalar_one_or_none()
     if existing:
@@ -91,13 +91,13 @@ async def create_secret(workspace_id: str, body: SecretIn, user: User = Depends(
         owner_user_id=owner_user_id,
         name=body.name.strip(),
         encrypted_value=encrypt_secret(body.value),
-        scope=body.scope,
+        scope=scope,
         status="active",
         created_by_user_id=user.id,
     )
     db.add(secret)
     db.flush()
-    record_audit_event(db, action="secret.create", resource_type="secret", resource_id=secret.id, user_id=user.id, workspace_id=workspace_id, metadata={"scope": body.scope, "name": secret.name})
+    record_audit_event(db, action="secret.create", resource_type="secret", resource_id=secret.id, user_id=user.id, workspace_id=workspace_id, metadata={"scope": scope, "name": secret.name})
     db.commit()
     db.refresh(secret)
     return _format_secret(secret)

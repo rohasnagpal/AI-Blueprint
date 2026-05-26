@@ -9,8 +9,9 @@ from sqlalchemy.orm import Session
 from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_blueprint_member, require_workspace_admin, require_workspace_member
+from app.core.json_utils import json_loads
 from app.core.models import BlueprintPersona, Persona, User, utcnow
-from app.core.pagination import page_response
+from app.core.pagination import page_query_response
 
 router = APIRouter(tags=["personas"])
 
@@ -31,14 +32,6 @@ class BlueprintPersonaIn(BaseModel):
     role: str = "participant"
 
 
-def _json_loads(value: str, fallback):
-    try:
-        data = json.loads(value)
-        return data if isinstance(data, type(fallback)) else fallback
-    except Exception:
-        return fallback
-
-
 def _format_persona(persona: Persona) -> dict:
     return {
         "id": persona.id,
@@ -47,9 +40,9 @@ def _format_persona(persona: Persona) -> dict:
         "category": persona.category,
         "description": persona.description,
         "system_prompt": persona.system_prompt,
-        "constraints": _json_loads(persona.constraints_json, []),
-        "output_format": _json_loads(persona.output_format_json, {}),
-        "tags": _json_loads(persona.tags_json, []),
+        "constraints": json_loads(persona.constraints_json, []),
+        "output_format": json_loads(persona.output_format_json, {}),
+        "tags": json_loads(persona.tags_json, []),
         "is_builtin": persona.is_builtin,
         "is_enabled": persona.is_enabled,
         "created_by_user_id": persona.created_by_user_id,
@@ -95,8 +88,8 @@ def _require_blueprint_editor(workspace_id: str, blueprint_id: str, user: User, 
 @router.get("/workspaces/{workspace_id}/personas")
 async def list_personas(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_member(workspace_id, user, db)
-    personas = db.execute(_persona_visible_query(workspace_id).order_by(Persona.category, Persona.name)).scalars().all()
-    return page_response(personas, _format_persona, page=page, page_size=page_size)
+    personas = _persona_visible_query(workspace_id).order_by(Persona.category, Persona.name)
+    return page_query_response(db, personas, _format_persona, page=page, page_size=page_size, scalars=True)
 
 
 @router.post("/workspaces/{workspace_id}/personas", status_code=status.HTTP_201_CREATED)
@@ -175,13 +168,13 @@ async def delete_persona(workspace_id: str, persona_id: str, user: User = Depend
 @router.get("/workspaces/{workspace_id}/blueprints/{blueprint_id}/personas")
 async def list_blueprint_personas(workspace_id: str, blueprint_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_blueprint_member(workspace_id, blueprint_id, user, db)
-    rows = db.execute(
+    rows = (
         select(BlueprintPersona, Persona)
         .join(Persona, Persona.id == BlueprintPersona.persona_id)
         .where(BlueprintPersona.workspace_id == workspace_id, BlueprintPersona.blueprint_id == blueprint_id)
         .order_by(BlueprintPersona.role, Persona.name)
-    ).all()
-    return page_response(rows, lambda row: _format_blueprint_persona(row[0], row[1]), page=page, page_size=page_size)
+    )
+    return page_query_response(db, rows, lambda row: _format_blueprint_persona(row[0], row[1]), page=page, page_size=page_size)
 
 
 @router.post("/workspaces/{workspace_id}/blueprints/{blueprint_id}/personas", status_code=status.HTTP_201_CREATED)

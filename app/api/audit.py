@@ -1,22 +1,14 @@
-import json
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_admin
+from app.core.json_utils import json_loads
 from app.core.models import AuditEvent, User
+from app.core.pagination import page_query_response
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/audit-events", tags=["audit"])
-
-
-def _json_loads(value: str) -> dict:
-    try:
-        data = json.loads(value)
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
 
 
 def _format_event(event: AuditEvent) -> dict:
@@ -27,7 +19,7 @@ def _format_event(event: AuditEvent) -> dict:
         "action": event.action,
         "resource_type": event.resource_type,
         "resource_id": event.resource_id,
-        "metadata": _json_loads(event.metadata_json),
+        "metadata": json_loads(event.metadata_json, {}),
         "created_at": event.created_at.isoformat(),
     }
 
@@ -49,12 +41,4 @@ async def list_audit_events(
     if resource_type:
         query = query.where(AuditEvent.resource_type == resource_type)
 
-    all_events = db.execute(query.order_by(AuditEvent.created_at.desc())).scalars().all()
-    start = (page - 1) * page_size
-    page_events = all_events[start:start + page_size]
-    return {
-        "items": [_format_event(event) for event in page_events],
-        "total": len(all_events),
-        "page": page,
-        "page_size": page_size,
-    }
+    return page_query_response(db, query.order_by(AuditEvent.created_at.desc()), _format_event, page=page, page_size=page_size, scalars=True)

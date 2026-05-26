@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.models import SessionToken, User, WorkspaceMember
 from app.core.security import hash_password, hash_session_token, new_session_token, session_expiry, verify_password
+from app.core.validation import normalize_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 _auth_attempts: dict[str, deque[float]] = defaultdict(deque)
@@ -71,9 +72,24 @@ def _issue_session(db: Session, response: Response, user: User) -> None:
 
 
 def _client_key(request: Request, identifier: str = "") -> str:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
+    settings = get_settings()
+    forwarded_for = request.headers.get("x-forwarded-for", "") if settings.trust_proxy_headers else ""
     ip = forwarded_for.split(",", 1)[0].strip() or (request.client.host if request.client else "unknown")
     return f"{ip}:{identifier.strip().lower()}"
+
+
+def _prune_auth_attempts(now: float, window_start: float, max_keys: int) -> None:
+    for key in list(_auth_attempts.keys()):
+        attempts = _auth_attempts[key]
+        while attempts and attempts[0] < window_start:
+            attempts.popleft()
+        if not attempts:
+            _auth_attempts.pop(key, None)
+    if len(_auth_attempts) <= max_keys:
+        return
+    oldest_keys = sorted(_auth_attempts, key=lambda key: _auth_attempts[key][0] if _auth_attempts[key] else now)
+    for key in oldest_keys[: len(_auth_attempts) - max_keys]:
+        _auth_attempts.pop(key, None)
 
 
 def _check_auth_rate_limit(request: Request, identifier: str = "") -> None:
@@ -81,8 +97,9 @@ def _check_auth_rate_limit(request: Request, identifier: str = "") -> None:
     if settings.auth_rate_limit_attempts <= 0:
         return
     now = monotonic()
-    attempts = _auth_attempts[_client_key(request, identifier)]
     window_start = now - settings.auth_rate_limit_window_seconds
+    _prune_auth_attempts(now, window_start, settings.auth_rate_limit_max_keys)
+    attempts = _auth_attempts[_client_key(request, identifier)]
     while attempts and attempts[0] < window_start:
         attempts.popleft()
     if len(attempts) >= settings.auth_rate_limit_attempts:
@@ -98,14 +115,15 @@ async def setup_state(db: Session = Depends(get_db)):
 
 @router.post("/setup")
 async def setup_admin(body: SetupIn, request: Request, response: Response, db: Session = Depends(get_db)):
-    _check_auth_rate_limit(request, body.email)
+    email = normalize_email(body.email)
+    _check_auth_rate_limit(request, email)
     user_count = db.execute(select(func.count(User.id))).scalar_one()
     if user_count:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Setup has already been completed")
     user = User(
         id=str(uuid.uuid4()),
-        username=body.email.strip().lower(),
-        email=body.email.strip().lower(),
+        username=email,
+        email=email,
         display_name=body.display_name.strip(),
         password_hash=hash_password(body.password),
         is_system_admin=True,

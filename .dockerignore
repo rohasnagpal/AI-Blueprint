@@ -1,0 +1,17 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+.DS_Store
+*.pyc
+*.pyo
+*.db
+*.db-shm
+*.db-wal
+.secret_key
+.secret_key_v2
+uploads
+uploads_v2
+chroma_db
+assets
+node_modules

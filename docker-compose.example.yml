@@ -1,0 +1,31 @@
+services:
+  migrate:
+    build: .
+    command: ["python", "scripts/migrate.py"]
+    env_file:
+      - .env.production
+    volumes:
+      - ai-blueprint-data:/data
+      - ai-blueprint-uploads:/uploads
+      - ai-blueprint-keys:/keys
+    restart: "no"
+
+  app:
+    build: .
+    env_file:
+      - .env.production
+    ports:
+      - "8000:8000"
+    volumes:
+      - ai-blueprint-data:/data
+      - ai-blueprint-uploads:/uploads
+      - ai-blueprint-keys:/keys
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  ai-blueprint-data:
+  ai-blueprint-uploads:
+  ai-blueprint-keys:

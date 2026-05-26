@@ -58,6 +58,7 @@ Icon
 # ── Environment / secrets ─────────────────────────────────────────────────────
 .env
 .env.*
+!.env.production.example
 *.pem
 *.key
 

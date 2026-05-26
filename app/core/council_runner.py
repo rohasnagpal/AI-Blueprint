@@ -1,16 +1,15 @@
 import asyncio
 import json
-import re
 import uuid
 from typing import Any
 
-import database
 from app.core.database import SessionLocal
-from app.core.jobs import add_job_event, update_job_status
-from sqlalchemy import select
+from app.core.json_utils import json_loads
+from app.core.llm import complete_async, get_legacy_settings_with_secrets, run_async
+from app.core.jobs import JobCancelled, add_job_event, ensure_job_not_cancelled, update_job_status
+from app.core.retrieval import retrieve_scoped_evidence
 
-from app.core.models import CouncilEvidence, CouncilOutput, CouncilRun, DocumentLink, Job, KnowledgeChunk, KnowledgeDocument, utcnow
-from routes import councils as legacy_councils
+from app.core.models import CouncilEvidence, CouncilOutput, CouncilRun, Job, utcnow
 
 
 def execute_council_run(job_id: str, run_id: str) -> None:
@@ -20,21 +19,24 @@ def execute_council_run(job_id: str, run_id: str) -> None:
         if not job or not run:
             return
         try:
-            config = _json_loads(run.config_snapshot_json, {})
+            ensure_job_not_cancelled(db, job)
+            config = json_loads(run.config_snapshot_json, {})
             phases = config.get("phases") or []
             agents = {agent["id"]: agent for agent in config.get("agents") or [] if isinstance(agent, dict) and agent.get("id")}
-            settings = _get_settings_with_secrets()
+            settings = get_legacy_settings_with_secrets()
             prior_outputs: list[dict[str, Any]] = []
 
             run.status = "running"
             run.started_at = utcnow()
             update_job_status(db, job=job, status="running", progress=5, message="Council run started")
             db.commit()
+            ensure_job_not_cancelled(db, job)
 
             total_steps = max(1, sum(len(phase.get("agents") or []) for phase in phases if isinstance(phase, dict)))
             completed_steps = 0
 
             for phase in phases:
+                ensure_job_not_cancelled(db, job)
                 phase_id = phase.get("id")
                 phase_name = phase.get("name")
                 add_job_event(
@@ -45,9 +47,15 @@ def execute_council_run(job_id: str, run_id: str) -> None:
                     metadata={"phase_id": phase_id, "phase_name": phase_name},
                 )
                 query = _phase_query(phase, run.objective, prior_outputs)
-                evidence = _retrieve_scoped_evidence(db, run, query, int(settings.get("top_k", 5) or 5))
+                evidence = retrieve_scoped_evidence(
+                    db,
+                    workspace_id=run.workspace_id,
+                    blueprint_id=run.blueprint_id,
+                    query=query,
+                    top_k=int(settings.get("top_k", 5) or 5),
+                )
                 if not evidence:
-                    evidence = asyncio.run(_retrieve_phase_evidence(query, settings))
+                    evidence = run_async(_retrieve_phase_evidence(query, settings))
                 evidence_row = CouncilEvidence(
                     id=str(uuid.uuid4()),
                     workspace_id=run.workspace_id,
@@ -60,11 +68,14 @@ def execute_council_run(job_id: str, run_id: str) -> None:
                 )
                 db.add(evidence_row)
                 db.commit()
+                ensure_job_not_cancelled(db, job)
 
                 phase_agent_ids = [agent_id for agent_id in phase.get("agents") or [] if agent_id in agents]
-                phase_outputs = asyncio.run(_run_phase_agents(run, config, phase, phase_agent_ids, agents, evidence, prior_outputs, settings))
+                phase_outputs = run_async(_run_phase_agents(run, config, phase, phase_agent_ids, agents, evidence, prior_outputs, settings))
+                ensure_job_not_cancelled(db, job)
 
                 for result in phase_outputs:
+                    ensure_job_not_cancelled(db, job)
                     output = CouncilOutput(
                         id=str(uuid.uuid4()),
                         workspace_id=run.workspace_id,
@@ -96,6 +107,11 @@ def execute_council_run(job_id: str, run_id: str) -> None:
             run.status = "completed"
             run.completed_at = utcnow()
             update_job_status(db, job=job, status="completed", progress=100, message="Council run completed")
+            db.commit()
+        except JobCancelled:
+            run.status = "cancelled"
+            run.completed_at = utcnow()
+            update_job_status(db, job=job, status="cancelled", progress=job.progress, message="Council run cancelled")
             db.commit()
         except Exception as exc:
             if run:
@@ -150,18 +166,10 @@ async def _run_agent(
 
     if provider == "mock":
         content = _mock_output(run, phase, agent)
-    elif provider == "anthropic":
-        content = await legacy_councils._complete_anthropic(settings.get("anthropic_api_key", ""), system, user, model, temperature, max_tokens)
-    elif provider == "groq":
-        content = await legacy_councils._complete_groq(settings.get("groq_api_key", ""), system, user, model, temperature, max_tokens)
-    elif provider == "ollama":
-        content = await legacy_councils._complete_ollama(system, user, model, temperature, max_tokens, settings)
-    elif provider == "openrouter":
-        content = await legacy_councils._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model, temperature, max_tokens)
     elif provider == "openai" and settings.get("rag_provider") == "openai" and settings.get("vector_store_id"):
-        content = await legacy_councils._complete_openai_file_search(settings.get("openai_api_key", ""), settings["vector_store_id"], system, user, model, temperature, max_tokens)
+        content = await complete_async(settings, "openai_file_search", system, user, model=model, temperature=temperature, max_tokens=max_tokens)
     else:
-        content = await legacy_councils._complete_openai(settings.get("openai_api_key", ""), system, user, model, temperature, max_tokens)
+        content = await complete_async(settings, provider, system, user, model=model, temperature=temperature, max_tokens=max_tokens)
 
     return {
         "agent_id": agent["id"],
@@ -203,47 +211,6 @@ async def _retrieve_phase_evidence(query: str, settings: dict) -> list[dict[str,
         ]
     except Exception as exc:
         return [{"filename": "retrieval-error", "page": None, "excerpt": str(exc), "content": ""}]
-
-
-def _retrieve_scoped_evidence(db, run: CouncilRun, query: str, top_k: int) -> list[dict[str, Any]]:
-    rows = db.execute(
-        select(KnowledgeChunk, KnowledgeDocument)
-        .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)
-        .join(DocumentLink, DocumentLink.document_id == KnowledgeDocument.id)
-        .where(
-            DocumentLink.workspace_id == run.workspace_id,
-            DocumentLink.blueprint_id == run.blueprint_id,
-            KnowledgeDocument.status == "indexed",
-        )
-        .order_by(KnowledgeChunk.chunk_index)
-    ).all()
-    if not rows:
-        return []
-    terms = _query_terms(query)
-    scored = []
-    for chunk, document in rows:
-        content_lower = chunk.content.lower()
-        score = sum(1 for term in terms if term in content_lower)
-        scored.append((score, chunk, document))
-    scored.sort(key=lambda item: (item[0], -item[1].chunk_index), reverse=True)
-    evidence = []
-    for score, chunk, document in scored[: max(1, top_k)]:
-        evidence.append(
-            {
-                "filename": document.original_name,
-                "doc_id": document.id,
-                "page": chunk.chunk_index + 1,
-                "excerpt": chunk.content[:800],
-                "content": chunk.content,
-                "score": score,
-                "retrieval": "v2_scoped_chunks",
-            }
-        )
-    return evidence
-
-
-def _query_terms(query: str) -> set[str]:
-    return {part.lower() for part in re.findall(r"[A-Za-z0-9][A-Za-z0-9_-]{2,}", query or "")}
 
 
 def _phase_query(phase: dict[str, Any], objective: str, prior_outputs: list[dict[str, Any]]) -> str:
@@ -320,18 +287,3 @@ def _mock_output(run: CouncilRun, phase: dict[str, Any], agent: dict[str, Any]) 
         f"Phase instructions: {phase.get('instructions') or 'No phase instructions were provided.'}"
     )
 
-
-def _get_settings_with_secrets() -> dict:
-    settings = database.get_all_settings()
-    for key in database.API_KEY_FIELDS:
-        settings[key] = database.get_setting(key)
-    return settings
-
-
-def _json_loads(value: str | None, fallback):
-    if not value:
-        return fallback
-    try:
-        return json.loads(value)
-    except Exception:
-        return fallback

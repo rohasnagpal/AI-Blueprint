@@ -6,10 +6,28 @@ function showToast(msg, type = 'success') {
   const c = document.getElementById('toast-container');
   const t = document.createElement('div');
   const bg = type === 'success' ? '#16a34a' : type === 'error' ? '#dc2626' : '#d97706';
-  t.style.cssText = `background:${bg};color:white;padding:10px 16px;border-radius:8px;font-size:13.5px;font-family:'DM Sans',sans-serif;box-shadow:0 4px 16px rgba(0,0,0,0.25);max-width:340px;line-height:1.4;animation:slideIn 0.2s ease;pointer-events:auto;`;
+  applyInlineStyles(t, {
+    background: bg,
+    color: 'white',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    fontSize: '13.5px',
+    fontFamily: "'DM Sans', sans-serif",
+    boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+    maxWidth: '340px',
+    lineHeight: '1.4',
+    animation: 'slideIn 0.2s ease',
+    pointerEvents: 'auto',
+  });
   t.textContent = msg;
   c.appendChild(t);
   setTimeout(() => t.remove(), 3500);
+}
+
+function applyInlineStyles(element, styles) {
+  Object.entries(styles || {}).forEach(([property, value]) => {
+    element.style[property] = value;
+  });
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
@@ -644,6 +662,8 @@ function renderAdminUsers() {
     return;
   }
   list.innerHTML = App.adminUsers.map(user => {
+    const identityParts = [user.username, user.email].filter(Boolean);
+    const identityMeta = Array.from(new Set(identityParts.map(part => part.trim()).filter(Boolean))).join(' · ');
     const memberships = (user.memberships || []).map(m => `
       <span class="stat-pill selectable" title="${esc(m.workspace_id)}">
         <strong>${esc(m.workspace_name)}</strong> ${esc(m.role)}
@@ -656,7 +676,7 @@ function renderAdminUsers() {
         <div class="council-row-head">
           <div>
             <div class="council-card-title">${esc(user.display_name)}</div>
-            <div class="council-card-meta">${esc(user.username || '')}${user.email ? ' · ' + esc(user.email) : ''}</div>
+            <div class="council-card-meta">${esc(identityMeta)}</div>
           </div>
           <div class="council-actions">
             <span class="council-status ${user.is_active ? 'completed' : 'error'}">${user.is_active ? 'active' : 'inactive'}</span>
@@ -1068,7 +1088,7 @@ function renderV2RunProgress(run) {
       <span>${esc(latest)}</span>
       <span>${v2JobElapsed(job)} elapsed · ${progress}%</span>
     </div>
-    <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+    <div class="progress-bar"><div class="progress-fill" data-csp-style="width:${progress}%"></div></div>
   </div>`;
 }
 
@@ -1123,7 +1143,7 @@ function renderV2PluginWorkspace() {
             <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
           </div>
           ${renderV2RunProgress(run)}
-          ${run.error ? `<div class="council-card-desc" style="color:var(--danger)">${esc(run.error)}</div>` : ''}
+          ${run.error ? `<div class="council-card-desc" data-csp-style="color:var(--danger)">${esc(run.error)}</div>` : ''}
           <div class="council-actions">
             ${renderV2RunActions(blueprint, run)}
           </div>
@@ -1229,7 +1249,7 @@ async function exportV2PluginRun(runId) {
     const text = await r.text();
     const w = window.open('', '_blank');
     if (w) {
-      w.document.write(`<pre style="white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:20px">${esc(text)}</pre>`);
+      w.document.write(`<pre data-csp-style="white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:20px">${esc(text)}</pre>`);
       w.document.close();
     }
   } catch(e) { showToast('Export failed: ' + e.message, 'error'); }
@@ -1314,7 +1334,7 @@ function focusV2Matter(matterId) {
   App.v2.activeBlueprintId = null;
   renderV2Shell();
   updateDocSelector();
-  switchBlueprintTab('blueprints');
+  switchView('blueprints');
 }
 
 function switchBlueprintTab(tab, button) {
@@ -1399,7 +1419,6 @@ async function openV2Blueprint(blueprintId) {
   App.chatMode = 'documents';
   App.selectedDocIds = 'all';
   switchView('blueprints');
-  switchBlueprintTab('blueprints');
   updateChatModeUI();
   renderV2Shell();
   await loadV2PluginData();
@@ -1819,9 +1838,9 @@ function renderQuestionsList(json) {
   let qs = [];
   try { qs = JSON.parse(json || '[]'); } catch(e) {}
   list.innerHTML = qs.map((q, i) => `
-    <div style="display:flex;gap:6px;align-items:center">
-      <input type="text" value="${esc(q)}" data-q="${i}" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit"/>
-      <button onclick="removeQuestion(${i})" style="background:none;border:none;cursor:pointer;color:var(--text-subtle);font-size:18px;line-height:1;padding:0 4px" title="Remove">&times;</button>
+    <div data-csp-style="display:flex;gap:6px;align-items:center">
+      <input type="text" value="${esc(q)}" data-q="${i}" data-csp-style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit"/>
+      <button onclick="removeQuestion(${i})" data-csp-style="background:none;border:none;cursor:pointer;color:var(--text-subtle);font-size:18px;line-height:1;padding:0 4px" title="Remove">&times;</button>
     </div>`).join('');
 }
 
@@ -1878,7 +1897,7 @@ function renderChatHistory() {
   const query = App.chatSearchQuery.trim().toLowerCase();
   const chats = query ? App.chats.filter(chat => (chat.title || 'New Chat').toLowerCase().includes(query)) : App.chats;
   if (!chats.length && query) {
-    list.innerHTML = '<div style="padding:10px 8px;color:var(--sidebar-text-muted);font-size:12px">No matching chats.</div>';
+    list.innerHTML = '<div data-csp-style="padding:10px 8px;color:var(--sidebar-text-muted);font-size:12px">No matching chats.</div>';
     return;
   }
   for (const chat of chats) {
@@ -1899,7 +1918,7 @@ function renderChatHistory() {
         </button>
       </div>` : '';
     const checked = App.selectedChatIds.has(chat.id) ? 'checked' : '';
-    const selector = App.chatSelectMode ? `<input type="checkbox" ${checked} onclick="toggleSelectedChat('${chat.id}', event)" style="margin:0 2px 0 0;accent-color:var(--accent)"/>` : '';
+    const selector = App.chatSelectMode ? `<input type="checkbox" ${checked} onclick="toggleSelectedChat('${chat.id}', event)" data-csp-style="margin:0 2px 0 0;accent-color:var(--accent)"/>` : '';
     item.innerHTML = `${selector}<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="chat-history-title">${esc(chat.title || 'New Chat')}</span><button class="chat-menu-btn" type="button" title="Chat options" onclick="toggleChatMenu('${chat.id}', event)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>${menu}`;
     item.onclick = () => App.chatSelectMode ? toggleSelectedChat(chat.id) : openChat(chat.id);
     list.appendChild(item);
@@ -2386,7 +2405,7 @@ function renderPersonas() {
   const categories = [...new Set(App.personas.map(p => p.category))];
   if (!App.personas.length) {
     pills.innerHTML = '';
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-subtle)">No personas yet.</div>';
+    grid.innerHTML = '<div data-csp-style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-subtle)">No personas yet.</div>';
     return;
   }
   if (!App.selectedPersonaCategory || !categories.includes(App.selectedPersonaCategory)) {
@@ -2662,13 +2681,13 @@ function renderEmailList() {
         </div>
         <span class="council-status ${esc(m.status || 'new')}">${esc(m.status || 'new')}</span>
       </div>
-      <div class="detail-text" style="max-height:120px;overflow:auto;margin:8px 0">${esc((m.body || '').slice(0, 1200))}</div>
-      ${m.error ? `<div class="council-card-desc" style="color:var(--danger)">${esc(m.error)}</div>` : ''}
+      <div class="detail-text" data-csp-style="max-height:120px;overflow:auto;margin:8px 0">${esc((m.body || '').slice(0, 1200))}</div>
+      ${m.error ? `<div class="council-card-desc" data-csp-style="color:var(--danger)">${esc(m.error)}</div>` : ''}
       <div class="council-form-row">
         <div class="council-field"><label>Persona</label><select class="council-select email-row-persona" data-id="${m.id}"><option value="">No persona</option>${App.personas.map(p => `<option value="${esc(p.id)}" ${p.id === m.persona_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
         <div class="council-field"><label>RAG scope</label><select class="council-select email-row-docs" data-id="${m.id}"><option value="none">No document search</option><option value="all" ${m.doc_context === 'all' ? 'selected' : ''}>All documents (${App.documents.length})</option>${App.documents.map(d => `<option value="${esc(d.id)}" ${d.id === m.doc_context ? 'selected' : ''}>${esc(d.original_name)}</option>`).join('')}</select></div>
       </div>
-      <div class="council-field"><label>Draft</label><textarea class="council-textarea email-draft" data-id="${m.id}" style="min-height:150px">${esc(m.draft_body || '')}</textarea></div>
+      <div class="council-field"><label>Draft</label><textarea class="council-textarea email-draft" data-id="${m.id}" data-csp-style="min-height:150px">${esc(m.draft_body || '')}</textarea></div>
       <div class="council-actions">
         <button class="btn-secondary" onclick="draftEmail('${m.id}')">Generate Draft</button>
         <button class="btn-primary" onclick="sendEmailReply('${m.id}')">Send Approved Reply</button>
@@ -2726,7 +2745,7 @@ function renderDocuments(filter = '') {
   const grid = document.getElementById('docs-grid');
   if (!grid) return;
   const docs = filter ? App.documents.filter(d => d.original_name.toLowerCase().includes(filter.toLowerCase())) : App.documents;
-  if (!docs.length) { grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-subtle)">No documents yet. Upload one to get started.</div>'; }
+  if (!docs.length) { grid.innerHTML = '<div data-csp-style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-subtle)">No documents yet. Upload one to get started.</div>'; }
   else grid.innerHTML = docs.map(d => docCard(d)).join('');
   const total = App.documents.reduce((s,d) => s+(d.size_bytes||0), 0);
   const types = new Set(App.documents.map(d=>d.file_type)).size;
@@ -3018,7 +3037,7 @@ function renderCouncilRuns() {
         </div>
         <span class="council-status ${esc(r.status || 'pending')}">${esc(r.status || 'pending')}</span>
       </div>
-      ${r.error ? `<div class="council-card-desc" style="color:var(--danger)">${esc(r.error)}</div>` : ''}
+      ${r.error ? `<div class="council-card-desc" data-csp-style="color:var(--danger)">${esc(r.error)}</div>` : ''}
       <div class="council-actions">
         <button class="btn-secondary" type="button" onclick="openCouncilRun('${r.id}')">Open</button>
         ${r.status === 'pending' || r.status === 'error' ? `<button class="btn-primary" type="button" onclick="startExistingCouncilRun('${r.id}')">Run</button>` : ''}
@@ -3143,7 +3162,7 @@ function renderCouncilRunResult(run, outputs, evidence, shouldScroll = true) {
     const phaseOutputs = outputs.filter(o => o.phase_id === pid);
     const phaseName = phaseOutputs[0]?.phase_name || pid;
     const ev = evidence.find(e => e.phase_id === pid);
-    const evidenceHtml = ev && ev.sources?.length ? `<div class="sources" style="margin-bottom:10px">${mkSources(ev.sources).innerHTML}</div>` : '';
+    const evidenceHtml = ev && ev.sources?.length ? `<div class="sources" data-csp-style="margin-bottom:10px">${mkSources(ev.sources).innerHTML}</div>` : '';
     return `
       <div class="settings-card">
         <div class="settings-card-header">
@@ -3155,7 +3174,7 @@ function renderCouncilRunResult(run, outputs, evidence, shouldScroll = true) {
             <div class="council-output-role">${esc(o.role_name)}</div>
             <div class="council-output-phase">${esc(o.metadata?.model || '')} · ${esc(o.metadata?.output_type || 'output')}</div>
             <div>${mdRender(o.content || '')}</div>
-            ${o.sources?.length ? `<div style="margin-top:10px">${mkSources(o.sources).innerHTML}</div>` : ''}
+            ${o.sources?.length ? `<div data-csp-style="margin-top:10px">${mkSources(o.sources).innerHTML}</div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -3463,7 +3482,7 @@ async function uploadFile(file) {
   const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt',JSON:'icon-txt',HTML:'icon-html',HTM:'icon-html'}[ext]||'icon-txt';
   const item = document.createElement('div');
   item.className = 'upload-item';
-  item.innerHTML = `<div class="upload-item-icon ${cls}">${ext}</div><div class="upload-item-info"><div class="upload-item-name">${esc(displayName)}</div><div class="progress-bar"><div class="progress-fill" style="width:5%"></div></div></div><div class="upload-item-size">${fmtBytes(file.size)}</div><div class="upload-item-status status-loading"></div>`;
+  item.innerHTML = `<div class="upload-item-icon ${cls}">${ext}</div><div class="upload-item-info"><div class="upload-item-name">${esc(displayName)}</div><div class="progress-bar"><div class="progress-fill" data-csp-style="width:5%"></div></div></div><div class="upload-item-size">${fmtBytes(file.size)}</div><div class="upload-item-status status-loading"></div>`;
   queueEl.appendChild(item);
   updateUploadQueueVisibility();
   const fill = item.querySelector('.progress-fill');
@@ -3509,7 +3528,7 @@ async function ingestUrl() {
   const queueEl = document.getElementById('upload-queue-list');
   const item = document.createElement('div');
   item.className = 'upload-item';
-  item.innerHTML = `<div class="upload-item-icon icon-html">URL</div><div class="upload-item-info"><div class="upload-item-name">${esc(url)}</div><div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div></div><div class="upload-item-size">Web</div><div class="upload-item-status status-loading"></div>`;
+  item.innerHTML = `<div class="upload-item-icon icon-html">URL</div><div class="upload-item-info"><div class="upload-item-name">${esc(url)}</div><div class="progress-bar"><div class="progress-fill" data-csp-style="width:20%"></div></div></div><div class="upload-item-size">Web</div><div class="upload-item-status status-loading"></div>`;
   queueEl.appendChild(item);
   updateUploadQueueVisibility();
   const fill = item.querySelector('.progress-fill');
@@ -3662,7 +3681,7 @@ function mkAi(content, sources, messageId = '') {
   const d = document.createElement('div'); d.className = 'msg ai';
   const docSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
   d.dataset.messageId = messageId || '';
-  const body = content ? renderAssistantBubble(content, true) : '<span style="opacity:.4">Preparing response…</span>';
+  const body = content ? renderAssistantBubble(content, true) : '<span data-csp-style="opacity:.4">Preparing response…</span>';
   d.innerHTML = `<div class="msg-meta"><div class="avatar ai-av">${docSvg}</div><span>AI Blueprint</span></div><div class="bubble">${body}</div><div class="msg-actions"><div class="msg-action-btn" title="Copy" onclick="copyMsg(this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div></div>`;
   if (sources.length) d.insertBefore(mkSources(sources), d.querySelector('.msg-actions'));
   return d;
@@ -3695,7 +3714,7 @@ function renderChatStatus(state) {
   state.bubble.innerHTML = `<div class="chat-status-card">
     <div class="chat-status-title">${esc(state.message)}</div>
     <div class="chat-status-meta">${elapsed}s elapsed · ${progress}%</div>
-    <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+    <div class="progress-bar"><div class="progress-fill" data-csp-style="width:${progress}%"></div></div>
   </div>`;
 }
 
@@ -3734,9 +3753,9 @@ function mkSources(sources) {
       ? '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/>'
       : '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>';
     const title = s.url ? `<a class="source-doc" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.filename||s.url)}</a>` : `<div class="source-doc">${esc(s.filename||'')}</div>`;
-    return `<div class="source-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><div>${title}${s.excerpt?`<div style="font-size:11.5px;color:var(--text-subtle);margin-top:2px">${esc(s.excerpt.substring(0,120))}</div>`:''}</div>${s.page!=null?`<span class="source-page">Chunk ${s.page}</span>`:''}</div>`;
+    return `<div class="source-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><div>${title}${s.excerpt?`<div data-csp-style="font-size:11.5px;color:var(--text-subtle);margin-top:2px">${esc(s.excerpt.substring(0,120))}</div>`:''}</div>${s.page!=null?`<span class="source-page">Chunk ${s.page}</span>`:''}</div>`;
   }).join('');
-  d.innerHTML = `<div class="sources-toggle" onclick="toggleSources(this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${sources.length} source${sources.length>1?'s':''}<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg></div><div class="sources-panel">${items}</div>`;
+  d.innerHTML = `<div class="sources-toggle" onclick="toggleSources(this)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${sources.length} source${sources.length>1?'s':''}<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-csp-style="transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg></div><div class="sources-panel">${items}</div>`;
   return d;
 }
 
@@ -3806,7 +3825,7 @@ function mdRender(t) {
   const cells = s => s.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
   const inline = s => s
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`(.+?)`/g, `<code style="${codeStyle}">$1</code>`);
+    .replace(/`(.+?)`/g, `<code data-csp-style="${codeStyle}">$1</code>`);
   const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
   const renderTable = (tableLines) => {
     if (tableLines.length < 2 || !isTableSep(tableLines[1])) return null;
@@ -3869,9 +3888,9 @@ document.addEventListener('click', () => {
 });
 
 // ── VIEW SWITCHING ────────────────────────────────────────────────────────
-const VIEWS = {chat:'view-chat',blueprints:'view-blueprints',councils:'view-councils',personas:'view-personas',email:'view-email','add-doc':'view-add-doc','view-docs':'view-view-docs',settings:'view-settings','admin-users':'view-settings'};
-const NAVS = {chat:'nav-chat',blueprints:'nav-blueprints',councils:'nav-councils',personas:'nav-personas',email:'nav-email','add-doc':'nav-add-doc','view-docs':'nav-view-docs',settings:'nav-settings','admin-users':'nav-admin-users'};
-const TITLES = {chat:'Chat',blueprints:'Blueprints',councils:'Councils',personas:'Personas',email:'Email','add-doc':'Add Document','view-docs':'View Documents',settings:'Settings','admin-users':'Admin Users'};
+const VIEWS = {chat:'view-chat',blueprints:'view-blueprints',matters:'view-matters',plugins:'view-plugins',councils:'view-councils',personas:'view-personas',email:'view-email','add-doc':'view-add-doc','view-docs':'view-view-docs',workspaces:'view-settings',settings:'view-settings','admin-users':'view-settings'};
+const NAVS = {chat:'nav-chat',blueprints:'more-blueprints',matters:'more-matters',plugins:'more-plugins',councils:'nav-councils',personas:'nav-personas',email:'more-email','add-doc':'more-add-doc','view-docs':'more-view-docs',workspaces:'more-workspaces',settings:'more-settings','admin-users':'nav-admin-users'};
+const TITLES = {chat:'Chat',blueprints:'Blueprints',matters:'Matters',plugins:'Plugins',councils:'Councils',personas:'Personas',email:'Email','add-doc':'Add Document','view-docs':'View Documents',workspaces:'Workspaces',settings:'Settings','admin-users':'Admin Users'};
 const LAST_VIEW_KEY = 'aibp_last_view';
 
 function switchView(name) {
@@ -3881,7 +3900,8 @@ function switchView(name) {
   Object.values(NAVS).forEach(id => document.getElementById(id)?.classList.remove('active'));
   document.getElementById(VIEWS[name])?.classList.add('active');
   document.getElementById(NAVS[name])?.classList.add('active');
-  const moreViews = ['blueprints', 'email', 'add-doc', 'view-docs', 'settings', 'admin-users'];
+  document.getElementById('view-settings')?.classList.toggle('workspace-standalone', name === 'workspaces');
+  const moreViews = ['blueprints', 'matters', 'add-doc', 'view-docs', 'email', 'plugins', 'workspaces', 'settings', 'admin-users'];
   document.getElementById('nav-more')?.classList.toggle('active', moreViews.includes(name));
   document.querySelectorAll('.sidebar-more-menu button').forEach(b => b.classList.remove('active'));
   const moreActive = document.getElementById('more-' + name) || (name === 'admin-users' ? document.getElementById('nav-admin-users') : null);
@@ -3889,11 +3909,16 @@ function switchView(name) {
   document.getElementById('topbar-title').textContent = TITLES[name] || name;
   document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
   if (name === 'view-docs') { renderDocuments(); renderConnectedFolders(); }
-  if (name === 'blueprints') loadV2Shell();
+  if (['blueprints', 'matters', 'plugins'].includes(name)) loadV2Shell();
   if (name === 'councils') loadCouncils();
   if (name === 'personas') renderPersonas();
   if (name === 'add-doc') renderConnectedFolders();
   if (name === 'email') { renderEmailControls(); loadEmailMessages(); }
+  if (name === 'workspaces') {
+    const workspaceNav = document.getElementById('settings-nav-workspaces');
+    if (workspaceNav) switchSettingsTab('workspaces', workspaceNav);
+    if (!App.v2.user) initV2().then(loadWorkspaceManager).catch(() => {});
+  }
   if (name === 'admin-users') {
     const usersNav = document.getElementById('settings-nav-users');
     if (usersNav) switchSettingsTab('users', usersNav);

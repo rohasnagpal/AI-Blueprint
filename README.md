@@ -114,6 +114,16 @@ Before exposing AI Blueprint to public users, review:
 - [Deployment Guide](docs/DEPLOYMENT.md)
 - [Public Launch Checklist](docs/PUBLIC_LAUNCH_CHECKLIST.md)
 
+Production deployments should run database migrations explicitly before app
+startup:
+
+```bash
+.venv/bin/python scripts/migrate.py
+```
+
+Keep `AI_BLUEPRINT_RUN_MIGRATIONS_ON_STARTUP=false` in production so multiple
+workers cannot race while applying migrations.
+
 ## Development Status
 
 AI Blueprint is an evolving open-source platform being shaped into a legal AI blueprint system for lawyers, firms, and legal teams.

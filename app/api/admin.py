@@ -9,8 +9,8 @@ from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import require_system_admin
 from app.core.models import SessionToken, User, Workspace, WorkspaceMember, utcnow
-from app.core.pagination import page_response
 from app.core.security import hash_password
+from app.core.validation import normalize_email, validate_choice
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -50,10 +50,7 @@ def _normalize_username(value: str) -> str:
 
 
 def _validate_role(role: str) -> str:
-    normalized = role.strip().lower()
-    if normalized not in {"admin", "member"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid workspace role")
-    return normalized
+    return validate_choice(role, {"admin", "member"}, "workspace role")
 
 
 def _format_user(user: User, memberships: list[WorkspaceMember] | None = None, workspaces: dict[str, Workspace] | None = None) -> dict:
@@ -134,13 +131,33 @@ async def list_users(
     _admin: User = Depends(require_system_admin),
     db: Session = Depends(get_db),
 ):
-    users = db.execute(select(User).order_by(User.display_name, User.username)).scalars().all()
-    memberships = db.execute(select(WorkspaceMember)).scalars().all()
-    workspaces = {workspace.id: workspace for workspace in db.execute(select(Workspace)).scalars().all()}
+    total = db.execute(select(func.count(User.id))).scalar_one()
+    users = db.execute(
+        select(User)
+        .order_by(User.display_name, User.username)
+        .limit(page_size)
+        .offset((page - 1) * page_size)
+    ).scalars().all()
+    user_ids = [user.id for user in users]
+    memberships = []
+    workspaces = {}
+    if user_ids:
+        memberships = db.execute(select(WorkspaceMember).where(WorkspaceMember.user_id.in_(user_ids))).scalars().all()
+        workspace_ids = {membership.workspace_id for membership in memberships}
+        if workspace_ids:
+            workspaces = {
+                workspace.id: workspace
+                for workspace in db.execute(select(Workspace).where(Workspace.id.in_(workspace_ids))).scalars().all()
+            }
     by_user: dict[str, list[WorkspaceMember]] = {}
     for membership in memberships:
         by_user.setdefault(membership.user_id, []).append(membership)
-    return page_response(users, lambda user: _format_user(user, by_user.get(user.id, []), workspaces), page=page, page_size=page_size)
+    return {
+        "items": [_format_user(user, by_user.get(user.id, []), workspaces) for user in users],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
@@ -150,7 +167,7 @@ async def create_user(
     db: Session = Depends(get_db),
 ):
     username = _normalize_username(body.username)
-    email = (body.email or username).strip().lower()
+    email = normalize_email(body.email) if body.email else username
     _ensure_unique_identity(db, username, email)
     user = User(
         id=str(uuid.uuid4()),
@@ -186,13 +203,11 @@ async def update_user(
         _ensure_not_last_admin(db, user)
     if body.username is not None:
         username = _normalize_username(body.username)
-        email = (body.email if body.email is not None else user.email).strip().lower()
+        email = normalize_email(body.email) if body.email is not None else user.email
         _ensure_unique_identity(db, username, email, user.id)
         user.username = username
     if body.email is not None:
-        email = (body.email or user.username or "").strip().lower()
-        if not email:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email cannot be blank")
+        email = normalize_email(body.email or user.username or "")
         _ensure_unique_identity(db, user.username or email, email, user.id)
         user.email = email
     if body.display_name is not None:

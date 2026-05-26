@@ -6,8 +6,10 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from app.core.database import SessionLocal
-from app.core.jobs import add_job_event, update_job_status
-from app.core.models import Job, KnowledgeChunk, KnowledgeDocument, utcnow
+from app.core.embeddings import dumps_vector, embed_texts
+from app.core.jobs import JobCancelled, add_job_event, ensure_job_not_cancelled, update_job_status
+from app.core.llm import get_legacy_settings_with_secrets
+from app.core.models import Job, KnowledgeChunk, KnowledgeDocument, KnowledgeEmbedding, utcnow
 from app.core.storage import stored_path
 
 
@@ -44,10 +46,12 @@ def index_document(job_id: str, document_id: str) -> None:
         if not job or not document:
             return
         try:
+            ensure_job_not_cancelled(db, job)
             update_job_status(db, job=job, status="running", progress=10, message="Document indexing started")
             document.status = "indexing"
             document.updated_at = utcnow()
             db.commit()
+            ensure_job_not_cancelled(db, job)
 
             if not document.storage_key:
                 raise RuntimeError("Document has no stored file to index")
@@ -56,16 +60,37 @@ def index_document(job_id: str, document_id: str) -> None:
                 raise RuntimeError("Stored file is missing")
 
             chunks = _extract_chunks(path, document.original_name)
+            ensure_job_not_cancelled(db, job)
             db.query(KnowledgeChunk).filter(KnowledgeChunk.document_id == document.id).delete()
+            db.query(KnowledgeEmbedding).filter(KnowledgeEmbedding.document_id == document.id).delete()
+            chunk_rows: list[KnowledgeChunk] = []
             for index, chunk in enumerate(chunks):
+                ensure_job_not_cancelled(db, job)
+                row = KnowledgeChunk(
+                    id=str(uuid.uuid4()),
+                    workspace_id=document.workspace_id,
+                    document_id=document.id,
+                    chunk_index=index,
+                    content=chunk,
+                    metadata_json=json.dumps({"source": document.original_name, "storage_key": document.storage_key}, sort_keys=True),
+                )
+                chunk_rows.append(row)
+                db.add(row)
+            db.flush()
+            ensure_job_not_cancelled(db, job)
+            provider, model, vectors = embed_texts([chunk.content for chunk in chunk_rows], get_legacy_settings_with_secrets())
+            for chunk, vector in zip(chunk_rows, vectors, strict=False):
+                ensure_job_not_cancelled(db, job)
                 db.add(
-                    KnowledgeChunk(
+                    KnowledgeEmbedding(
                         id=str(uuid.uuid4()),
                         workspace_id=document.workspace_id,
                         document_id=document.id,
-                        chunk_index=index,
-                        content=chunk,
-                        metadata_json=json.dumps({"source": document.original_name, "storage_key": document.storage_key}, sort_keys=True),
+                        chunk_id=chunk.id,
+                        provider=provider,
+                        model=model,
+                        dimensions=len(vector),
+                        vector_json=dumps_vector(vector),
                     )
                 )
             size_bytes = path.stat().st_size
@@ -73,12 +98,24 @@ def index_document(job_id: str, document_id: str) -> None:
                 db,
                 job=job,
                 event_type="progress",
-                message="Document chunks stored",
-                metadata={"document_id": document.id, "storage_key": document.storage_key, "size_bytes": size_bytes, "chunks": len(chunks)},
+                message="Document chunks and embeddings stored",
+                metadata={
+                    "document_id": document.id,
+                    "storage_key": document.storage_key,
+                    "size_bytes": size_bytes,
+                    "chunks": len(chunks),
+                    "embedding_provider": provider,
+                    "embedding_model": model,
+                },
             )
             update_job_status(db, job=job, status="completed", progress=100, message="Document indexing completed")
             document.status = "indexed"
             document.updated_at = utcnow()
+            db.commit()
+        except JobCancelled:
+            document.status = "cancelled"
+            document.updated_at = utcnow()
+            update_job_status(db, job=job, status="cancelled", progress=job.progress, message="Document indexing cancelled")
             db.commit()
         except Exception as exc:
             document.status = "failed"

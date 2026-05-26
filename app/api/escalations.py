@@ -1,24 +1,16 @@
-import json
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_blueprint_member, require_workspace_admin, require_workspace_member
-from app.core.models import Escalation, User, utcnow
-from app.core.pagination import page_response
+from app.core.json_utils import json_loads
+from app.core.models import BlueprintMember, Escalation, User, utcnow
+from app.core.pagination import page_query_response
+from app.core.validation import validate_choice
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/escalations", tags=["escalations"])
-
-
-def _json_loads(value: str) -> dict:
-    try:
-        data = json.loads(value)
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
 
 
 def _format_escalation(escalation: Escalation) -> dict:
@@ -32,7 +24,7 @@ def _format_escalation(escalation: Escalation) -> dict:
         "status": escalation.status,
         "reason": escalation.reason,
         "required_action": escalation.required_action,
-        "metadata": _json_loads(escalation.metadata_json),
+        "metadata": json_loads(escalation.metadata_json, {}),
         "created_by_user_id": escalation.created_by_user_id,
         "resolved_by_user_id": escalation.resolved_by_user_id,
         "created_at": escalation.created_at.isoformat(),
@@ -50,19 +42,18 @@ async def list_escalations(
     db: Session = Depends(get_db),
 ):
     require_workspace_member(workspace_id, user, db)
+    permitted_blueprint_ids = db.execute(
+        select(BlueprintMember.blueprint_id).where(BlueprintMember.user_id == user.id)
+    ).scalars().all()
     query = select(Escalation).where(Escalation.workspace_id == workspace_id)
     if status_filter:
+        status_filter = validate_choice(status_filter, {"open", "resolved", "dismissed"}, "escalation status")
         query = query.where(Escalation.status == status_filter)
-    escalations = db.execute(query.order_by(Escalation.created_at.desc())).scalars().all()
-    visible = []
-    for escalation in escalations:
-        if escalation.blueprint_id:
-            try:
-                require_blueprint_member(workspace_id, escalation.blueprint_id, user, db)
-            except Exception:
-                continue
-        visible.append(_format_escalation(escalation))
-    return page_response(visible, page=page, page_size=page_size)
+    visibility_filters = [Escalation.blueprint_id.is_(None)]
+    if permitted_blueprint_ids:
+        visibility_filters.append(Escalation.blueprint_id.in_(permitted_blueprint_ids))
+    query = query.where(or_(*visibility_filters)).order_by(Escalation.created_at.desc())
+    return page_query_response(db, query, _format_escalation, page=page, page_size=page_size, scalars=True)
 
 
 @router.get("/blueprints/{blueprint_id}")
@@ -75,12 +66,12 @@ async def list_blueprint_escalations(
     db: Session = Depends(get_db),
 ):
     require_blueprint_member(workspace_id, blueprint_id, user, db)
-    escalations = db.execute(
+    escalations = (
         select(Escalation)
         .where(Escalation.workspace_id == workspace_id, Escalation.blueprint_id == blueprint_id)
         .order_by(Escalation.created_at.desc())
-    ).scalars().all()
-    return page_response(escalations, _format_escalation, page=page, page_size=page_size)
+    )
+    return page_query_response(db, escalations, _format_escalation, page=page, page_size=page_size, scalars=True)
 
 
 @router.put("/{escalation_id}/resolve")
@@ -96,6 +87,8 @@ async def resolve_escalation(
     ).scalar_one_or_none()
     if not escalation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escalation not found")
+    if escalation.status == "resolved":
+        return _format_escalation(escalation)
     escalation.status = "resolved"
     escalation.resolved_by_user_id = user.id
     escalation.resolved_at = utcnow()

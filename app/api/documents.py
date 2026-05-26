@@ -2,19 +2,21 @@ import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.core.deps import get_current_user, require_blueprint_member, require_workspace_member
+from app.core.deps import get_current_user, require_blueprint_member, require_workspace_admin, require_workspace_member
 from app.core.document_indexer import index_document
 from app.core.jobs import create_job, format_job
 from app.core.models import BlueprintInstance, DocumentLink, KnowledgeDocument, Matter, User
-from app.core.pagination import page_response
-from app.core.storage import store_upload
+from app.core.pagination import page_query_response
+from app.core.storage import delete_stored_file, store_upload
+from app.core.task_control import run_background_job
+from app.core.validation import validate_choice
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["documents"])
 
@@ -82,6 +84,10 @@ def _validate_document_scope(scope: str) -> None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid document scope")
 
 
+def _validate_document_status(status_value: str) -> str:
+    return validate_choice(status_value, {"registered", "stored", "indexing", "indexed", "failed", "cancelled"}, "document status")
+
+
 def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> None:
     if matter_id:
         matter = db.execute(
@@ -89,6 +95,22 @@ def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> N
         ).scalar_one_or_none()
         if not matter:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+
+
+def _unreferenced_storage_keys(db: Session, documents: list[KnowledgeDocument]) -> list[str]:
+    document_ids = {document.id for document in documents}
+    storage_keys = {document.storage_key for document in documents if document.storage_key}
+    unreferenced: list[str] = []
+    for storage_key in storage_keys:
+        remaining = db.execute(
+            select(func.count(KnowledgeDocument.id)).where(
+                KnowledgeDocument.storage_key == storage_key,
+                KnowledgeDocument.id.notin_(document_ids),
+            )
+        ).scalar_one()
+        if remaining == 0:
+            unreferenced.append(storage_key)
+    return unreferenced
 
 
 def _create_document(
@@ -115,7 +137,7 @@ def _create_document(
         mime_type=mime_type,
         size_bytes=size_bytes,
         scope=scope,
-        status=status_value,
+        status=_validate_document_status(status_value),
         created_by_user_id=user.id,
     )
     db.add(document)
@@ -145,8 +167,7 @@ async def list_documents(
     query = select(KnowledgeDocument).where(KnowledgeDocument.workspace_id == workspace_id)
     if matter_id:
         query = query.where(KnowledgeDocument.matter_id == matter_id)
-    documents = db.execute(query.order_by(KnowledgeDocument.created_at.desc())).scalars().all()
-    return page_response(documents, _format_document, page=page, page_size=page_size)
+    return page_query_response(db, query.order_by(KnowledgeDocument.created_at.desc()), _format_document, page=page, page_size=page_size, scalars=True)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -215,7 +236,7 @@ async def upload_document(
     db.commit()
     db.refresh(document)
     db.refresh(job)
-    background_tasks.add_task(index_document, job.id, document.id)
+    background_tasks.add_task(run_background_job, job.id, index_document, job.id, document.id)
     data = _format_document(document)
     data["job"] = format_job(job)
     return data
@@ -241,7 +262,7 @@ async def enqueue_document_index(
     )
     db.commit()
     db.refresh(job)
-    background_tasks.add_task(index_document, job.id, document.id)
+    background_tasks.add_task(run_background_job, job.id, index_document, job.id, document.id)
     return {"document": _format_document(document), "job": format_job(job)}
 
 
@@ -255,17 +276,19 @@ async def list_blueprint_documents(
     db: Session = Depends(get_db),
 ):
     require_blueprint_member(workspace_id, blueprint_id, user, db)
-    rows = db.execute(
+    rows = (
         select(DocumentLink, KnowledgeDocument)
         .join(KnowledgeDocument, KnowledgeDocument.id == DocumentLink.document_id)
         .where(DocumentLink.workspace_id == workspace_id, DocumentLink.blueprint_id == blueprint_id)
         .order_by(DocumentLink.created_at.desc())
-    ).all()
-    items = [
-        {"link": _format_link(link), "document": _format_document(document)}
-        for link, document in rows
-    ]
-    return page_response(items, page=page, page_size=page_size)
+    )
+    return page_query_response(
+        db,
+        rows,
+        lambda row: {"link": _format_link(row[0]), "document": _format_document(row[1])},
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get("/{document_id}")
@@ -288,6 +311,7 @@ async def delete_document(
 ):
     require_workspace_member(workspace_id, user, db)
     document = _get_document_or_404(db, workspace_id, document_id)
+    storage_keys_to_delete = _unreferenced_storage_keys(db, [document])
     linked = db.execute(select(DocumentLink).where(DocumentLink.document_id == document_id)).scalars().all()
     for link in linked:
         db.delete(link)
@@ -302,6 +326,8 @@ async def delete_document(
         metadata={"storage_key": document.storage_key, "link_count": len(linked)},
     )
     db.commit()
+    for storage_key in storage_keys_to_delete:
+        delete_stored_file(storage_key)
     return {"ok": True}
 
 
@@ -311,8 +337,9 @@ async def delete_all_documents(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    require_workspace_member(workspace_id, user, db)
+    require_workspace_admin(workspace_id, user, db)
     documents = db.execute(select(KnowledgeDocument).where(KnowledgeDocument.workspace_id == workspace_id)).scalars().all()
+    storage_keys_to_delete = _unreferenced_storage_keys(db, documents)
     links = db.execute(select(DocumentLink).where(DocumentLink.workspace_id == workspace_id)).scalars().all()
     for link in links:
         db.delete(link)
@@ -328,6 +355,8 @@ async def delete_all_documents(
         metadata={"document_count": len(documents), "link_count": len(links)},
     )
     db.commit()
+    for storage_key in storage_keys_to_delete:
+        delete_stored_file(storage_key)
     return {"ok": True, "deleted": len(documents)}
 
 

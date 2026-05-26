@@ -3,7 +3,19 @@ import uuid
 
 from sqlalchemy.orm import Session
 
+from app.core.json_utils import json_loads
 from app.core.models import Job, JobEvent, utcnow
+from app.core.task_control import clear_job_control, is_cancel_requested
+
+
+class JobCancelled(RuntimeError):
+    pass
+
+
+def ensure_job_not_cancelled(db: Session, job: Job) -> None:
+    db.refresh(job)
+    if job.status == "cancelled" or is_cancel_requested(job.id):
+        raise JobCancelled("Job cancelled by user")
 
 
 def create_job(
@@ -75,6 +87,7 @@ def update_job_status(
         job.started_at = utcnow()
     if status in {"completed", "failed", "cancelled"}:
         job.completed_at = utcnow()
+        clear_job_control(job.id)
     job.heartbeat_at = utcnow()
     job.error = error
     add_job_event(
@@ -95,7 +108,7 @@ def format_job(job: Job) -> dict:
         "job_type": job.job_type,
         "status": job.status,
         "progress": job.progress,
-        "metadata": _json_loads(job.metadata_json, {}),
+        "metadata": json_loads(job.metadata_json, {}),
         "error": job.error,
         "created_at": job.created_at.isoformat(),
         "started_at": job.started_at.isoformat() if job.started_at else None,
@@ -111,15 +124,6 @@ def format_job_event(event: JobEvent) -> dict:
         "workspace_id": event.workspace_id,
         "type": event.event_type,
         "content": event.message or "",
-        "metadata": _json_loads(event.metadata_json, {}),
+        "metadata": json_loads(event.metadata_json, {}),
         "created_at": event.created_at.isoformat(),
     }
-
-
-def _json_loads(value: str | None, fallback):
-    if not value:
-        return fallback
-    try:
-        return json.loads(value)
-    except Exception:
-        return fallback

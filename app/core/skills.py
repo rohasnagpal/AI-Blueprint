@@ -4,7 +4,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.models import SkillRun, SkillVersion, utcnow
+from app.core.json_utils import json_loads
+from app.core.models import Skill, SkillRun, SkillVersion, utcnow
 
 
 def record_skill_run(
@@ -21,6 +22,18 @@ def record_skill_run(
     status: str = "completed",
     error: str | None = None,
 ) -> SkillRun:
+    skill = db.get(Skill, skill_id)
+    if not skill:
+        skill = Skill(
+            id=skill_id,
+            name=skill_id,
+            description="Auto-registered skill placeholder created by a runner.",
+            category="runner",
+            owner="system",
+            is_enabled=False,
+        )
+        db.add(skill)
+        db.flush()
     version = db.execute(
         select(SkillVersion).where(SkillVersion.skill_id == skill_id).order_by(SkillVersion.created_at.desc())
     ).scalars().first()
@@ -42,11 +55,3 @@ def record_skill_run(
     db.add(run)
     return run
 
-
-def json_loads(value: str | None, fallback):
-    if not value:
-        return fallback
-    try:
-        return json.loads(value)
-    except Exception:
-        return fallback

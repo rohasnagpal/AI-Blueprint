@@ -30,7 +30,8 @@ from app.core.models import (
     WorkspaceMember,
     utcnow,
 )
-from app.core.pagination import page_response
+from app.core.pagination import page_query_response
+from app.core.validation import validate_choice
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/blueprints", tags=["blueprints"])
 
@@ -77,10 +78,11 @@ def _format_blueprint(blueprint: BlueprintInstance, role: str | None = None) -> 
 
 
 def _validate_blueprint_role(role: str) -> str:
-    normalized = role.strip().lower()
-    if normalized not in {"owner", "editor", "viewer"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid blueprint role")
-    return normalized
+    return validate_choice(role, {"owner", "editor", "viewer"}, "blueprint role")
+
+
+def _validate_blueprint_status(status_value: str) -> str:
+    return validate_choice(status_value, {"active", "archived"}, "blueprint status")
 
 
 def _format_blueprint_member(membership: BlueprintMember, member: User) -> dict:
@@ -105,7 +107,7 @@ def _require_blueprint_owner(workspace_id: str, blueprint_id: str, user: User, d
 @router.get("")
 async def list_blueprints(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_member(workspace_id, user, db)
-    rows = db.execute(
+    rows = (
         select(BlueprintInstance, BlueprintMember.role)
         .join(BlueprintMember, BlueprintMember.blueprint_id == BlueprintInstance.id)
         .where(
@@ -113,8 +115,8 @@ async def list_blueprints(workspace_id: str, page: int = Query(default=1, ge=1),
             BlueprintMember.user_id == user.id,
         )
         .order_by(BlueprintInstance.updated_at.desc())
-    ).all()
-    return page_response(rows, lambda row: _format_blueprint(row[0], row[1]), page=page, page_size=page_size)
+    )
+    return page_query_response(db, rows, lambda row: _format_blueprint(row[0], row[1]), page=page, page_size=page_size)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -126,6 +128,7 @@ async def create_blueprint(
 ):
     require_workspace_member(workspace_id, user, db)
     require_plugin_enabled(workspace_id, body.plugin_id, db)
+    blueprint_status = _validate_blueprint_status(body.status)
     if body.matter_id:
         matter = db.execute(
             select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == body.matter_id)
@@ -139,7 +142,7 @@ async def create_blueprint(
         plugin_id=body.plugin_id,
         name=body.name.strip(),
         description=body.description,
-        status=body.status,
+        status=blueprint_status,
         created_by_user_id=user.id,
     )
     db.add(blueprint)
@@ -180,13 +183,13 @@ async def list_blueprint_members(
     db: Session = Depends(get_db),
 ):
     require_blueprint_member(workspace_id, blueprint_id, user, db)
-    rows = db.execute(
+    rows = (
         select(BlueprintMember, User)
         .join(User, User.id == BlueprintMember.user_id)
         .where(BlueprintMember.blueprint_id == blueprint_id)
         .order_by(User.display_name)
-    ).all()
-    return page_response(rows, lambda row: _format_blueprint_member(row[0], row[1]), page=page, page_size=page_size)
+    )
+    return page_query_response(db, rows, lambda row: _format_blueprint_member(row[0], row[1]), page=page, page_size=page_size)
 
 
 @router.post("/{blueprint_id}/members", status_code=status.HTTP_201_CREATED)
@@ -340,7 +343,7 @@ async def update_blueprint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Blueprint edit access required")
     blueprint.name = body.name.strip()
     blueprint.description = body.description
-    blueprint.status = body.status
+    blueprint.status = _validate_blueprint_status(body.status)
     blueprint.updated_at = utcnow()
     record_audit_event(
         db,

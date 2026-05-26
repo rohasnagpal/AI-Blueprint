@@ -2,6 +2,7 @@ import json
 import time
 import sys
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
@@ -14,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 import database
 from app.api.router import router as v2_router
 from app.core.bootstrap import ensure_default_admin
-from app.core.config import get_settings
+from app.core.config import get_settings, validate_runtime_security
 from app.core.database import run_migrations
 from app.core.secrets import ensure_secret_key_configured
 from routes.documents import router as doc_router
@@ -24,7 +25,24 @@ from routes.email import router as email_router
 from routes.personas import router as persona_router
 from routes.settings import router as settings_router
 
-app = FastAPI(title="AI Blueprint")
+def _startup() -> None:
+    settings = get_settings()
+    validate_runtime_security(settings)
+    database.init_db()
+    if settings.run_migrations_on_startup:
+        run_migrations()
+    ensure_secret_key_configured()
+    if settings.bootstrap_default_admin:
+        ensure_default_admin()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    _startup()
+    yield
+
+
+app = FastAPI(title="AI Blueprint", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -74,6 +92,23 @@ async def request_context(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
     response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "script-src-elem 'self'; "
+        "script-src-attr 'none'; "
+        "style-src 'self'; "
+        "style-src-elem 'self'; "
+        "style-src-attr 'none'; "
+        "font-src 'self'; "
+        "img-src 'self' data: blob: https:; "
+        "object-src 'none'; "
+        "connect-src 'self' http: https: ws: wss:; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'",
+    )
     if request.url.path == "/" or request.url.path.endswith(".html"):
         response.headers["Cache-Control"] = "no-store, max-age=0"
     elif request.url.path.endswith((".js", ".css")):
@@ -92,15 +127,6 @@ async def request_context(request: Request, call_next):
         )
     )
     return response
-
-
-@app.on_event("startup")
-async def startup():
-    database.init_db()
-    run_migrations()
-    ensure_secret_key_configured()
-    if get_settings().bootstrap_default_admin:
-        ensure_default_admin()
 
 
 @app.get("/api/health")

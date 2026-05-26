@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_blueprint_member, require_workspace_member
-from app.core.models import Skill, SkillRun, SkillVersion, User
-from app.core.pagination import page_response
+from app.core.models import BlueprintMember, Skill, SkillRun, SkillVersion, User
+from app.core.pagination import page_query_response
 from app.core.skills import json_loads
 
 router = APIRouter(tags=["skills"])
@@ -58,37 +58,39 @@ def _format_run(run: SkillRun) -> dict:
 
 @router.get("/skills")
 async def list_skills(page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    skills = db.execute(select(Skill).where(Skill.is_enabled == True).order_by(Skill.owner, Skill.name)).scalars().all()
-    return page_response(skills, _format_skill, page=page, page_size=page_size)
+    skills = select(Skill).where(Skill.is_enabled == True).order_by(Skill.owner, Skill.name)
+    return page_query_response(db, skills, _format_skill, page=page, page_size=page_size, scalars=True)
 
 
 @router.get("/skills/{skill_id}/versions")
 async def list_skill_versions(skill_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    versions = db.execute(select(SkillVersion).where(SkillVersion.skill_id == skill_id).order_by(SkillVersion.created_at.desc())).scalars().all()
-    return page_response(versions, _format_version, page=page, page_size=page_size)
+    versions = select(SkillVersion).where(SkillVersion.skill_id == skill_id).order_by(SkillVersion.created_at.desc())
+    return page_query_response(db, versions, _format_version, page=page, page_size=page_size, scalars=True)
 
 
 @router.get("/workspaces/{workspace_id}/skill-runs")
 async def list_workspace_skill_runs(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_member(workspace_id, user, db)
-    runs = db.execute(select(SkillRun).where(SkillRun.workspace_id == workspace_id).order_by(SkillRun.created_at.desc())).scalars().all()
-    visible = []
-    for run in runs:
-        if run.blueprint_id:
-            try:
-                require_blueprint_member(workspace_id, run.blueprint_id, user, db)
-            except Exception:
-                continue
-        visible.append(_format_run(run))
-    return page_response(visible, page=page, page_size=page_size)
+    permitted_blueprint_ids = db.execute(
+        select(BlueprintMember.blueprint_id).where(BlueprintMember.user_id == user.id)
+    ).scalars().all()
+    visibility_filters = [SkillRun.blueprint_id.is_(None)]
+    if permitted_blueprint_ids:
+        visibility_filters.append(SkillRun.blueprint_id.in_(permitted_blueprint_ids))
+    runs = (
+        select(SkillRun)
+        .where(SkillRun.workspace_id == workspace_id, or_(*visibility_filters))
+        .order_by(SkillRun.created_at.desc())
+    )
+    return page_query_response(db, runs, _format_run, page=page, page_size=page_size, scalars=True)
 
 
 @router.get("/workspaces/{workspace_id}/blueprints/{blueprint_id}/skill-runs")
 async def list_blueprint_skill_runs(workspace_id: str, blueprint_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_blueprint_member(workspace_id, blueprint_id, user, db)
-    runs = db.execute(
+    runs = (
         select(SkillRun)
         .where(SkillRun.workspace_id == workspace_id, SkillRun.blueprint_id == blueprint_id)
         .order_by(SkillRun.created_at.desc())
-    ).scalars().all()
-    return page_response(runs, _format_run, page=page, page_size=page_size)
+    )
+    return page_query_response(db, runs, _format_run, page=page, page_size=page_size, scalars=True)

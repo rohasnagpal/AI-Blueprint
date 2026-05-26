@@ -1,6 +1,8 @@
 import base64
+import binascii
 import os
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.core.config import get_settings
@@ -30,8 +32,11 @@ def encrypt_secret(value: str) -> str:
 
 
 def decrypt_secret(value: str) -> str:
-    nonce_b64, ciphertext_b64 = value.split(":", 1)
-    key = _get_secret_key()
-    aesgcm = AESGCM(key)
-    plaintext = aesgcm.decrypt(base64.b64decode(nonce_b64), base64.b64decode(ciphertext_b64), None)
-    return plaintext.decode("utf-8")
+    try:
+        nonce_b64, ciphertext_b64 = value.split(":", 1)
+        key = _get_secret_key()
+        aesgcm = AESGCM(key)
+        plaintext = aesgcm.decrypt(base64.b64decode(nonce_b64), base64.b64decode(ciphertext_b64), None)
+        return plaintext.decode("utf-8")
+    except (ValueError, binascii.Error, InvalidTag, UnicodeDecodeError):
+        return ""

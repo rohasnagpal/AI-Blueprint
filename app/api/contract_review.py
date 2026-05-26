@@ -11,6 +11,7 @@ from app.core.audit import record_audit_event
 from app.core.contract_review_runner import execute_contract_review
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_blueprint_member
+from app.core.json_utils import json_loads
 from app.core.jobs import create_job, format_job
 from app.core.models import (
     BlueprintInstance,
@@ -20,7 +21,8 @@ from app.core.models import (
     User,
     utcnow,
 )
-from app.core.pagination import page_response
+from app.core.pagination import page_query_response
+from app.core.task_control import run_background_job
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review", tags=["contract-review"])
 
@@ -32,15 +34,6 @@ class ContractReviewConfigIn(BaseModel):
 class ContractReviewRunIn(BaseModel):
     title: str = ""
     config: dict[str, Any] | None = None
-
-
-def _json_loads(value: str | None, fallback):
-    if not value:
-        return fallback
-    try:
-        return json.loads(value)
-    except Exception:
-        return fallback
 
 
 def _require_contract_blueprint(workspace_id: str, blueprint_id: str, user: User, db: Session) -> tuple[BlueprintInstance, str]:
@@ -55,7 +48,7 @@ def _format_config(config: ContractReviewConfig) -> dict:
         "id": config.id,
         "workspace_id": config.workspace_id,
         "blueprint_id": config.blueprint_id,
-        "config": _json_loads(config.config_json, {}),
+        "config": json_loads(config.config_json, {}),
         "created_by_user_id": config.created_by_user_id,
         "created_at": config.created_at.isoformat(),
         "updated_at": config.updated_at.isoformat(),
@@ -69,7 +62,7 @@ def _format_run(run: ContractReviewRun) -> dict:
         "blueprint_id": run.blueprint_id,
         "title": run.title,
         "status": run.status,
-        "config_snapshot": _json_loads(run.config_snapshot_json, {}),
+        "config_snapshot": json_loads(run.config_snapshot_json, {}),
         "error": run.error,
         "created_by_user_id": run.created_by_user_id,
         "created_at": run.created_at.isoformat(),
@@ -82,20 +75,20 @@ def _format_output(output: ContractReviewOutput) -> dict:
     return {
         "id": output.id,
         "run_id": output.run_id,
-        "extraction": _json_loads(output.extraction_json, {}),
-        "risk_matrix": _json_loads(output.risk_matrix_json, []),
+        "extraction": json_loads(output.extraction_json, {}),
+        "risk_matrix": json_loads(output.risk_matrix_json, []),
         "negotiation_memo": output.negotiation_memo,
         "client_summary": output.client_summary,
-        "sources": _json_loads(output.sources_json, []),
-        "metadata": _json_loads(output.metadata_json, {}),
+        "sources": json_loads(output.sources_json, []),
+        "metadata": json_loads(output.metadata_json, {}),
         "created_at": output.created_at.isoformat(),
     }
 
 
 def _contract_export_markdown(run: ContractReviewRun, output: ContractReviewOutput) -> str:
-    extraction = _json_loads(output.extraction_json, {})
-    risk_matrix = _json_loads(output.risk_matrix_json, [])
-    sources = _json_loads(output.sources_json, [])
+    extraction = json_loads(output.extraction_json, {})
+    risk_matrix = json_loads(output.risk_matrix_json, [])
+    sources = json_loads(output.sources_json, [])
     lines = [
         f"# {run.title}",
         "",
@@ -163,12 +156,12 @@ async def upsert_config(
 @router.get("/runs")
 async def list_runs(workspace_id: str, blueprint_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     _require_contract_blueprint(workspace_id, blueprint_id, user, db)
-    runs = db.execute(
+    runs = (
         select(ContractReviewRun)
         .where(ContractReviewRun.workspace_id == workspace_id, ContractReviewRun.blueprint_id == blueprint_id)
         .order_by(ContractReviewRun.created_at.desc())
-    ).scalars().all()
-    return page_response(runs, _format_run, page=page, page_size=page_size)
+    )
+    return page_query_response(db, runs, _format_run, page=page, page_size=page_size, scalars=True)
 
 
 @router.post("/runs", status_code=status.HTTP_201_CREATED)
@@ -186,7 +179,7 @@ async def create_run(
     config = body.config
     if config is None:
         saved = db.execute(select(ContractReviewConfig).where(ContractReviewConfig.blueprint_id == blueprint_id)).scalar_one_or_none()
-        config = _json_loads(saved.config_json, {}) if saved else {}
+        config = json_loads(saved.config_json, {}) if saved else {}
     run = ContractReviewRun(
         id=str(uuid.uuid4()),
         workspace_id=workspace_id,
@@ -218,7 +211,7 @@ async def create_run(
     db.commit()
     db.refresh(run)
     db.refresh(job)
-    background_tasks.add_task(execute_contract_review, job.id, run.id)
+    background_tasks.add_task(run_background_job, job.id, execute_contract_review, job.id, run.id)
     data = _format_run(run)
     data["job"] = format_job(job)
     return data

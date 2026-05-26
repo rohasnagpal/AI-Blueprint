@@ -39,7 +39,7 @@ Restore the database files, runtime directories, and encryption keys before star
 After restore, run migrations before accepting users:
 
 ```bash
-.venv/bin/python -c "from app.core.database import run_migrations; run_migrations()"
+.venv/bin/python scripts/migrate.py
 ```
 
 Verify the deployment:

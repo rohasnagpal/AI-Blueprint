@@ -5,7 +5,9 @@ import uuid
 from sqlalchemy import select
 
 from app.core.database import SessionLocal
-from app.core.jobs import add_job_event, update_job_status
+from app.core.json_utils import json_loads
+from app.core.jobs import JobCancelled, add_job_event, ensure_job_not_cancelled, update_job_status
+from app.core.llm import complete_with_configured_llm, get_legacy_settings_with_secrets
 from app.core.models import (
     DocumentLink,
     Job,
@@ -29,11 +31,13 @@ def execute_legal_research(job_id: str, run_id: str) -> None:
         if not job or not run:
             return
         try:
-            config = _json_loads(run.config_snapshot_json, {})
+            ensure_job_not_cancelled(db, job)
+            config = json_loads(run.config_snapshot_json, {})
             run.status = "running"
             run.started_at = utcnow()
             update_job_status(db, job=job, status="running", progress=10, message="Legal research started")
             db.commit()
+            ensure_job_not_cancelled(db, job)
 
             chunks = _linked_chunks(db, run)
             if not chunks:
@@ -42,10 +46,16 @@ def execute_legal_research(job_id: str, run_id: str) -> None:
             job.progress = 35
             job.heartbeat_at = utcnow()
             db.commit()
+            ensure_job_not_cancelled(db, job)
 
             sources = _sources(chunks)
             full_text = "\n\n".join(chunk.content for chunk, _document in chunks)
             authority_matrix = _authority_matrix(full_text, chunks)
+            settings = get_legacy_settings_with_secrets()
+            ai_research = _ai_legal_research(run.question, full_text, sources=sources, config=config, settings=settings)
+            runner_name = "ai_legal_research" if ai_research else "deterministic_legal_research"
+            if ai_research:
+                authority_matrix = ai_research.get("authority_matrix", authority_matrix)
             record_skill_run(
                 db,
                 workspace_id=run.workspace_id,
@@ -55,10 +65,11 @@ def execute_legal_research(job_id: str, run_id: str) -> None:
                 input_data={"question": run.question, "text_chars": len(full_text)},
                 output_data={"authority_matrix": authority_matrix},
                 sources=sources,
-                metadata={"runner": "deterministic_legal_research"},
+                metadata={"runner": runner_name},
             )
 
-            legal_tests = _legal_tests(full_text)
+            legal_tests = ai_research.get("legal_tests", _legal_tests(full_text)) if ai_research else _legal_tests(full_text)
+            ensure_job_not_cancelled(db, job)
             record_skill_run(
                 db,
                 workspace_id=run.workspace_id,
@@ -68,10 +79,11 @@ def execute_legal_research(job_id: str, run_id: str) -> None:
                 input_data={"question": run.question},
                 output_data={"legal_tests": legal_tests},
                 sources=sources,
-                metadata={"runner": "deterministic_legal_research"},
+                metadata={"runner": runner_name},
             )
 
-            citation_pack = _citation_pack(sources)
+            citation_pack = ai_research.get("citation_pack", _citation_pack(sources)) if ai_research else _citation_pack(sources)
+            ensure_job_not_cancelled(db, job)
             record_skill_run(
                 db,
                 workspace_id=run.workspace_id,
@@ -81,11 +93,13 @@ def execute_legal_research(job_id: str, run_id: str) -> None:
                 input_data={"source_count": len(sources)},
                 output_data={"citation_pack": citation_pack},
                 sources=sources,
-                metadata={"runner": "deterministic_legal_research"},
+                metadata={"runner": runner_name},
             )
 
-            memo = _research_memo(run.question, authority_matrix, legal_tests, citation_pack, config)
-            limitations = _limitations(authority_matrix, legal_tests)
+            memo = ai_research.get("research_memo") if ai_research else None
+            memo = memo or _research_memo(run.question, authority_matrix, legal_tests, citation_pack, config)
+            limitations = ai_research.get("limitations") if ai_research else None
+            limitations = limitations or _limitations(authority_matrix, legal_tests)
             record_skill_run(
                 db,
                 workspace_id=run.workspace_id,
@@ -95,7 +109,7 @@ def execute_legal_research(job_id: str, run_id: str) -> None:
                 input_data={"question": run.question},
                 output_data={"research_memo": memo, "limitations": limitations},
                 sources=sources,
-                metadata={"runner": "deterministic_legal_research"},
+                metadata={"runner": runner_name},
             )
 
             output = LegalResearchOutput(
@@ -109,12 +123,17 @@ def execute_legal_research(job_id: str, run_id: str) -> None:
                 research_memo=memo,
                 limitations=limitations,
                 sources_json=json.dumps(sources, sort_keys=True),
-                metadata_json=json.dumps({"runner": "deterministic_legal_research", "jurisdiction": config.get("jurisdiction")}, sort_keys=True),
+                metadata_json=json.dumps({"runner": runner_name, "jurisdiction": config.get("jurisdiction")}, sort_keys=True),
             )
             db.add(output)
             run.status = "completed"
             run.completed_at = utcnow()
             update_job_status(db, job=job, status="completed", progress=100, message="Legal research completed")
+            db.commit()
+        except JobCancelled:
+            run.status = "cancelled"
+            run.completed_at = utcnow()
+            update_job_status(db, job=job, status="cancelled", progress=job.progress, message="Legal research cancelled")
             db.commit()
         except Exception as exc:
             run.status = "failed"
@@ -220,10 +239,41 @@ def _sources(chunks) -> list[dict]:
     ]
 
 
-def _json_loads(value: str | None, fallback):
-    if not value:
-        return fallback
+def _ai_legal_research(question: str, text: str, *, sources: list[dict], config: dict, settings: dict) -> dict | None:
+    system = (
+        "You are a careful legal research assistant. Return only valid JSON with keys "
+        "authority_matrix, legal_tests, citation_pack, research_memo, limitations. "
+        "Use only the provided evidence and clearly preserve limitations."
+    )
+    source_text = "\n\n".join(f"[{source['filename']} page {source['page']}]\n{source['excerpt']}" for source in sources[:10])
+    user = (
+        f"Research question: {question}\n"
+        f"Config: {json.dumps(config, sort_keys=True)}\n\n"
+        f"Evidence excerpts:\n{source_text}\n\n"
+        f"Full indexed text, truncated:\n{text[:12000]}"
+    )
     try:
-        return json.loads(value)
+        content = complete_with_configured_llm(
+            settings,
+            system,
+            user,
+            model=config.get("model"),
+            temperature=float(config.get("temperature", 0.2)),
+            max_tokens=int(config.get("max_tokens", 3000)),
+        )
     except Exception:
-        return fallback
+        return None
+    data = json_loads(_extract_json_object(content), {}) if content else {}
+    if not isinstance(data.get("authority_matrix"), list) or not isinstance(data.get("legal_tests"), list):
+        return None
+    return data
+
+
+def _extract_json_object(value: str | None) -> str | None:
+    if not value:
+        return None
+    start = value.find("{")
+    end = value.rfind("}")
+    if start < 0 or end <= start:
+        return value
+    return value[start:end + 1]

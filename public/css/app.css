@@ -1575,6 +1575,8 @@
   #view-councils .settings-card > .council-list,
   #view-blueprints .settings-card > .council-form,
   #view-blueprints .settings-card > .council-list,
+  #view-matters .settings-card > .council-form,
+  #view-matters .settings-card > .council-list,
   #view-email .settings-card > .council-list,
   #stab-workspaces .settings-card > .council-form,
   #stab-workspaces .settings-card > .council-list,
@@ -1587,6 +1589,8 @@
   #view-councils .settings-card-header + .council-list,
   #view-blueprints .settings-card-header + .council-form,
   #view-blueprints .settings-card-header + .council-list,
+  #view-matters .settings-card-header + .council-form,
+  #view-matters .settings-card-header + .council-list,
   #view-email .settings-card-header + .council-list,
   #stab-workspaces .settings-card-header + .council-form,
   #stab-workspaces .settings-card-header + .council-list,
@@ -1596,12 +1600,16 @@
   }
 
   #view-blueprints .councils-area > .settings-card,
+  #view-matters .councils-area > .settings-card,
+  #view-plugins .councils-area > .settings-card,
   #view-blueprints .docs-stats,
   #view-email .settings-card {
     max-width: var(--content-max) !important;
   }
 
   #view-blueprints .councils-area > .settings-card,
+  #view-matters .councils-area > .settings-card,
+  #view-plugins .councils-area > .settings-card,
   #view-email .settings-card {
     margin-left: auto !important;
     margin-right: auto !important;
@@ -2100,6 +2108,16 @@
     padding: 32px 40px;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
+  }
+
+  #view-settings.workspace-standalone .settings-nav {
+    display: none;
+  }
+
+  #view-settings.workspace-standalone .settings-content {
+    max-width: var(--content-max);
+    margin: 0 auto;
+    width: 100%;
   }
 
   .settings-section { display: none; }

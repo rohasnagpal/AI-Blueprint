@@ -11,9 +11,11 @@ from app.core.audit import record_audit_event
 from app.core.council_runner import execute_council_run
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_blueprint_member
+from app.core.json_utils import json_loads
 from app.core.jobs import create_job, format_job
 from app.core.models import BlueprintInstance, CouncilConfig, CouncilEvidence, CouncilOutput, CouncilRun, User, utcnow
-from app.core.pagination import page_response
+from app.core.pagination import page_query_response
+from app.core.task_control import run_background_job
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/blueprints/{blueprint_id}/council", tags=["council"])
 
@@ -26,15 +28,6 @@ class CouncilRunIn(BaseModel):
     title: str = ""
     objective: str = Field(min_length=1)
     config: dict[str, Any] | None = None
-
-
-def _json_loads(value: str | None, fallback):
-    if not value:
-        return fallback
-    try:
-        return json.loads(value)
-    except Exception:
-        return fallback
 
 
 def _validate_config(config: dict[str, Any]) -> None:
@@ -74,7 +67,7 @@ def _format_config(config: CouncilConfig) -> dict:
         "id": config.id,
         "workspace_id": config.workspace_id,
         "blueprint_id": config.blueprint_id,
-        "config": _json_loads(config.config_json, {}),
+        "config": json_loads(config.config_json, {}),
         "created_by_user_id": config.created_by_user_id,
         "created_at": config.created_at.isoformat(),
         "updated_at": config.updated_at.isoformat(),
@@ -89,7 +82,7 @@ def _format_run(run: CouncilRun) -> dict:
         "title": run.title,
         "objective": run.objective,
         "status": run.status,
-        "config_snapshot": _json_loads(run.config_snapshot_json, {}),
+        "config_snapshot": json_loads(run.config_snapshot_json, {}),
         "error": run.error,
         "created_by_user_id": run.created_by_user_id,
         "created_at": run.created_at.isoformat(),
@@ -107,8 +100,8 @@ def _format_output(output: CouncilOutput) -> dict:
         "agent_id": output.agent_id,
         "role_name": output.role_name,
         "content": output.content,
-        "sources": _json_loads(output.sources_json, []),
-        "metadata": _json_loads(output.metadata_json, {}),
+        "sources": json_loads(output.sources_json, []),
+        "metadata": json_loads(output.metadata_json, {}),
         "created_at": output.created_at.isoformat(),
     }
 
@@ -120,7 +113,7 @@ def _format_evidence(evidence: CouncilEvidence) -> dict:
         "phase_id": evidence.phase_id,
         "phase_name": evidence.phase_name,
         "query": evidence.query,
-        "sources": _json_loads(evidence.sources_json, []),
+        "sources": json_loads(evidence.sources_json, []),
         "created_at": evidence.created_at.isoformat(),
     }
 
@@ -144,7 +137,7 @@ def _council_export_markdown(run: CouncilRun, outputs: list[CouncilOutput], evid
                 output.content,
             ]
         )
-        sources = _json_loads(output.sources_json, [])
+        sources = json_loads(output.sources_json, [])
         if sources:
             lines.append("")
             lines.append("Sources:")
@@ -157,7 +150,7 @@ def _council_export_markdown(run: CouncilRun, outputs: list[CouncilOutput], evid
         lines.append("")
         lines.append(f"### {item.phase_name}")
         lines.append(f"Query: {item.query}")
-        sources = _json_loads(item.sources_json, [])
+        sources = json_loads(item.sources_json, [])
         for source in sources:
             lines.append(f"- {source.get('filename')} p. {source.get('page')}: {source.get('excerpt')}")
     lines.extend(["", "## Review Status", "Human review required before external delivery."])
@@ -223,12 +216,12 @@ async def list_runs(
     db: Session = Depends(get_db),
 ):
     _require_council_blueprint(workspace_id, blueprint_id, user, db)
-    runs = db.execute(
+    runs = (
         select(CouncilRun)
         .where(CouncilRun.workspace_id == workspace_id, CouncilRun.blueprint_id == blueprint_id)
         .order_by(CouncilRun.created_at.desc())
-    ).scalars().all()
-    return page_response(runs, _format_run, page=page, page_size=page_size)
+    )
+    return page_query_response(db, runs, _format_run, page=page, page_size=page_size, scalars=True)
 
 
 @router.post("/runs", status_code=status.HTTP_201_CREATED)
@@ -248,7 +241,7 @@ async def create_run(
         saved_config = db.execute(select(CouncilConfig).where(CouncilConfig.blueprint_id == blueprint_id)).scalar_one_or_none()
         if not saved_config:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Council run needs a saved config or inline config")
-        config = _json_loads(saved_config.config_json, {})
+        config = json_loads(saved_config.config_json, {})
     _validate_config(config)
     title = body.title.strip() or config.get("name") or "Council Run"
     run = CouncilRun(
@@ -283,7 +276,7 @@ async def create_run(
     db.commit()
     db.refresh(run)
     db.refresh(job)
-    background_tasks.add_task(execute_council_run, job.id, run.id)
+    background_tasks.add_task(run_background_job, job.id, execute_council_run, job.id, run.id)
     data = _format_run(run)
     data["job"] = format_job(job)
     return data

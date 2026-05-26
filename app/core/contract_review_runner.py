@@ -5,7 +5,9 @@ import uuid
 from sqlalchemy import select
 
 from app.core.database import SessionLocal
-from app.core.jobs import add_job_event, update_job_status
+from app.core.json_utils import json_loads
+from app.core.jobs import JobCancelled, add_job_event, ensure_job_not_cancelled, update_job_status
+from app.core.llm import complete_with_configured_llm, get_legacy_settings_with_secrets
 from app.core.skills import record_skill_run
 from app.core.models import (
     ContractReviewOutput,
@@ -37,11 +39,13 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
         if not job or not run:
             return
         try:
-            config = _json_loads(run.config_snapshot_json, {})
+            ensure_job_not_cancelled(db, job)
+            config = json_loads(run.config_snapshot_json, {})
             run.status = "running"
             run.started_at = utcnow()
             update_job_status(db, job=job, status="running", progress=10, message="Contract review started")
             db.commit()
+            ensure_job_not_cancelled(db, job)
 
             chunks = _linked_chunks(db, run)
             if not chunks:
@@ -50,13 +54,20 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
             job.progress = 35
             job.heartbeat_at = utcnow()
             db.commit()
+            ensure_job_not_cancelled(db, job)
 
             full_text = "\n\n".join(chunk.content for chunk, _document in chunks)
             add_job_event(db, job=job, event_type="progress", message="Classifying document and extracting contract fields", metadata={"text_chars": len(full_text), "progress": 45})
             job.progress = 45
             job.heartbeat_at = utcnow()
             db.commit()
+            ensure_job_not_cancelled(db, job)
             extraction = _extract_fields(full_text, config)
+            settings = get_legacy_settings_with_secrets()
+            ai_review = _ai_contract_review(full_text, extraction, _risk_matrix(full_text), sources=_sources(chunks), config=config, settings=settings)
+            runner_name = "ai_contract_review" if ai_review else "deterministic_contract_review"
+            if ai_review:
+                extraction = ai_review.get("extraction", extraction)
             record_skill_run(
                 db,
                 workspace_id=run.workspace_id,
@@ -66,13 +77,14 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
                 input_data={"fields": config.get("fields"), "text_chars": len(full_text)},
                 output_data=extraction,
                 sources=_sources(chunks),
-                metadata={"runner": "deterministic_contract_review"},
+                metadata={"runner": runner_name},
             )
             add_job_event(db, job=job, event_type="progress", message="Building risk analysis", metadata={"progress": 60})
             job.progress = 60
             job.heartbeat_at = utcnow()
             db.commit()
-            risk_matrix = _risk_matrix(full_text)
+            ensure_job_not_cancelled(db, job)
+            risk_matrix = ai_review.get("risk_matrix", _risk_matrix(full_text)) if ai_review else _risk_matrix(full_text)
             record_skill_run(
                 db,
                 workspace_id=run.workspace_id,
@@ -82,10 +94,11 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
                 input_data={"risk_terms": list(RISK_TERMS.keys())},
                 output_data=risk_matrix,
                 sources=_sources(chunks),
-                metadata={"runner": "deterministic_contract_review"},
+                metadata={"runner": runner_name},
             )
             sources = _sources(chunks)
-            negotiation_memo = _negotiation_memo(extraction, risk_matrix)
+            negotiation_memo = ai_review.get("negotiation_memo") if ai_review else None
+            negotiation_memo = negotiation_memo or _negotiation_memo(extraction, risk_matrix)
             record_skill_run(
                 db,
                 workspace_id=run.workspace_id,
@@ -95,9 +108,10 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
                 input_data={"extraction_keys": list(extraction.keys()), "risk_count": len(risk_matrix)},
                 output_data={"negotiation_memo": negotiation_memo},
                 sources=sources,
-                metadata={"runner": "deterministic_contract_review"},
+                metadata={"runner": runner_name},
             )
-            client_summary = _client_summary(extraction, risk_matrix)
+            client_summary = ai_review.get("client_summary") if ai_review else None
+            client_summary = client_summary or _client_summary(extraction, risk_matrix)
             record_skill_run(
                 db,
                 workspace_id=run.workspace_id,
@@ -107,7 +121,7 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
                 input_data={"extraction_keys": list(extraction.keys()), "risk_count": len(risk_matrix)},
                 output_data={"client_summary": client_summary},
                 sources=sources,
-                metadata={"runner": "deterministic_contract_review"},
+                metadata={"runner": runner_name},
             )
             add_job_event(db, job=job, event_type="progress", message="Saving contract review output", metadata={"progress": 90})
             job.progress = 90
@@ -126,7 +140,7 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
                 sources_json=json.dumps(sources, sort_keys=True),
                 metadata_json=json.dumps(
                     {
-                        "runner": "deterministic_contract_review",
+                        "runner": runner_name,
                         "review_depth": config.get("review_depth", "standard"),
                     },
                     sort_keys=True,
@@ -153,6 +167,11 @@ def execute_contract_review(job_id: str, run_id: str) -> None:
             run.status = "completed"
             run.completed_at = utcnow()
             update_job_status(db, job=job, status="completed", progress=100, message="Contract review completed")
+            db.commit()
+        except JobCancelled:
+            run.status = "cancelled"
+            run.completed_at = utcnow()
+            update_job_status(db, job=job, status="cancelled", progress=job.progress, message="Contract review cancelled")
             db.commit()
         except Exception as exc:
             run.status = "failed"
@@ -235,10 +254,43 @@ def _sources(chunks) -> list[dict]:
     ]
 
 
-def _json_loads(value: str | None, fallback):
-    if not value:
-        return fallback
+def _ai_contract_review(text: str, extraction: dict, risk_matrix: list[dict], *, sources: list[dict], config: dict, settings: dict) -> dict | None:
+    system = (
+        "You are a careful contract review assistant. Return only valid JSON with keys "
+        "extraction, risk_matrix, negotiation_memo, client_summary. Do not provide legal advice or recommend signing."
+    )
+    source_text = "\n\n".join(f"[{source['filename']} chunk {source['chunk']}]\n{source['excerpt']}" for source in sources[:8])
+    user = (
+        "Review this indexed contract evidence. Use the provided deterministic draft as a starting point, "
+        "but improve it where the evidence supports a better analysis.\n\n"
+        f"Config: {json.dumps(config, sort_keys=True)}\n\n"
+        f"Deterministic extraction: {json.dumps(extraction, sort_keys=True)}\n\n"
+        f"Deterministic risk matrix: {json.dumps(risk_matrix, sort_keys=True)}\n\n"
+        f"Evidence excerpts:\n{source_text}\n\n"
+        f"Full indexed text, truncated:\n{text[:12000]}"
+    )
     try:
-        return json.loads(value)
+        content = complete_with_configured_llm(
+            settings,
+            system,
+            user,
+            model=config.get("model"),
+            temperature=float(config.get("temperature", 0.2)),
+            max_tokens=int(config.get("max_tokens", 3000)),
+        )
     except Exception:
-        return fallback
+        return None
+    data = json_loads(_extract_json_object(content), {}) if content else {}
+    if not isinstance(data.get("extraction"), dict) or not isinstance(data.get("risk_matrix"), list):
+        return None
+    return data
+
+
+def _extract_json_object(value: str | None) -> str | None:
+    if not value:
+        return None
+    start = value.find("{")
+    end = value.rfind("}")
+    if start < 0 or end <= start:
+        return value
+    return value[start:end + 1]

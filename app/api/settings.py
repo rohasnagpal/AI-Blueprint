@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_admin, require_workspace_member
+from app.core.json_utils import json_loads
 from app.core.models import RuntimeSetting, User, utcnow
 from app.core.pagination import page_response
 
@@ -54,16 +55,9 @@ def _coerce_value(definition: SettingDefinition, value: Any) -> Any:
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported setting type")
 
 
-def _json_loads(value: str, fallback: Any) -> Any:
-    try:
-        return json.loads(value)
-    except Exception:
-        return fallback
-
-
 def _format_setting(key: str, setting: RuntimeSetting | None = None) -> dict:
     definition = SETTING_DEFINITIONS[key]
-    value = _json_loads(setting.value_json, definition.default) if setting else definition.default
+    value = json_loads(setting.value_json, definition.default) if setting else definition.default
     return {
         "key": key,
         "value": value,

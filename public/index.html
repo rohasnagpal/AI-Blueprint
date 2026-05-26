@@ -4,8 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AI Blueprint by Rohas Nagpal</title>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/app.css?v=20260525-email-settings-accordion-v1"/>
+<link rel="stylesheet" href="/css/fonts.css?v=20260526-self-host-fonts-v1"/>
+<link rel="stylesheet" href="/css/app.css?v=20260526-blueprint-nav-cleanup-v1"/>
+<script src="/js/csp-styles.js?v=20260526-strict-style-csp-v1"></script>
 
 </head>
 <body>
@@ -43,9 +44,9 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       Blueprints
     </button>
-    <button type="button" onclick="switchViewFromMore('email')" id="more-email">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
-      Email
+    <button type="button" onclick="switchViewFromMore('matters')" id="more-matters">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 3h11v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 4"/></svg>
+      Matters
     </button>
     <button type="button" onclick="switchViewFromMore('add-doc')" id="more-add-doc">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -56,11 +57,23 @@
       View Documents
       <span class="nav-badge" id="docs-count-badge">0</span>
     </button>
+    <button type="button" onclick="switchViewFromMore('email')" id="more-email">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+      Email
+    </button>
+    <button type="button" onclick="switchViewFromMore('plugins')" id="more-plugins">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"/><path d="M5.2 5.2l4.2 4.2"/><path d="M2 12h6"/><path d="M5.2 18.8l4.2-4.2"/><path d="M12 16v6"/><path d="M18.8 18.8l-4.2-4.2"/><path d="M16 12h6"/><path d="M18.8 5.2l-4.2 4.2"/></svg>
+      Plugins
+    </button>
+    <button type="button" onclick="switchViewFromMore('workspaces')" id="more-workspaces">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+      Workspaces
+    </button>
     <button type="button" onclick="switchViewFromMore('settings')" id="more-settings">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
       Settings
     </button>
-    <button type="button" onclick="switchViewFromMore('admin-users')" id="nav-admin-users" style="display:none">
+    <button type="button" onclick="switchViewFromMore('admin-users')" id="nav-admin-users" data-csp-style="display:none">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Admin Users
     </button>
@@ -70,12 +83,12 @@
 
   <div class="sidebar-section">
     <div class="sidebar-label" id="chat-history-label">Recent Chats</div>
-    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+    <div data-csp-style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
       <button class="chat-filter-btn" id="chat-active-filter" type="button" onclick="setChatArchiveFilter(false)">Active</button>
       <button class="chat-filter-btn" id="chat-archived-filter" type="button" onclick="setChatArchiveFilter(true)">Archived</button>
       <button class="chat-filter-btn" type="button" onclick="toggleChatSelectMode()">Select</button>
     </div>
-    <div id="chat-bulk-actions" style="display:none;gap:6px;margin-top:6px;flex-wrap:wrap">
+    <div id="chat-bulk-actions" data-csp-style="display:none;gap:6px;margin-top:6px;flex-wrap:wrap">
       <button class="chat-filter-btn danger" type="button" onclick="deleteSelectedChats()">Delete selected</button>
       <button class="chat-filter-btn danger" type="button" onclick="deleteAllVisibleChats()">Delete all</button>
       <button class="chat-filter-btn" type="button" onclick="toggleChatSelectMode(false)">Cancel</button>
@@ -116,7 +129,7 @@
       <button class="icon-btn" id="theme-icon-btn" type="button" title="Toggle dark mode" aria-label="Toggle dark mode" onclick="toggleTheme()">
         <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       </button>
-      <button class="icon-btn" id="v2-logout-topbar" type="button" title="Log out" aria-label="Log out" onclick="logoutV2()" style="display:none">
+      <button class="icon-btn" id="v2-logout-topbar" type="button" title="Log out" aria-label="Log out" onclick="logoutV2()" data-csp-style="display:none">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
@@ -143,7 +156,7 @@
       </div>
 
       <!-- Conversation populated dynamically -->
-      <div class="msg-group" id="chat-conversation" style="display:none"></div>
+      <div class="msg-group" id="chat-conversation" data-csp-style="display:none"></div>
     </div>
 
     <!-- INPUT -->
@@ -156,8 +169,8 @@
             <svg class="input-mode-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <span class="input-doc-badge" id="input-doc-badge">No document search</span>
-          <select class="s-select input-scope-select" id="chat-workspace-select" onchange="setChatWorkspaceFromInput(this.value)" title="Choose workspace" style="display:none"></select>
-          <select class="s-select input-scope-select" id="chat-matter-select" onchange="setChatMatterFromInput(this.value)" title="Choose matter" style="display:none"></select>
+          <select class="s-select input-scope-select" id="chat-workspace-select" onchange="setChatWorkspaceFromInput(this.value)" title="Choose workspace" data-csp-style="display:none"></select>
+          <select class="s-select input-scope-select" id="chat-matter-select" onchange="setChatMatterFromInput(this.value)" title="Choose matter" data-csp-style="display:none"></select>
           <select class="s-select input-persona-select" id="persona-select" onchange="setPersona(this.value)" title="Choose persona">
             <option value="">No persona</option>
           </select>
@@ -199,15 +212,11 @@
         <p>Open workspace matters and create plugin-backed legal blueprints.</p>
       </div>
 
-      <div class="settings-card" style="margin-bottom:16px">
-        <div class="settings-card-header">
-          <div><div class="settings-card-title">Workspace</div><div class="settings-card-subtitle">Choose the v2 workspace for matters, documents, and blueprint permissions.</div></div>
-          <button class="btn-secondary" type="button" onclick="loadV2Shell()">Refresh</button>
-        </div>
+      <div class="settings-card blueprint-context-card" data-csp-style="margin-bottom:16px">
         <div class="council-form">
           <div class="council-form-row">
             <div class="council-field">
-              <label for="v2-workspace-select">Current workspace</label>
+              <label for="v2-workspace-select">Workspace</label>
               <select class="council-select" id="v2-workspace-select" onchange="setV2Workspace(this.value)"></select>
             </div>
             <div class="council-field">
@@ -224,31 +233,38 @@
         <div class="stat-pill"><strong id="v2-stat-documents">0</strong> v2 documents</div>
       </div>
 
-      <div class="councils-shell">
-        <div class="council-nav">
-          <button class="council-tab active" type="button" onclick="switchBlueprintTab('matters', this)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 3h11v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 4"/></svg>
-            Matters
-          </button>
-          <button class="council-tab" type="button" onclick="switchBlueprintTab('blueprints', this)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            Blueprints
-          </button>
-          <button class="council-tab" type="button" onclick="switchBlueprintTab('plugins', this)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"/><path d="M5.2 5.2l4.2 4.2"/><path d="M2 12h6"/><path d="M5.2 18.8l4.2-4.2"/><path d="M12 16v6"/><path d="M18.8 18.8l-4.2-4.2"/><path d="M16 12h6"/><path d="M18.8 5.2l-4.2 4.2"/></svg>
-            Plugins
-          </button>
-        </div>
-
-        <div>
-          <div class="council-panel active" id="blueprint-panel-matters">
-            <div class="council-toolbar">
-              <div>
-                <div class="settings-section-title">Matters</div>
-                <div class="settings-section-desc">Matter records scope documents and blueprints.</div>
-              </div>
+      <div class="council-panel active" id="blueprint-panel-blueprints">
+        <div class="settings-card" data-csp-style="margin-bottom:16px">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">New Blueprint</div></div>
+          </div>
+          <div class="council-form">
+            <div class="council-form-row">
+              <div class="council-field"><label for="v2-blueprint-name">Name</label><input class="council-input" id="v2-blueprint-name" placeholder="Blueprint name"/></div>
+              <div class="council-field"><label for="v2-blueprint-plugin">Plugin</label><select class="council-select" id="v2-blueprint-plugin"></select></div>
             </div>
-            <div class="settings-card" style="margin-bottom:16px">
+            <div class="council-form-row">
+              <div class="council-field"><label for="v2-blueprint-matter">Matter</label><select class="council-select" id="v2-blueprint-matter"></select></div>
+              <div class="council-field"><label for="v2-blueprint-status">Status</label><select class="council-select" id="v2-blueprint-status"><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></div>
+            </div>
+            <div class="council-field"><label for="v2-blueprint-description">Description</label><textarea class="council-textarea" id="v2-blueprint-description" placeholder="Optional blueprint notes"></textarea></div>
+            <div class="council-actions"><button class="btn-primary" type="button" onclick="createV2Blueprint()">Create Blueprint</button></div>
+          </div>
+        </div>
+        <div class="council-list" id="v2-blueprints-list"></div>
+        <div class="settings-card" id="v2-plugin-workspace" data-csp-style="margin-top:12px;display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-matters">
+    <div class="councils-area">
+      <div class="view-header">
+        <h2>Matters</h2>
+        <p>Create, open, and remove matter records for the current workspace.</p>
+      </div>
+      <div class="council-panel active" id="blueprint-panel-matters">
+            <div class="settings-card" data-csp-style="margin-bottom:16px">
               <div class="settings-card-header">
                 <div><div class="settings-card-title">New Matter</div></div>
               </div>
@@ -262,46 +278,18 @@
               </div>
             </div>
             <div class="council-list" id="v2-matters-list"></div>
-          </div>
+      </div>
+    </div>
+  </div>
 
-          <div class="council-panel" id="blueprint-panel-blueprints">
-            <div class="council-toolbar">
-              <div>
-                <div class="settings-section-title">Blueprints</div>
-                <div class="settings-section-desc">Create legal workspaces from enabled plugins.</div>
-              </div>
-            </div>
-            <div class="settings-card" style="margin-bottom:16px">
-              <div class="settings-card-header">
-                <div><div class="settings-card-title">New Blueprint</div></div>
-              </div>
-              <div class="council-form">
-                <div class="council-form-row">
-                  <div class="council-field"><label for="v2-blueprint-name">Name</label><input class="council-input" id="v2-blueprint-name" placeholder="Blueprint name"/></div>
-                  <div class="council-field"><label for="v2-blueprint-plugin">Plugin</label><select class="council-select" id="v2-blueprint-plugin"></select></div>
-                </div>
-                <div class="council-form-row">
-                  <div class="council-field"><label for="v2-blueprint-matter">Matter</label><select class="council-select" id="v2-blueprint-matter"></select></div>
-                  <div class="council-field"><label for="v2-blueprint-status">Status</label><select class="council-select" id="v2-blueprint-status"><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></div>
-                </div>
-                <div class="council-field"><label for="v2-blueprint-description">Description</label><textarea class="council-textarea" id="v2-blueprint-description" placeholder="Optional blueprint notes"></textarea></div>
-                <div class="council-actions"><button class="btn-primary" type="button" onclick="createV2Blueprint()">Create Blueprint</button></div>
-              </div>
-            </div>
-            <div class="council-list" id="v2-blueprints-list"></div>
-            <div class="settings-card" id="v2-plugin-workspace" style="margin-top:12px;display:none"></div>
-          </div>
-
-          <div class="council-panel" id="blueprint-panel-plugins">
-            <div class="council-toolbar">
-              <div>
-                <div class="settings-section-title">Plugins</div>
-                <div class="settings-section-desc">Enable plugins before creating matching blueprints.</div>
-              </div>
-            </div>
+  <div class="view" id="view-plugins">
+    <div class="councils-area">
+      <div class="view-header">
+        <h2>Plugins</h2>
+        <p>Enable blueprint types for the current workspace.</p>
+      </div>
+      <div class="council-panel active" id="blueprint-panel-plugins">
             <div class="council-grid" id="v2-plugins-grid"></div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -340,7 +328,7 @@
               <button class="btn-primary" type="button" onclick="startCouncilFromForm()">Run Council</button>
             </div>
 
-            <div class="settings-card" style="margin-bottom:16px">
+            <div class="settings-card" data-csp-style="margin-bottom:16px">
               <div class="settings-card-header">
                 <div><div class="settings-card-title">New Run</div><div class="settings-card-subtitle">Choose a template, objective, and document scope.</div></div>
               </div>
@@ -369,7 +357,7 @@
             </div>
 
             <div class="council-list" id="council-runs-list"></div>
-            <div class="council-result" id="council-run-result" style="margin-top:16px"></div>
+            <div class="council-result" id="council-run-result" data-csp-style="margin-top:16px"></div>
           </div>
 
           <div class="council-panel" id="council-panel-templates">
@@ -427,7 +415,7 @@
               </div>
             </div>
 
-            <div class="settings-card" style="margin-top:14px">
+            <div class="settings-card" data-csp-style="margin-top:14px">
               <div class="settings-card-header">
                 <div><div class="settings-card-title">AI Participants</div><div class="settings-card-subtitle">Each participant can have its own role, instructions, and model defaults.</div></div>
                 <button class="btn-secondary" type="button" onclick="addCouncilAgent()">Add AI</button>
@@ -435,7 +423,7 @@
               <div class="council-list" id="builder-agents"></div>
             </div>
 
-            <div class="settings-card" style="margin-top:14px">
+            <div class="settings-card" data-csp-style="margin-top:14px">
               <div class="settings-card-header">
                 <div><div class="settings-card-title">Phases</div><div class="settings-card-subtitle">Control order, parallelism, and which AIs speak in each phase.</div></div>
                 <button class="btn-secondary" type="button" onclick="addCouncilPhase()">Add Phase</button>
@@ -471,7 +459,7 @@
         <p>Import unread email, draft replies with a selected persona and document scope, then review before sending.</p>
       </div>
 
-      <div class="settings-card email-settings-card collapsed" id="email-settings-card" style="max-width:980px;margin:0 auto 18px">
+      <div class="settings-card email-settings-card collapsed" id="email-settings-card" data-csp-style="max-width:980px;margin:0 auto 18px">
         <button class="settings-card-header email-accordion-trigger" type="button" onclick="toggleEmailSettingsAccordion()" aria-expanded="false" aria-controls="email-settings-body">
           <div><div class="settings-card-title">Email Settings</div><div class="settings-card-subtitle">DreamHost IMAP for incoming mail and SMTP2GO for outgoing mail.</div></div>
           <span class="email-accordion-icon" aria-hidden="true">
@@ -511,7 +499,7 @@
         </div>
       </div>
 
-      <div class="settings-card" style="max-width:980px;margin:0 auto">
+      <div class="settings-card" data-csp-style="max-width:980px;margin:0 auto">
         <div class="settings-card-header">
           <div><div class="settings-card-title">Review Queue</div><div class="settings-card-subtitle">AI drafts stay here until you approve and send them.</div></div>
         </div>
@@ -529,7 +517,7 @@
       </div>
 
       <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
-        <input type="file" id="file-input" style="display:none" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.md,.json,.html,.htm"/>
+        <input type="file" id="file-input" data-csp-style="display:none" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.md,.json,.html,.htm"/>
         <div class="upload-icon">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </div>
@@ -564,7 +552,7 @@
           </div>
         </div>
         <div class="connected-folder-add">
-          <input type="file" id="folder-input" style="display:none" webkitdirectory directory multiple/>
+          <input type="file" id="folder-input" data-csp-style="display:none" webkitdirectory directory multiple/>
           <input id="connected-folder-path" type="text" placeholder="/Users/you/Documents/Matter Folder"/>
           <button type="button" onclick="browseConnectedFolder()">Browse</button>
           <button type="button" onclick="addConnectedFolder()">Connect Folder</button>
@@ -574,7 +562,7 @@
 
       <!-- Upload queue -->
       <div class="upload-queue">
-        <div class="upload-queue-title" id="upload-queue-title" style="display:none">Uploading</div>
+        <div class="upload-queue-title" id="upload-queue-title" data-csp-style="display:none">Uploading</div>
         <div id="upload-queue-list"></div>
       </div>
     </div>
@@ -653,7 +641,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Documents
         </div>
-        <div class="settings-nav-item" id="settings-nav-workspaces" style="display:none" onclick="switchSettingsTab('workspaces', this)">
+        <div class="settings-nav-item" id="settings-nav-workspaces" data-csp-style="display:none" onclick="switchSettingsTab('workspaces', this)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
           Workspaces
         </div>
@@ -661,7 +649,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 1 7 7c0 4-7 13-7 13S5 13 5 9a7 7 0 0 1 7-7z"/></svg>
           Appearance
         </div>
-        <div class="settings-nav-item" id="settings-nav-users" style="display:none" onclick="switchSettingsTab('users', this)">
+        <div class="settings-nav-item" id="settings-nav-users" data-csp-style="display:none" onclick="switchSettingsTab('users', this)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Users
         </div>
@@ -687,7 +675,7 @@
           <!-- OpenAI -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#d4f0d4;color:#16a34a;">OAI</div>
+              <div class="provider-logo" data-csp-style="background:#d4f0d4;color:#16a34a;">OAI</div>
               <div>
                 <div class="provider-name">OpenAI</div>
                 <div class="provider-desc">GPT-5.2, GPT-5 mini, GPT-4.1 — platform.openai.com</div>
@@ -708,7 +696,7 @@
           <!-- OpenRouter -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#ede9fe;color:#6d28d9;">OR</div>
+              <div class="provider-logo" data-csp-style="background:#ede9fe;color:#6d28d9;">OR</div>
               <div>
                 <div class="provider-name">OpenRouter</div>
                 <div class="provider-desc">OpenAI-compatible access to multiple model providers — openrouter.ai</div>
@@ -729,7 +717,7 @@
           <!-- Anthropic -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#fde8d0;color:#c2410c;">ANT</div>
+              <div class="provider-logo" data-csp-style="background:#fde8d0;color:#c2410c;">ANT</div>
               <div>
                 <div class="provider-name">Anthropic</div>
                 <div class="provider-desc">Claude Opus 4.7, Sonnet 4.6, Haiku 4.5 — anthropic.com</div>
@@ -750,7 +738,7 @@
           <!-- Gemini -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#dbeafe;color:#2563eb;">GEM</div>
+              <div class="provider-logo" data-csp-style="background:#dbeafe;color:#2563eb;">GEM</div>
               <div>
                 <div class="provider-name">Google Gemini</div>
                 <div class="provider-desc">Gemini 2.5 Pro, Flash, Flash-Lite — aistudio.google.com</div>
@@ -771,7 +759,7 @@
           <!-- Mistral -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#ede9fe;color:#7c3aed;">MIS</div>
+              <div class="provider-logo" data-csp-style="background:#ede9fe;color:#7c3aed;">MIS</div>
               <div>
                 <div class="provider-name">Mistral AI</div>
                 <div class="provider-desc">Mistral Large 3, Medium 3.5, Small 4 — console.mistral.ai</div>
@@ -792,7 +780,7 @@
           <!-- Cohere -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#d1fae5;color:#065f46;">COH</div>
+              <div class="provider-logo" data-csp-style="background:#d1fae5;color:#065f46;">COH</div>
               <div>
                 <div class="provider-name">Cohere</div>
                 <div class="provider-desc">Command A+, Command A, Command R+ — dashboard.cohere.com</div>
@@ -813,7 +801,7 @@
           <!-- Groq -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#fef9c3;color:#854d0e;">GRQ</div>
+              <div class="provider-logo" data-csp-style="background:#fef9c3;color:#854d0e;">GRQ</div>
               <div>
                 <div class="provider-name">Groq</div>
                 <div class="provider-desc">GPT-OSS and Llama models via ultra-fast inference — console.groq.com</div>
@@ -834,7 +822,7 @@
           <!-- Ollama -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#eef2ff;color:#4338ca;">OLL</div>
+              <div class="provider-logo" data-csp-style="background:#eef2ff;color:#4338ca;">OLL</div>
               <div>
                 <div class="provider-name">Ollama</div>
                 <div class="provider-desc">Local Ollama or ollama.com API. Local use does not need a key.</div>
@@ -850,13 +838,13 @@
               </div>
               <button class="key-save-btn" onclick="saveOllamaSettings()">Save</button>
             </div>
-            <div class="provider-key-row" style="margin-top:8px">
+            <div class="provider-key-row" data-csp-style="margin-top:8px">
               <div class="key-input-wrap">
                 <input class="key-input" id="ollama-base-url-input" type="text" placeholder="http://localhost:11434"/>
               </div>
               <button class="key-save-btn" onclick="saveOllamaSettings()">Save URL</button>
             </div>
-            <div class="provider-key-row" style="margin-top:8px;justify-content:flex-end">
+            <div class="provider-key-row" data-csp-style="margin-top:8px;justify-content:flex-end">
               <button class="btn-secondary" onclick="testOllamaConnection()">Test Ollama</button>
             </div>
           </div>
@@ -864,7 +852,7 @@
           <!-- xAI Grok -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#f1f5f9;color:#0f172a;">XAI</div>
+              <div class="provider-logo" data-csp-style="background:#f1f5f9;color:#0f172a;">XAI</div>
               <div>
                 <div class="provider-name">xAI (Grok)</div>
                 <div class="provider-desc">Grok 4.3 models — console.x.ai</div>
@@ -885,7 +873,7 @@
           <!-- Cloudflare Workers AI -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#fff7ed;color:#c2410c;">CF</div>
+              <div class="provider-logo" data-csp-style="background:#fff7ed;color:#c2410c;">CF</div>
               <div>
                 <div class="provider-name">Cloudflare Workers AI</div>
                 <div class="provider-desc">Kimi, GPT-OSS, Llama via Cloudflare edge — dash.cloudflare.com</div>
@@ -906,7 +894,7 @@
           <!-- Together AI -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#f0fdf4;color:#15803d;">TOG</div>
+              <div class="provider-logo" data-csp-style="background:#f0fdf4;color:#15803d;">TOG</div>
               <div>
                 <div class="provider-name">Together AI</div>
                 <div class="provider-desc">Kimi, DeepSeek, GPT-OSS, Llama at scale — api.together.xyz</div>
@@ -938,7 +926,7 @@
           <!-- Brave Search -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#fff7ed;color:#d97706;">WEB</div>
+              <div class="provider-logo" data-csp-style="background:#fff7ed;color:#d97706;">WEB</div>
               <div>
                 <div class="provider-name">Brave Search</div>
                 <div class="provider-desc">Web search results for cited chat answers — api.search.brave.com</div>
@@ -959,7 +947,7 @@
           <!-- SearXNG -->
           <div class="provider-card">
             <div class="provider-header">
-              <div class="provider-logo" style="background:#e0f2fe;color:#0369a1;">SX</div>
+              <div class="provider-logo" data-csp-style="background:#e0f2fe;color:#0369a1;">SX</div>
               <div>
                 <div class="provider-name">SearXNG</div>
                 <div class="provider-desc">Optional free metasearch endpoint. Leave blank to use no-key DuckDuckGo fallback.</div>
@@ -1079,7 +1067,7 @@
             </div>
           </div>
 
-          <div class="settings-card" style="margin-top:18px">
+          <div class="settings-card" data-csp-style="margin-top:18px">
             <div class="settings-card-header">
               <div><div class="settings-card-title">Model Registry</div><div class="settings-card-subtitle">Add, edit, delete, or disable models as providers change their catalogs.</div></div>
             </div>
@@ -1088,21 +1076,21 @@
                 <div class="settings-row-label">Provider</div>
                 <div class="settings-row-desc">Use lowercase ids such as openai, anthropic, groq, ollama, gemini, mistral, cohere, xai, cloudflare, or together</div>
               </div>
-              <div class="settings-row-control"><input class="s-input" id="model-provider-input" placeholder="openai" style="width:140px"/></div>
+              <div class="settings-row-control"><input class="s-input" id="model-provider-input" placeholder="openai" data-csp-style="width:140px"/></div>
             </div>
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Display Name</div>
                 <div class="settings-row-desc">Name shown in dropdowns</div>
               </div>
-              <div class="settings-row-control"><input class="s-input" id="model-name-input" placeholder="GPT-4o" style="width:180px"/></div>
+              <div class="settings-row-control"><input class="s-input" id="model-name-input" placeholder="GPT-4o" data-csp-style="width:180px"/></div>
             </div>
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Model ID</div>
                 <div class="settings-row-desc">Exact API/local model id</div>
               </div>
-              <div class="settings-row-control"><input class="s-input" id="model-id-input" placeholder="gpt-5.2" style="width:180px"/></div>
+              <div class="settings-row-control"><input class="s-input" id="model-id-input" placeholder="gpt-5.2" data-csp-style="width:180px"/></div>
             </div>
             <div class="settings-row">
               <div class="settings-row-info">
@@ -1116,14 +1104,14 @@
                 <div class="settings-row-label">Registry Actions</div>
                 <div class="settings-row-desc">Save updates the selected model when editing, otherwise creates a new model</div>
               </div>
-              <div class="settings-row-control" style="display:flex;gap:8px">
+              <div class="settings-row-control" data-csp-style="display:flex;gap:8px">
                 <button class="btn-secondary" onclick="resetModelForm()">Clear</button>
                 <button class="btn-primary" onclick="saveModelRegistryEntry()">Save Model</button>
               </div>
             </div>
           </div>
 
-          <div class="settings-card" style="margin-top:18px">
+          <div class="settings-card" data-csp-style="margin-top:18px">
             <div class="settings-card-header">
               <div><div class="settings-card-title">Saved Models</div><div class="settings-card-subtitle">Models available in chat and council provider selectors.</div></div>
             </div>
@@ -1271,7 +1259,7 @@
                 <div class="settings-row-desc">Language used for all AI-generated answers</div>
               </div>
               <div class="settings-row-control">
-                <select class="s-select" id="sel-response-language" style="min-width:200px;">
+                <select class="s-select" id="sel-response-language" data-csp-style="min-width:200px;">
                   <option value="English">English</option>
                   <option>Hindi — हिन्दी</option>
                   <option>Arabic — العربية</option>
@@ -1435,23 +1423,23 @@
                 <div class="settings-row-desc">Displayed as the title on the main screen</div>
               </div>
               <div class="settings-row-control">
-                <input class="s-select" type="text" id="inp-app-name" placeholder="AI Blueprint by Rohas Nagpal" style="width:260px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px"/>
+                <input class="s-select" type="text" id="inp-app-name" placeholder="AI Blueprint by Rohas Nagpal" data-csp-style="width:260px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px"/>
               </div>
             </div>
-            <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+            <div class="settings-row" data-csp-style="flex-direction:column;align-items:flex-start;gap:8px">
               <div class="settings-row-info">
                 <div class="settings-row-label">Intro Text</div>
                 <div class="settings-row-desc">Subtitle shown below the app name</div>
               </div>
-              <textarea id="inp-app-intro" rows="2" placeholder="Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action." style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+              <textarea id="inp-app-intro" rows="2" placeholder="Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action." data-csp-style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
             </div>
-            <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+            <div class="settings-row" data-csp-style="flex-direction:column;align-items:flex-start;gap:8px">
               <div class="settings-row-info">
                 <div class="settings-row-label">Suggested Questions</div>
                 <div class="settings-row-desc">Quick-prompt chips shown on the main screen</div>
               </div>
-              <div id="questions-list" style="width:100%;display:flex;flex-direction:column;gap:6px"></div>
-              <button class="btn-secondary" onclick="addQuestion()" style="margin-top:4px;font-size:12px;padding:5px 12px">+ Add question</button>
+              <div id="questions-list" data-csp-style="width:100%;display:flex;flex-direction:column;gap:6px"></div>
+              <button class="btn-secondary" onclick="addQuestion()" data-csp-style="margin-top:4px;font-size:12px;padding:5px 12px">+ Add question</button>
             </div>
           </div>
 
@@ -1577,7 +1565,7 @@
                 <div class="settings-row-desc">Switching will re-index all your documents automatically</div>
               </div>
               <div class="settings-row-control">
-                <select class="s-select" id="rag-provider-select" onchange="onRagProviderChange(this.value)" style="min-width:240px;">
+                <select class="s-select" id="rag-provider-select" onchange="onRagProviderChange(this.value)" data-csp-style="min-width:240px;">
                   <option value="openai">OpenAI RAG (recommended)</option>
                   <option value="llamaindex">Local — LlamaIndex + ChromaDB (free, offline)</option>
                 </select>
@@ -1614,7 +1602,7 @@
           </div>
 
           <!-- LlamaIndex info -->
-          <div class="settings-card" id="rag-llamaindex-info" style="display:none;">
+          <div class="settings-card" id="rag-llamaindex-info" data-csp-style="display:none;">
             <div class="settings-card-header">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <div><div class="settings-card-title">Local RAG — LlamaIndex + ChromaDB</div><div class="settings-card-subtitle">Runs entirely on your laptop, no API key needed</div></div>
@@ -1700,7 +1688,7 @@
 <div class="modal-backdrop" id="persona-detail-modal" onclick="closePersonaDetails(event)">
   <div class="settings-card detail-modal" onclick="event.stopPropagation()">
     <div class="settings-card-header">
-      <div style="flex:1;min-width:0">
+      <div data-csp-style="flex:1;min-width:0">
         <div class="settings-card-title" id="persona-detail-name">Persona</div>
         <div class="settings-card-subtitle" id="persona-detail-category"></div>
       </div>
@@ -1748,7 +1736,7 @@
           <input class="council-input" id="persona-editor-tags" autocomplete="off" placeholder="Comma separated"/>
         </div>
         <div class="council-actions persona-editor-actions">
-          <button class="danger-btn" id="persona-editor-delete" type="button" onclick="deletePersonaFromEditor()" style="display:none">Delete</button>
+          <button class="danger-btn" id="persona-editor-delete" type="button" onclick="deletePersonaFromEditor()" data-csp-style="display:none">Delete</button>
           <button class="btn-primary" type="button" onclick="savePersona()">Save Persona</button>
         </div>
       </div>
@@ -1779,7 +1767,7 @@
           <label for="v2-auth-password">Password</label>
           <input class="council-input" id="v2-auth-password" type="password" autocomplete="current-password"/>
         </div>
-        <div class="council-card-desc" id="v2-auth-error" style="display:none;color:var(--danger)"></div>
+        <div class="council-card-desc" id="v2-auth-error" data-csp-style="display:none;color:var(--danger)"></div>
         <div class="council-actions">
           <button class="btn-primary" id="v2-auth-submit" type="button" onclick="submitV2Auth()">Continue</button>
           <button class="btn-secondary" type="button" onclick="skipV2Auth()">Continue in local mode</button>
@@ -1811,7 +1799,7 @@
           <div class="council-field"><label for="v2-reset-password">New password</label><input class="council-input" id="v2-reset-password" type="password" autocomplete="new-password"/></div>
           <div class="council-field"><label for="v2-reset-confirm">Confirm password</label><input class="council-input" id="v2-reset-confirm" type="password" autocomplete="new-password"/></div>
         </div>
-        <div class="council-card-desc" id="v2-reset-error" style="display:none;color:var(--danger)"></div>
+        <div class="council-card-desc" id="v2-reset-error" data-csp-style="display:none;color:var(--danger)"></div>
         <div class="council-actions">
           <button class="btn-primary" type="button" onclick="submitInitialCredentialReset()">Save Credentials</button>
         </div>
@@ -1820,9 +1808,10 @@
   </div>
 </div>
 
-<div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
+<div id="toast-container" data-csp-style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
 
-<script src="/js/app.js?v=20260526-restore-last-view-v1"></script>
+<script src="/js/csp-events.js?v=20260526-strict-csp-v2"></script>
+<script src="/js/app.js?v=20260526-blueprint-nav-cleanup-v1"></script>
 </body>
 </html>

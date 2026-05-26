@@ -10,8 +10,9 @@ from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_admin, require_workspace_member
 from app.core.models import BlueprintInstance, KnowledgeDocument, Matter, User, Workspace, WorkspaceMember, utcnow
-from app.core.pagination import page_response
+from app.core.pagination import page_query_response
 from app.core.security import hash_password
+from app.core.validation import normalize_email, validate_choice
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -74,10 +75,11 @@ def _format_matter(matter: Matter) -> dict:
 
 
 def _validate_workspace_role(role: str) -> str:
-    normalized = role.strip().lower()
-    if normalized not in {"admin", "member"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid workspace role")
-    return normalized
+    return validate_choice(role, {"admin", "member"}, "workspace role")
+
+
+def _validate_matter_status(status_value: str) -> str:
+    return validate_choice(status_value, {"active", "closed", "archived"}, "matter status")
 
 
 def _format_workspace_member(membership: WorkspaceMember, member: User) -> dict:
@@ -96,13 +98,13 @@ def _format_workspace_member(membership: WorkspaceMember, member: User) -> dict:
 
 @router.get("")
 async def list_workspaces(page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = db.execute(
+    rows = (
         select(Workspace, WorkspaceMember.role)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
         .where(WorkspaceMember.user_id == user.id, Workspace.deleted_at.is_(None))
         .order_by(Workspace.name)
-    ).all()
-    return page_response(rows, lambda row: _format_workspace(row[0], row[1]), page=page, page_size=page_size)
+    )
+    return page_query_response(db, rows, lambda row: _format_workspace(row[0], row[1]), page=page, page_size=page_size)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -170,13 +172,13 @@ async def delete_workspace(workspace_id: str, user: User = Depends(get_current_u
 @router.get("/{workspace_id}/members")
 async def list_workspace_members(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_admin(workspace_id, user, db)
-    rows = db.execute(
+    rows = (
         select(WorkspaceMember, User)
         .join(User, User.id == WorkspaceMember.user_id)
         .where(WorkspaceMember.workspace_id == workspace_id)
         .order_by(User.display_name)
-    ).all()
-    return page_response(rows, lambda row: _format_workspace_member(row[0], row[1]), page=page, page_size=page_size)
+    )
+    return page_query_response(db, rows, lambda row: _format_workspace_member(row[0], row[1]), page=page, page_size=page_size)
 
 
 @router.post("/{workspace_id}/members", status_code=status.HTTP_201_CREATED)
@@ -187,10 +189,11 @@ async def add_workspace_member(
     db: Session = Depends(get_db),
 ):
     require_workspace_admin(workspace_id, user, db)
-    if not db.get(Workspace, workspace_id):
+    workspace = db.get(Workspace, workspace_id)
+    if not workspace or workspace.deleted_at:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     role = _validate_workspace_role(body.role)
-    email = body.email.strip().lower()
+    email = normalize_email(body.email)
     member = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if not member:
         if not body.password:
@@ -278,10 +281,10 @@ async def remove_workspace_member(
 @router.get("/{workspace_id}/matters")
 async def list_matters(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_member(workspace_id, user, db)
-    matters = db.execute(
+    matters = (
         select(Matter).where(Matter.workspace_id == workspace_id).order_by(Matter.updated_at.desc())
-    ).scalars().all()
-    return page_response(matters, _format_matter, page=page, page_size=page_size)
+    )
+    return page_query_response(db, matters, _format_matter, page=page, page_size=page_size, scalars=True)
 
 
 @router.post("/{workspace_id}/matters", status_code=status.HTTP_201_CREATED)
@@ -292,15 +295,17 @@ async def create_matter(
     db: Session = Depends(get_db),
 ):
     require_workspace_member(workspace_id, user, db)
-    if not db.get(Workspace, workspace_id):
+    workspace = db.get(Workspace, workspace_id)
+    if not workspace or workspace.deleted_at:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    matter_status = _validate_matter_status(body.status)
     matter = Matter(
         id=str(uuid.uuid4()),
         workspace_id=workspace_id,
         name=body.name.strip(),
         client_name=body.client_name.strip() if body.client_name else None,
         description=body.description,
-        status=body.status,
+        status=matter_status,
         created_by_user_id=user.id,
     )
     db.add(matter)
@@ -340,7 +345,7 @@ async def update_matter(
     matter.name = body.name.strip()
     matter.client_name = body.client_name.strip() if body.client_name else None
     matter.description = body.description
-    matter.status = body.status
+    matter.status = _validate_matter_status(body.status)
     matter.updated_at = utcnow()
     record_audit_event(db, action="matter.update", resource_type="matter", resource_id=matter.id, user_id=user.id, workspace_id=workspace_id)
     db.commit()

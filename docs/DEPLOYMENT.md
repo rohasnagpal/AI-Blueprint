@@ -24,9 +24,24 @@ export AI_BLUEPRINT_CORS_ORIGINS=https://your-domain.example
 export AI_BLUEPRINT_AUTH_RATE_LIMIT_ATTEMPTS=10
 export AI_BLUEPRINT_AUTH_RATE_LIMIT_WINDOW_SECONDS=60
 export AI_BLUEPRINT_MAX_UPLOAD_BYTES=26214400
+export AI_BLUEPRINT_ENV=production
+export AI_BLUEPRINT_RUN_MIGRATIONS_ON_STARTUP=false
 ```
 
 Do not enable `AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN` on public deployments. Use the first-run setup flow instead.
+
+## Database Migrations
+
+Run migrations as an explicit deployment step before starting or restarting app
+workers:
+
+```bash
+.venv/bin/python scripts/migrate.py
+```
+
+Do not run migrations from every production app process. Keep
+`AI_BLUEPRINT_RUN_MIGRATIONS_ON_STARTUP=false` in production so multiple workers
+cannot race on startup.
 
 ## Start
 
@@ -34,10 +49,24 @@ Do not enable `AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN` on public deployments. Use 
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+.venv/bin/python scripts/migrate.py
 python main.py
 ```
 
 For production, run behind a process manager and reverse proxy. The reverse proxy should terminate TLS and enforce an upload body limit consistent with `AI_BLUEPRINT_MAX_UPLOAD_BYTES`.
+
+## Docker Compose Example
+
+Copy the example environment file, edit the domain and secret paths, then run the
+one-shot migration service before the app starts:
+
+```bash
+cp .env.production.example .env.production
+docker compose -f docker-compose.example.yml up --build
+```
+
+The compose file stores SQLite data, uploads, and encryption keys in separate
+named volumes. Keep reverse proxy TLS termination outside the app container.
 
 ## Verify
 
@@ -45,5 +74,4 @@ For production, run behind a process manager and reverse proxy. The reverse prox
 curl -s https://your-domain.example/api/v2/health
 ```
 
-The response should show `ok: true`, migration revision `0015_user_admin_bootstrap`, sufficient upload storage, and `secrets.key_configured: true`.
-
+The response should show `ok: true`, the current Alembic migration revision, sufficient upload storage, and `secrets.key_configured: true`.
