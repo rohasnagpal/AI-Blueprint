@@ -37,6 +37,38 @@ def _format_model(row) -> dict:
     }
 
 
+def _format_live_model(provider: str, model_id: str, display_name: str | None = None) -> dict:
+    return {
+        "id": f"live-{provider}-{model_id}",
+        "provider": provider,
+        "display_name": display_name or model_id,
+        "model_id": model_id,
+        "enabled": True,
+        "is_builtin": False,
+        "is_live": True,
+        "created_at": None,
+        "updated_at": None,
+    }
+
+
+def _clean_gemini_model_id(name: str) -> str:
+    return name.removeprefix("models/")
+
+
+def _looks_like_openai_chat_model(model_id: str) -> bool:
+    lower = model_id.lower()
+    excluded = ("embedding", "whisper", "tts", "dall-e", "moderation", "realtime", "transcribe", "image")
+    if any(part in lower for part in excluded):
+        return False
+    return lower.startswith(("gpt-", "o1", "o3", "o4", "chatgpt-"))
+
+
+def _looks_like_groq_chat_model(model_id: str) -> bool:
+    lower = model_id.lower()
+    excluded = ("whisper", "tts", "playai")
+    return not any(part in lower for part in excluded)
+
+
 def _ollama_endpoint(path: str) -> str:
     base_url = (database.get_setting("ollama_base_url") or "http://localhost:11434").strip().rstrip("/")
     if base_url.endswith("/api"):
@@ -47,6 +79,138 @@ def _ollama_endpoint(path: str) -> str:
 def _ollama_headers() -> dict[str, str]:
     api_key = (database.get_setting("ollama_api_key") or "").strip()
     return {"Authorization": f"Bearer {api_key}"} if api_key else {}
+
+
+async def _live_openai_models() -> list[dict]:
+    key = database.get_setting("openai_api_key")
+    if not key:
+        raise HTTPException(400, detail="OpenAI API key is not configured.")
+    import openai
+
+    client = openai.AsyncOpenAI(api_key=key)
+    models = await client.models.list()
+    rows = []
+    for item in models.data:
+        model_id = item.id
+        if _looks_like_openai_chat_model(model_id):
+            rows.append(_format_live_model("openai", model_id))
+    return sorted(rows, key=lambda row: row["display_name"].lower())
+
+
+async def _live_groq_models() -> list[dict]:
+    key = database.get_setting("groq_api_key")
+    if not key:
+        raise HTTPException(400, detail="Groq API key is not configured.")
+    from groq import AsyncGroq
+
+    client = AsyncGroq(api_key=key)
+    models = await client.models.list()
+    rows = []
+    for item in models.data:
+        model_id = item.id
+        if _looks_like_groq_chat_model(model_id):
+            rows.append(_format_live_model("groq", model_id))
+    return sorted(rows, key=lambda row: row["display_name"].lower())
+
+
+async def _live_openrouter_models() -> list[dict]:
+    key = database.get_setting("openrouter_api_key")
+    if not key:
+        raise HTTPException(400, detail="OpenRouter API key is not configured.")
+    import httpx
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get(
+            "https://openrouter.ai/api/v1/models",
+            headers={"Authorization": f"Bearer {key}"},
+        )
+        response.raise_for_status()
+        data = response.json()
+    rows = []
+    for item in data.get("data", []):
+        model_id = item.get("id")
+        if model_id:
+            rows.append(_format_live_model("openrouter", model_id, item.get("name") or model_id))
+    return sorted(rows, key=lambda row: row["display_name"].lower())
+
+
+async def _live_anthropic_models() -> list[dict]:
+    key = database.get_setting("anthropic_api_key")
+    if not key:
+        raise HTTPException(400, detail="Anthropic API key is not configured.")
+    import httpx
+
+    rows = []
+    params: dict[str, str | int] = {"limit": 1000}
+    async with httpx.AsyncClient(timeout=30) as client:
+        while True:
+            response = await client.get(
+                "https://api.anthropic.com/v1/models",
+                params=params,
+                headers={
+                    "x-api-key": key,
+                    "anthropic-version": "2023-06-01",
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            for item in data.get("data", []):
+                model_id = item.get("id")
+                if model_id:
+                    rows.append(_format_live_model("anthropic", model_id, item.get("display_name") or model_id))
+            if not data.get("has_more") or not data.get("last_id"):
+                break
+            params["after_id"] = data["last_id"]
+    return sorted(rows, key=lambda row: row["display_name"].lower())
+
+
+async def _live_gemini_models() -> list[dict]:
+    key = database.get_setting("gemini_api_key")
+    if not key:
+        raise HTTPException(400, detail="Google Gemini API key is not configured.")
+    import httpx
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get(
+            "https://generativelanguage.googleapis.com/v1beta/models",
+            params={"key": key},
+        )
+        response.raise_for_status()
+        data = response.json()
+    rows = []
+    for item in data.get("models", []):
+        methods = item.get("supportedGenerationMethods") or []
+        model_id = _clean_gemini_model_id(item.get("name", ""))
+        if model_id and "generateContent" in methods:
+            rows.append(_format_live_model("gemini", model_id, item.get("displayName") or model_id))
+    return sorted(rows, key=lambda row: row["display_name"].lower())
+
+
+async def _live_xai_models() -> list[dict]:
+    key = database.get_setting("xai_api_key")
+    if not key:
+        raise HTTPException(400, detail="xAI API key is not configured.")
+    import openai
+
+    client = openai.AsyncOpenAI(api_key=key, base_url="https://api.x.ai/v1")
+    models = await client.models.list()
+    rows = [_format_live_model("xai", item.id) for item in models.data]
+    return sorted(rows, key=lambda row: row["display_name"].lower())
+
+
+async def _live_ollama_models() -> list[dict]:
+    import httpx
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get(_ollama_endpoint("/tags"), headers=_ollama_headers())
+        response.raise_for_status()
+        data = response.json()
+    rows = []
+    for item in data.get("models") or []:
+        model_id = item.get("name") or item.get("model")
+        if model_id:
+            rows.append(_format_live_model("ollama", model_id))
+    return sorted(rows, key=lambda row: row["display_name"].lower())
 
 
 @router.get("/settings")
@@ -106,6 +270,30 @@ async def list_models():
     ).fetchall()
     conn.close()
     return [_format_model(row) for row in rows]
+
+
+@router.get("/models/live")
+async def list_live_models(provider: str):
+    provider = provider.strip().lower()
+    loaders = {
+        "openai": _live_openai_models,
+        "openrouter": _live_openrouter_models,
+        "anthropic": _live_anthropic_models,
+        "groq": _live_groq_models,
+        "ollama": _live_ollama_models,
+        "gemini": _live_gemini_models,
+        "xai": _live_xai_models,
+    }
+    if provider not in loaders:
+        raise HTTPException(400, detail=f"Live model listing is not supported for provider: {provider}")
+    loader = loaders[provider]
+    try:
+        models = await loader()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(502, detail=f"Could not fetch live {provider} models: {exc}") from exc
+    return {"provider": provider, "source": "live", "models": models}
 
 
 @router.post("/models")

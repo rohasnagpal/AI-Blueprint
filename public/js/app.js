@@ -1,5 +1,5 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], connectedFolders: [], importedFolders: JSON.parse(localStorage.getItem('aibp_imported_folders') || '[]'), chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], connectedFolders: [], importedFolders: JSON.parse(localStorage.getItem('aibp_imported_folders') || '[]'), chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], liveModels: {}, liveModelRequestId: 0, editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -1609,6 +1609,35 @@ function enabledModels(provider) {
   return App.models.filter(m => m.enabled && (!provider || m.provider === provider));
 }
 
+function liveModels(provider) {
+  return App.liveModels[provider] || null;
+}
+
+function supportsLiveModels(provider) {
+  return ['openai', 'openrouter', 'anthropic', 'groq', 'ollama', 'gemini', 'xai'].includes(provider);
+}
+
+function localModelOptionsHtml(provider, selected) {
+  const models = enabledModels(provider);
+  if (!models.length) return '<option value="">No enabled models</option>';
+  const options = models.map(m => `<option value="${esc(m.model_id)}">${esc(m.display_name)} (${esc(m.model_id)})</option>`);
+  if (selected && !models.some(m => m.model_id === selected)) {
+    options.push(`<option value="${esc(selected)}" selected>${esc(selected)}</option>`);
+  }
+  return options.join('');
+}
+
+async function fetchLiveModels(provider) {
+  if (!provider || !supportsLiveModels(provider) || !providerHasApiKey(provider)) return null;
+  if (liveModels(provider)) return liveModels(provider);
+  const r = await fetch(`/api/models/live?provider=${encodeURIComponent(provider)}`);
+  if (!r.ok) throw new Error(await apiError(r));
+  const data = await r.json();
+  const models = Array.isArray(data.models) ? data.models : [];
+  App.liveModels[provider] = models;
+  return models;
+}
+
 function renderChatProviderOptions() {
   const sel = document.getElementById('sel-chat-provider');
   if (!sel) return;
@@ -1625,15 +1654,31 @@ function renderChatProviderOptions() {
   updateChatProviderKeyWarning();
 }
 
-function renderChatModelOptions() {
+async function renderChatModelOptions() {
   const sel = document.getElementById('sel-chat-model');
   const provider = document.getElementById('sel-chat-provider')?.value || 'openai';
   if (!sel) return;
   const current = sel.value || App.settings.chat_model || '';
-  const models = enabledModels(provider);
-  sel.innerHTML = models.map(m => `<option value="${esc(m.model_id)}">${esc(m.display_name)} (${esc(m.model_id)})</option>`).join('');
-  if (models.some(m => m.model_id === current)) sel.value = current;
-  else if (App.settings.chat_model && models.some(m => m.model_id === App.settings.chat_model)) sel.value = App.settings.chat_model;
+  const requestId = ++App.liveModelRequestId;
+  sel.innerHTML = '<option value="">Loading live models...</option>';
+  try {
+    const models = await fetchLiveModels(provider);
+    if (requestId !== App.liveModelRequestId) return;
+    if (models && models.length) {
+      sel.innerHTML = models.map(m => `<option value="${esc(m.model_id)}">${esc(m.display_name)} (${esc(m.model_id)}) - live</option>`).join('');
+      if (models.some(m => m.model_id === current)) sel.value = current;
+      else if (App.settings.chat_model && models.some(m => m.model_id === App.settings.chat_model)) sel.value = App.settings.chat_model;
+      updateChatProviderKeyWarning();
+      return;
+    }
+  } catch(e) {
+    if (requestId !== App.liveModelRequestId) return;
+    showToast(`Live model list unavailable for ${providerLabel(provider)}. Using saved models.`, 'warning');
+  }
+  sel.innerHTML = localModelOptionsHtml(provider, current);
+  const fallbackModels = enabledModels(provider);
+  if (fallbackModels.some(m => m.model_id === current)) sel.value = current;
+  else if (App.settings.chat_model && fallbackModels.some(m => m.model_id === App.settings.chat_model)) sel.value = App.settings.chat_model;
   updateChatProviderKeyWarning();
 }
 
