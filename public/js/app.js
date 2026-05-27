@@ -40,6 +40,7 @@ async function init() {
   checkFirstRun();
   runAfterFirstPaint(async () => {
     await initV2();
+    await openBlueprintDeepLink();
     updateV2AuthSidebar();
     updateChatModeUI();
     renderEmailControls();
@@ -976,6 +977,7 @@ function v2PluginLabel(pluginId) {
 function renderV2Shell() {
   const workspaceSelect = document.getElementById('v2-workspace-select');
   if (!workspaceSelect) return;
+  applyBlueprintFocusMode();
   if (!App.v2.enabled) {
     workspaceSelect.innerHTML = '<option>Sign in to multi-user access</option>';
     el('v2-stat-matters', '0');
@@ -999,6 +1001,14 @@ function renderV2Shell() {
   renderV2Matters();
   renderV2Blueprints();
   renderV2Plugins();
+}
+
+function isBlueprintFocusMode() {
+  return new URLSearchParams(window.location.search).has('blueprint');
+}
+
+function applyBlueprintFocusMode() {
+  document.getElementById('view-blueprints')?.classList.toggle('blueprint-focused', isBlueprintFocusMode());
 }
 
 function renderV2MatterOptions() {
@@ -1073,7 +1083,7 @@ function renderV2Blueprints() {
       </div>
       ${b.description ? `<div class="council-card-desc">${esc(b.description)}</div>` : ''}
       <div class="council-actions">
-        <button class="btn-secondary" type="button" onclick="openV2Blueprint('${b.id}')">Open</button>
+        <button class="btn-secondary" type="button" onclick="openV2BlueprintInNewTab('${b.id}')">Open</button>
         <button class="danger-btn" type="button" onclick="deleteV2Blueprint('${b.id}')">Delete</button>
       </div>
     </div>`;
@@ -1210,6 +1220,10 @@ function renderV2PluginWorkspace() {
   const matter = App.v2.matters.find(m => m.id === blueprint.matter_id);
   const config = App.v2.pluginConfig || defaultV2PluginConfig(blueprint.plugin_id);
   const runs = App.v2.pluginRuns || [];
+  if (blueprint.plugin_id === 'contract_review') {
+    host.innerHTML = renderContractReviewPluginWorkspace(blueprint, matter, config, runs);
+    return;
+  }
   host.innerHTML = `
     <div class="settings-card-header">
       <div><div class="settings-card-title">${esc(blueprint.name)}</div><div class="settings-card-subtitle">${esc(v2PluginLabel(blueprint.plugin_id))}${matter ? ' · ' + esc(matter.name) : ''}</div></div>
@@ -1243,6 +1257,122 @@ function renderV2PluginWorkspace() {
       ${blueprint.plugin_id === 'contract_review' ? renderContractReviewWorkspace() : ''}
         </div>
   `;
+}
+
+function renderContractReviewPluginWorkspace(blueprint, matter, config, runs) {
+  const active = App.v2.activeContractRun?.run;
+  return `
+    <div class="settings-card-header contract-review-shell-header">
+      <div>
+        <div class="settings-card-title">${active ? esc(active.title || 'Contract review') : esc(blueprint.name)}</div>
+        <div class="settings-card-subtitle">${active ? 'Single contract review' : esc(v2PluginLabel(blueprint.plugin_id))}${matter ? ' · ' + esc(matter.name) : ''}</div>
+      </div>
+      <div class="contract-shell-actions">
+        ${active ? `<button class="btn-secondary" type="button" onclick="closeContractReviewRun()">All Reviews</button>` : ''}
+        <button class="btn-secondary" type="button" onclick="openV2BlueprintChat('${esc(blueprint.id)}')">Chat</button>
+      </div>
+    </div>
+    <div class="council-form v2-plugin-workspace-body contract-review-shell">
+      ${active ? renderContractReviewWorkspace() : renderContractReviewDashboard(blueprint, config, runs)}
+    </div>
+  `;
+}
+
+function renderContractReviewDashboard(blueprint, config, runs) {
+  const reviewRuns = runs || [];
+  const completed = reviewRuns.filter(run => run.status === 'completed').length;
+  const running = reviewRuns.filter(run => ['pending','running'].includes(run.status)).length;
+  const complete = reviewRuns.filter(run => run.review_complete).length;
+  return `
+    <div class="contract-dashboard">
+      <div class="contract-dashboard-summary">
+        <div>
+          <div class="settings-section-desc">Contract reviews</div>
+          <div class="contract-dashboard-title">All Reviews</div>
+        </div>
+        <div class="contract-review-stats">
+          <div class="stat-pill"><strong>${reviewRuns.length}</strong> reviews</div>
+          <div class="stat-pill"><strong>${completed}</strong> completed</div>
+          <div class="stat-pill"><strong>${running}</strong> running</div>
+          <div class="stat-pill"><strong>${complete}</strong> human complete</div>
+        </div>
+      </div>
+      <details class="contract-setup-panel">
+        <summary>New review and settings</summary>
+        <div class="contract-setup-content">
+          <div class="settings-section-desc">New review</div>
+          ${v2PluginRunFields(blueprint)}
+          <div class="council-actions"><button class="btn-primary" type="button" onclick="runV2Plugin()">Run Contract Review</button></div>
+          <div class="settings-section-desc">Plugin config</div>
+          <div class="council-field"><textarea class="council-textarea" id="v2-plugin-config-json">${esc(JSON.stringify(config, null, 2))}</textarea></div>
+          <div class="council-actions">
+            <button class="btn-secondary" type="button" onclick="saveV2PluginConfig()">Save Config</button>
+            <button class="btn-secondary" type="button" onclick="loadV2PluginData()">Refresh</button>
+          </div>
+          ${renderContractPlaybookManager()}
+        </div>
+      </details>
+      <div class="contract-review-cards">
+        ${reviewRuns.length ? reviewRuns.map(run => renderContractReviewDashboardRow(blueprint, run)).join('') : '<div class="contract-empty-state">No contract reviews yet. Start one from New review and settings.</div>'}
+      </div>
+    </div>
+  `;
+}
+
+function renderContractReviewDashboardRow(blueprint, run) {
+  const statusDetail = run.status_detail || (run.review_complete ? 'Review complete' : 'Human review pending');
+  const started = run.completed_at || run.started_at || run.created_at;
+  const dateLabel = started ? new Date(started).toLocaleString() : 'n/a';
+  return `<div class="contract-review-card-row">
+    <div class="contract-review-card-main">
+      <div class="contract-review-card-title">
+        <strong>${esc(run.title || 'Contract review')}</strong>
+        <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
+      </div>
+      <div class="contract-review-card-meta">
+        <span>${esc(run.config_snapshot?.document_ids?.length ? run.config_snapshot.document_ids.length + ' source document(s)' : 'Source documents captured in run')}</span>
+        <span>${esc(statusDetail)}</span>
+        <span>${esc(dateLabel)}</span>
+      </div>
+      ${renderV2RunProgress(run)}
+      ${run.error ? `<div class="contract-run-error">${esc(run.error)}</div>` : ''}
+    </div>
+    <div class="contract-row-actions">${renderContractReviewDashboardActions(run)}</div>
+  </div>`;
+}
+
+function renderContractReviewDashboardActions(run) {
+  const reviewButton = run.mode === 'workflow' ? `<button class="btn-primary" type="button" onclick="openContractReviewRun('${esc(run.id)}')">Open Review</button>` : '';
+  const auditButton = run.mode === 'workflow' ? `<button class="btn-secondary" type="button" onclick="openContractAuditPackage('${esc(run.id)}')">Audit JSON</button>` : '';
+  const chatButton = App.v2.activeBlueprintId ? `<button class="btn-secondary" type="button" onclick="openV2BlueprintChat('${esc(App.v2.activeBlueprintId)}')">Chat</button>` : '';
+  return `
+    ${reviewButton}
+    ${auditButton}
+    <button class="btn-secondary" type="button" onclick="exportV2PluginRun('${esc(run.id)}')">Export</button>
+    ${chatButton}
+    <button class="danger-btn" type="button" onclick="deleteV2PluginRun('${esc(run.id)}')">Delete</button>
+  `;
+}
+
+function blueprintWorkspaceUrl(blueprintId) {
+  const params = new URLSearchParams();
+  params.set('view', 'blueprints');
+  if (App.v2.workspaceId) params.set('workspace', App.v2.workspaceId);
+  params.set('blueprint', blueprintId);
+  return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+}
+
+function openV2BlueprintInNewTab(blueprintId) {
+  const opened = window.open(blueprintWorkspaceUrl(blueprintId), '_blank', 'noopener');
+  if (!opened) openV2Blueprint(blueprintId);
+}
+
+function closeContractReviewRun() {
+  App.v2.activeContractRun = null;
+  App.v2.activeContractClauses = [];
+  App.v2.activeContractTrace = [];
+  App.v2.activeContractEscalations = [];
+  renderV2PluginWorkspace();
 }
 
 function renderContractPlaybookManager() {
@@ -1316,6 +1446,25 @@ async function loadV2PluginData() {
   if (runs?.ok) App.v2.pluginRuns = (await runs.json()).items || [];
   await loadV2PluginJobs(blueprint);
   renderV2PluginWorkspace();
+}
+
+async function openBlueprintDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const blueprintId = params.get('blueprint');
+  const workspaceId = params.get('workspace');
+  if (!blueprintId || !App.v2.enabled) return;
+  applyBlueprintFocusMode();
+  if (workspaceId && workspaceId !== App.v2.workspaceId && App.v2.workspaces.some(w => w.workspace_id === workspaceId)) {
+    App.v2.workspaceId = workspaceId;
+    await loadV2ShellData();
+  }
+  const blueprint = App.v2.blueprints.find(b => b.id === blueprintId);
+  if (!blueprint) return;
+  App.v2.activeBlueprintId = blueprintId;
+  App.v2.activeMatterId = blueprint.matter_id || '';
+  switchView('blueprints');
+  renderV2Shell();
+  await loadV2PluginData();
 }
 
 async function loadV2PluginJobs(blueprint) {
@@ -1554,7 +1703,19 @@ function renderContractReviewWorkspace() {
   const pendingClauses = clauses.filter(item => (item.clause?.review_status || 'pending') === 'pending').length;
   const selected = filteredClauses[0]?.clause;
   return `<div class="contract-review-workspace">
-    <div class="settings-section-desc">Structured review workspace</div>
+    <div class="contract-review-page-head">
+      <div>
+        <div class="settings-section-desc">Review detail</div>
+        <div class="contract-dashboard-title">${esc(run.run?.title || 'Contract review')}</div>
+        <div class="council-card-meta">${esc(run.run?.status_detail || run.run?.status || 'pending')}${run.run?.coverage_score !== null && run.run?.coverage_score !== undefined ? ' · coverage ' + esc(String(run.run.coverage_score)) : ''}</div>
+      </div>
+      <div class="contract-detail-nav" aria-label="Contract review sections">
+        <a href="#contract-summary-section">Summary</a>
+        <a href="#contract-issues-section">Issues</a>
+        <a href="#contract-clauses-section">Clauses</a>
+        <a href="#contract-trace-section">Trace</a>
+      </div>
+    </div>
     ${renderContractCompletionPanel(run.run, pendingClauses, openHighEscalations)}
     <div class="contract-review-stats">
       <div class="stat-pill"><strong>${clauses.length}</strong> clauses</div>
@@ -1564,10 +1725,12 @@ function renderContractReviewWorkspace() {
       <div class="stat-pill"><strong>${escalations.length}</strong> escalations</div>
       <div class="stat-pill"><strong>${trace.length}</strong> trace steps</div>
     </div>
-    ${renderContractWorkflowModules()}
-    ${renderContractRiskHeatmap(clauses)}
-    ${renderContractEscalationPanel(escalations)}
-    ${renderContractClauseFilters(clauses, filteredClauses)}
+    <div id="contract-summary-section">${renderContractSummaries(summaries) || '<div class="contract-empty-state">No summary is available yet.</div>'}</div>
+    <div id="contract-issues-section">
+      ${renderContractRiskHeatmap(clauses)}
+      ${renderContractEscalationPanel(escalations)}
+    </div>
+    <div id="contract-clauses-section">${renderContractClauseFilters(clauses, filteredClauses)}</div>
     <div class="contract-review-grid">
       <div class="contract-review-list">
         ${filteredClauses.length ? filteredClauses.map(item => renderContractClauseRow(run.run.id, item)).join('') : '<div class="council-row"><div class="council-card-desc">No clauses match the current filters.</div></div>'}
@@ -1576,13 +1739,15 @@ function renderContractReviewWorkspace() {
         ${selected ? renderContractClausePreview(run.run.id, filteredClauses[0]) : renderContractSummaries(summaries)}
       </div>
     </div>
-    <div class="contract-trace-panel">
-      <div class="council-card-title">Workflow Trace</div>
-      <div class="contract-trace-list">
-        ${trace.length ? trace.map(step => `<div class="trace-step"><strong>${esc(step.step_name)}</strong><span>${esc(step.status)}${step.confidence_score ? ' · ' + esc(String(step.confidence_score)) : ''}</span></div>`).join('') : '<div class="council-card-desc">No trace records yet.</div>'}
+    <div id="contract-trace-section" class="contract-trace-panel">
+      <details>
+        <summary>Workflow trace and modules</summary>
+        ${renderContractWorkflowModules()}
+        <div class="contract-trace-list">
+          ${trace.length ? trace.map(step => `<div class="trace-step"><strong>${esc(step.step_name)}</strong><span>${esc(step.status)}${step.confidence_score ? ' · ' + esc(String(step.confidence_score)) : ''}</span></div>`).join('') : '<div class="council-card-desc">No trace records yet.</div>'}
+        </div>
+      </details>
       </div>
-    </div>
-    ${renderContractSummaries(summaries)}
   </div>`;
 }
 

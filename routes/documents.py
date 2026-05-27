@@ -25,7 +25,19 @@ class ConnectedFolderIn(BaseModel):
     path: str
 
 
-MACOS_ROOT_PATH_PREFIXES = ("Users", "Volumes", "Applications", "System", "Library", "private", "tmp")
+ABSOLUTE_PATH_PREFIXES = (
+    "Users",
+    "Volumes",
+    "Applications",
+    "System",
+    "Library",
+    "private",
+    "tmp",
+    "home",
+    "mnt",
+    "opt",
+    "var",
+)
 
 
 def _safe_index_filename(name: str) -> str:
@@ -74,7 +86,7 @@ def _normalize_folder_path_input(path: str) -> str:
     if raw.startswith("./") or raw.startswith("../"):
         return raw
     first_part = raw.replace("\\", "/").split("/", 1)[0]
-    if first_part in MACOS_ROOT_PATH_PREFIXES:
+    if first_part in ABSOLUTE_PATH_PREFIXES:
         return f"/{raw}"
     return raw
 
