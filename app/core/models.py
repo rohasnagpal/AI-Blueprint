@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -352,6 +352,12 @@ class ContractReviewRun(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
     config_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False)
+    mode: Mapped[str] = mapped_column(String(64), nullable=False, default="legacy")
+    workflow_version: Mapped[str | None] = mapped_column(String(50))
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    selected_playbook_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    coverage_score: Mapped[float | None] = mapped_column(Float)
+    source_anchor_version: Mapped[str | None] = mapped_column(String(50))
     error: Mapped[str | None] = mapped_column(Text)
     created_by_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
@@ -372,6 +378,210 @@ class ContractReviewOutput(Base):
     negotiation_memo: Mapped[str] = mapped_column(Text, nullable=False, default="")
     client_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
     sources_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ContractPlaybook(Base):
+    __tablename__ = "contract_playbooks"
+    __table_args__ = (
+        Index("ix_contract_playbooks_workspace_category", "workspace_id", "contract_category"),
+        Index("ix_contract_playbooks_workspace_status", "workspace_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str | None] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    contract_category: Mapped[str] = mapped_column(String(100), nullable=False)
+    jurisdiction: Mapped[str | None] = mapped_column(String(100))
+    version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0")
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="active")
+    rules_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    is_builtin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ContractPlaybookClause(Base):
+    __tablename__ = "contract_playbook_clauses"
+    __table_args__ = (
+        Index("ix_contract_playbook_clauses_playbook_type", "playbook_id", "clause_type"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    playbook_id: Mapped[str] = mapped_column(ForeignKey("contract_playbooks.id", ondelete="CASCADE"), nullable=False, index=True)
+    clause_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    approved_text: Mapped[str | None] = mapped_column(Text)
+    fallback_text: Mapped[str | None] = mapped_column(Text)
+    prohibited_patterns_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    severity_default: Mapped[str] = mapped_column(String(50), nullable=False, default="medium")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ContractClause(Base):
+    __tablename__ = "contract_clauses"
+    __table_args__ = (
+        Index("ix_contract_clauses_run_type", "run_id", "clause_type"),
+        Index("ix_contract_clauses_run_review", "run_id", "review_status"),
+        Index("ix_contract_clauses_workspace_run", "workspace_id", "run_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("contract_review_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    clause_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(255))
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    normalized_text: Mapped[str | None] = mapped_column(Text)
+    source_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ContractPlaybookFinding(Base):
+    __tablename__ = "contract_playbook_findings"
+    __table_args__ = (
+        Index("ix_contract_playbook_findings_run_status", "run_id", "status"),
+        Index("ix_contract_playbook_findings_clause", "clause_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("contract_review_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    clause_id: Mapped[str | None] = mapped_column(ForeignKey("contract_clauses.id", ondelete="CASCADE"), index=True)
+    playbook_id: Mapped[str | None] = mapped_column(ForeignKey("contract_playbooks.id", ondelete="SET NULL"), index=True)
+    playbook_clause_id: Mapped[str | None] = mapped_column(ForeignKey("contract_playbook_clauses.id", ondelete="SET NULL"), index=True)
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    deviation_summary: Mapped[str | None] = mapped_column(Text)
+    missing: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    prohibited_match: Mapped[str | None] = mapped_column(Text)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ContractRiskFinding(Base):
+    __tablename__ = "contract_risk_findings"
+    __table_args__ = (
+        Index("ix_contract_risk_findings_run_level", "run_id", "risk_level"),
+        Index("ix_contract_risk_findings_clause", "clause_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("contract_review_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    clause_id: Mapped[str | None] = mapped_column(ForeignKey("contract_clauses.id", ondelete="CASCADE"), index=True)
+    risk_level: Mapped[str] = mapped_column(String(50), nullable=False)
+    likelihood: Mapped[str | None] = mapped_column(String(50))
+    impact: Mapped[str | None] = mapped_column(String(50))
+    priority: Mapped[int | None] = mapped_column(Integer)
+    reasoning: Mapped[str] = mapped_column(Text, nullable=False)
+    requires_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ContractRedlineSuggestion(Base):
+    __tablename__ = "contract_redline_suggestions"
+    __table_args__ = (
+        Index("ix_contract_redline_suggestions_run_status", "run_id", "status"),
+        Index("ix_contract_redline_suggestions_clause", "clause_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("contract_review_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    clause_id: Mapped[str] = mapped_column(ForeignKey("contract_clauses.id", ondelete="CASCADE"), nullable=False, index=True)
+    suggestion_text: Mapped[str] = mapped_column(Text, nullable=False)
+    fallback_language: Mapped[str | None] = mapped_column(Text)
+    rationale: Mapped[str | None] = mapped_column(Text)
+    source_playbook_id: Mapped[str | None] = mapped_column(ForeignKey("contract_playbooks.id", ondelete="SET NULL"), index=True)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="draft")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ContractReviewSummary(Base):
+    __tablename__ = "contract_review_summaries"
+    __table_args__ = (
+        UniqueConstraint("run_id", "audience", name="uq_contract_review_summaries_run_audience"),
+        Index("ix_contract_review_summaries_run", "run_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("contract_review_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    audience: Mapped[str] = mapped_column(String(64), nullable=False)
+    summary_text: Mapped[str] = mapped_column(Text, nullable=False)
+    obligations_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    negotiation_points_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    unusual_terms_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ContractReviewStepOutput(Base):
+    __tablename__ = "contract_review_step_outputs"
+    __table_args__ = (
+        Index("ix_contract_review_step_outputs_run_step", "run_id", "step_name"),
+        Index("ix_contract_review_step_outputs_workspace_run", "workspace_id", "run_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("contract_review_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    step_version: Mapped[str | None] = mapped_column(String(50))
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    output_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    provider: Mapped[str | None] = mapped_column(String(64))
+    model: Mapped[str | None] = mapped_column(String(255))
+    error: Mapped[str | None] = mapped_column(Text)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ContractClauseReviewDecision(Base):
+    __tablename__ = "contract_clause_review_decisions"
+    __table_args__ = (
+        Index("ix_contract_clause_review_decisions_clause", "clause_id"),
+        Index("ix_contract_clause_review_decisions_run", "run_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("contract_review_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    clause_id: Mapped[str] = mapped_column(ForeignKey("contract_clauses.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    decision: Mapped[str] = mapped_column(String(64), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    prior_status_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 

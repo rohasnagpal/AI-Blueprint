@@ -66,13 +66,25 @@ def index_document(job_id: str, document_id: str) -> None:
             chunk_rows: list[KnowledgeChunk] = []
             for index, chunk in enumerate(chunks):
                 ensure_job_not_cancelled(db, job)
+                metadata = {
+                    "source": document.original_name,
+                    "storage_key": document.storage_key,
+                    "source_anchor_version": "1",
+                    "filename": document.original_name,
+                    "chunk_index": index,
+                    "page": chunk.get("page"),
+                    "start_offset": chunk.get("start_offset"),
+                    "end_offset": chunk.get("end_offset"),
+                    "extraction_method": chunk.get("extraction_method"),
+                    "text_length": len(chunk["content"]),
+                }
                 row = KnowledgeChunk(
                     id=str(uuid.uuid4()),
                     workspace_id=document.workspace_id,
                     document_id=document.id,
                     chunk_index=index,
-                    content=chunk,
-                    metadata_json=json.dumps({"source": document.original_name, "storage_key": document.storage_key}, sort_keys=True),
+                    content=chunk["content"],
+                    metadata_json=json.dumps(metadata, sort_keys=True),
                 )
                 chunk_rows.append(row)
                 db.add(row)
@@ -124,31 +136,101 @@ def index_document(job_id: str, document_id: str) -> None:
             db.commit()
 
 
-def _extract_chunks(path: Path, filename: str) -> list[str]:
+def _extract_chunks(path: Path, filename: str) -> list[dict]:
     suffix = Path(filename).suffix.lower()
+    if suffix == ".pdf":
+        pages = _extract_pdf_pages(path)
+        if pages:
+            return _chunk_pages(pages, extraction_method="pdf_text")
+        content = "Document stored but text extraction is not available for PDF files yet. Install pypdf to enable page-level PDF extraction."
+        return [
+            {
+                "content": content,
+                "page": None,
+                "start_offset": 0,
+                "end_offset": len(content),
+                "extraction_method": "unsupported_placeholder",
+            }
+        ]
     if suffix not in {".txt", ".md", ".csv", ".json", ".html", ".htm"}:
-        return [f"Document stored but text extraction is not available for {suffix or 'this file type'} yet."]
+        content = f"Document stored but text extraction is not available for {suffix or 'this file type'} yet."
+        return [
+            {
+                "content": content,
+                "page": None,
+                "start_offset": 0,
+                "end_offset": len(content),
+                "extraction_method": "unsupported_placeholder",
+            }
+        ]
     raw = path.read_bytes()
     text = raw.decode("utf-8", errors="replace")
     if suffix in {".html", ".htm"}:
         parser = _HTMLTextExtractor()
         parser.feed(text)
         text = parser.text()
+        extraction_method = "html_text"
     else:
+        if "\f" in text:
+            pages = [_clean_text(page) for page in text.split("\f")]
+            pages = [page for page in pages if page]
+            if pages:
+                return _chunk_pages(pages, extraction_method="plain_text")
         text = _clean_text(text)
+        extraction_method = "plain_text"
     if not text:
         raise RuntimeError("No extractable text found")
-    return _chunk_text(text)
+    return _chunk_text(text, extraction_method=extraction_method)
 
 
-def _chunk_text(text: str, *, chunk_size: int = 1200, overlap: int = 150) -> list[str]:
+def _extract_pdf_pages(path: Path) -> list[str]:
+    try:
+        from pypdf import PdfReader  # type: ignore
+    except Exception:
+        return []
+    try:
+        reader = PdfReader(str(path))
+        pages = []
+        for page in reader.pages:
+            text = _clean_text(page.extract_text() or "")
+            pages.append(text)
+        return [page for page in pages if page]
+    except Exception:
+        return []
+
+
+def _chunk_pages(pages: list[str], *, chunk_size: int = 1200, overlap: int = 150, extraction_method: str = "plain_text") -> list[dict]:
+    chunks: list[dict] = []
+    for page_index, page_text in enumerate(pages, start=1):
+        chunks.extend(_chunk_text(page_text, chunk_size=chunk_size, overlap=overlap, extraction_method=extraction_method, page=page_index))
+    return chunks
+
+
+def _chunk_text(
+    text: str,
+    *,
+    chunk_size: int = 1200,
+    overlap: int = 150,
+    extraction_method: str = "plain_text",
+    page: int | None = None,
+) -> list[dict]:
     chunks = []
     start = 0
     while start < len(text):
         end = min(len(text), start + chunk_size)
         chunk = text[start:end].strip()
         if chunk:
-            chunks.append(chunk)
+            leading_trim = len(text[start:end]) - len(text[start:end].lstrip())
+            trailing_trim = len(text[start:end].rstrip())
+            chunks.append(
+                {
+                    "content": chunk,
+                    "page": page,
+                    "start_offset": start + leading_trim,
+                    "end_offset": start + trailing_trim,
+                    "extraction_method": extraction_method,
+                }
+            )
         if end == len(text):
             break
         start = max(end - overlap, start + 1)

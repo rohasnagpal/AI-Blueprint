@@ -13,14 +13,13 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.models import SessionToken, User, WorkspaceMember
 from app.core.security import hash_password, hash_session_token, new_session_token, session_expiry, verify_password
-from app.core.validation import normalize_email
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 _auth_attempts: dict[str, deque[float]] = defaultdict(deque)
 
 
 class SetupIn(BaseModel):
-    email: str
+    username: str | None = Field(default=None, min_length=3, max_length=100)
+    email: str | None = None
     display_name: str = Field(min_length=1)
     password: str = Field(min_length=12)
 
@@ -47,6 +46,15 @@ def _format_user(user: User) -> dict:
         "must_change_credentials": user.must_change_credentials,
         "created_at": user.created_at.isoformat(),
     }
+
+
+def _normalize_username(value: str) -> str:
+    username = value.strip().lower()
+    if len(username) < 3 or len(username) > 100:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username must be between 3 and 100 characters")
+    if any(char.isspace() for char in username):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username cannot contain spaces")
+    return username
 
 
 def _issue_session(db: Session, response: Response, user: User) -> None:
@@ -115,15 +123,16 @@ async def setup_state(db: Session = Depends(get_db)):
 
 @router.post("/setup")
 async def setup_admin(body: SetupIn, request: Request, response: Response, db: Session = Depends(get_db)):
-    email = normalize_email(body.email)
-    _check_auth_rate_limit(request, email)
+    identifier = body.username or body.email or ""
+    username = _normalize_username(identifier)
+    _check_auth_rate_limit(request, username)
     user_count = db.execute(select(func.count(User.id))).scalar_one()
     if user_count:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Setup has already been completed")
     user = User(
         id=str(uuid.uuid4()),
-        username=email,
-        email=email,
+        username=username,
+        email=username,
         display_name=body.display_name.strip(),
         password_hash=hash_password(body.password),
         is_system_admin=True,

@@ -96,3 +96,27 @@ async def resolve_escalation(
     db.commit()
     db.refresh(escalation)
     return _format_escalation(escalation)
+
+
+@router.put("/{escalation_id}/dismiss")
+async def dismiss_escalation(
+    workspace_id: str,
+    escalation_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_admin(workspace_id, user, db)
+    escalation = db.execute(
+        select(Escalation).where(Escalation.workspace_id == workspace_id, Escalation.id == escalation_id)
+    ).scalar_one_or_none()
+    if not escalation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Escalation not found")
+    if escalation.status == "dismissed":
+        return _format_escalation(escalation)
+    escalation.status = "dismissed"
+    escalation.resolved_by_user_id = user.id
+    escalation.resolved_at = utcnow()
+    record_audit_event(db, action="escalation.dismiss", resource_type="escalation", resource_id=escalation.id, user_id=user.id, workspace_id=workspace_id, metadata={"blueprint_id": escalation.blueprint_id})
+    db.commit()
+    db.refresh(escalation)
+    return _format_escalation(escalation)

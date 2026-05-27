@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import unittest
@@ -21,9 +22,15 @@ os.environ["AI_BLUEPRINT_AUTH_RATE_LIMIT_ATTEMPTS"] = "100"
 from fastapi.testclient import TestClient
 
 from main import app
+from app.core.contract_agents.clause_extractor import extract_clauses
+from app.core.contract_agents.conflict_detector import detect_conflicts
+from app.core.contract_agents.intake import run_intake
+from app.core.contract_agents.redliner import suggest_redlines
+from app.core.contract_agents.schemas import RiskFindingResult
 from app.core.config import Settings, get_settings, validate_runtime_security
 from app.core.database import SessionLocal
-from app.core.models import KnowledgeEmbedding
+from app.core.document_indexer import _extract_chunks
+from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, KnowledgeChunk, KnowledgeEmbedding
 from app.core.secrets import decrypt_secret
 
 
@@ -65,7 +72,7 @@ class LaunchReadinessTest(unittest.TestCase):
     def test_public_launch_flow_and_guardrails(self) -> None:
         health = self.client.get("/api/v2/health")
         self.assertEqual(health.status_code, 200, health.text)
-        self.assertEqual(health.json()["database"]["migration_revision"], "0018_knowledge_embeddings")
+        self.assertEqual(health.json()["database"]["migration_revision"], "0022_contract_review_commercial_playbooks")
         self.assertTrue(health.json()["secrets"]["key_configured"])
         self.assertEqual(health.headers["x-content-type-options"], "nosniff")
         self.assertEqual(health.headers["x-frame-options"], "DENY")
@@ -130,6 +137,17 @@ class LaunchReadinessTest(unittest.TestCase):
             self.assertGreaterEqual(len(embeddings), 1)
             self.assertEqual(embeddings[0].provider, "local")
             self.assertEqual(embeddings[0].model, "hashing-ngrams-v1")
+            chunk = db.query(KnowledgeChunk).filter(KnowledgeChunk.document_id == upload.json()["id"]).one()
+            chunk_metadata = json.loads(chunk.metadata_json)
+            self.assertEqual(chunk_metadata["source_anchor_version"], "1")
+            self.assertEqual(chunk_metadata["filename"], "contract.txt")
+            self.assertEqual(chunk_metadata["start_offset"], 0)
+            self.assertGreater(chunk_metadata["end_offset"], chunk_metadata["start_offset"])
+            self.assertIn("extraction_method", chunk_metadata)
+            builtin_playbooks = db.query(ContractPlaybook).filter(ContractPlaybook.is_builtin.is_(True)).all()
+            self.assertGreaterEqual(len(builtin_playbooks), 7)
+            builtin_msa = next(playbook for playbook in builtin_playbooks if playbook.id == "builtin-msa-v1")
+            self.assertEqual(builtin_msa.version, "1.1")
         documents = self.client.get(f"/api/v2/workspaces/{workspace_id}/documents?page=1&page_size=10")
         self.assertEqual(documents.status_code, 200, documents.text)
         self.assertEqual(documents.json()["pages"], 1)
@@ -216,6 +234,133 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(export.status_code, 200, export.text)
         self.assertIn("# Launch Contract Review", export.text)
 
+        playbooks = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/playbooks")
+        self.assertEqual(playbooks.status_code, 200, playbooks.text)
+        self.assertGreaterEqual(len(playbooks.json()), 7)
+        self.assertTrue(any(item["contract_category"] == "dpa" for item in playbooks.json()))
+        self.assertTrue(any(item["contract_category"] == "sow" for item in playbooks.json()))
+        self.assertTrue(any(item["contract_category"] == "saas" for item in playbooks.json()))
+        self.assertTrue(any(item["contract_category"] == "consulting" for item in playbooks.json()))
+        self.assertTrue(any(item["contract_category"] == "reseller" for item in playbooks.json()))
+        builtin_msa = next(item for item in playbooks.json() if item["id"] == "builtin-msa-v1")
+        builtin_msa_detail = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/playbooks/{builtin_msa['id']}")
+        self.assertEqual(builtin_msa_detail.status_code, 200, builtin_msa_detail.text)
+        liability_standard = next(item for item in builtin_msa_detail.json()["clauses"] if item["clause_type"] == "limitation_of_liability")
+        self.assertIn("Liability cap", liability_standard["approved_text"])
+        self.assertIn("aggregate liability", liability_standard["fallback_text"])
+        custom_playbook_payload = {
+            "name": "Workspace Test MSA",
+            "contract_category": "msa",
+            "rules": {"review_posture": "balanced"},
+            "clauses": [
+                {
+                    "clause_type": "limitation_of_liability",
+                    "title": "Limitation of Liability",
+                    "required": True,
+                    "severity_default": "critical",
+                    "prohibited_patterns": ["unlimited liability"],
+                },
+                {
+                    "clause_type": "data_security",
+                    "title": "Data Security",
+                    "required": True,
+                    "severity_default": "high",
+                    "prohibited_patterns": [],
+                },
+            ],
+        }
+        custom_playbook = self.client.post(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/playbooks",
+            json=custom_playbook_payload,
+        )
+        self.assertEqual(custom_playbook.status_code, 201, custom_playbook.text)
+        self.assertFalse(custom_playbook.json()["is_builtin"])
+        self.assertEqual(len(custom_playbook.json()["clauses"]), 2)
+        custom_playbook_payload["name"] = "Workspace Test MSA v2"
+        custom_playbook_payload["version"] = "1.1"
+        updated_playbook = self.client.put(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/playbooks/{custom_playbook.json()['id']}",
+            json=custom_playbook_payload,
+        )
+        self.assertEqual(updated_playbook.status_code, 200, updated_playbook.text)
+        self.assertEqual(updated_playbook.json()["version"], "1.1")
+        workflow_modules = self.client.get(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/workflow-modules"
+        )
+        self.assertEqual(workflow_modules.status_code, 200, workflow_modules.text)
+        module_ids = [item["id"] for item in workflow_modules.json()["items"]]
+        self.assertIn("clause_extraction", module_ids)
+        self.assertIn("escalation_detection", module_ids)
+        self.assertEqual(workflow_modules.json()["extension_contract"]["status"], "reserved")
+        workflow_run = self.client.post(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs",
+            json={"title": "Workflow Contract Review", "mode": "workflow", "config": {"playbook_id": custom_playbook.json()["id"]}},
+        )
+        self.assertEqual(workflow_run.status_code, 201, workflow_run.text)
+        workflow_job = self.wait_for_job(workspace_id, workflow_run.json()["job"]["id"])
+        self.assertEqual(workflow_job["job"]["status"], "completed", workflow_job)
+        workflow_run_id = workflow_run.json()["id"]
+        workflow_detail = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}")
+        self.assertEqual(workflow_detail.status_code, 200, workflow_detail.text)
+        self.assertEqual(workflow_detail.json()["run"]["mode"], "workflow")
+        self.assertGreaterEqual(len(workflow_detail.json()["summaries"]), 1)
+        trace = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/trace")
+        self.assertEqual(trace.status_code, 200, trace.text)
+        self.assertGreaterEqual(len(trace.json()), 5)
+        clauses = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/clauses")
+        self.assertEqual(clauses.status_code, 200, clauses.text)
+        self.assertGreaterEqual(len(clauses.json()), 1)
+        self.assertTrue(clauses.json()[0]["clause"]["source"].get("excerpt"))
+        escalations = self.client.get(f"/api/v2/workspaces/{workspace_id}/escalations/blueprints/{blueprint_id}")
+        self.assertEqual(escalations.status_code, 200, escalations.text)
+        workflow_escalations = [item for item in escalations.json()["items"] if item["source_id"] == workflow_run_id]
+        self.assertGreaterEqual(len(workflow_escalations), 1)
+        blocked_completion = self.client.put(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/complete"
+        )
+        self.assertEqual(blocked_completion.status_code, 409, blocked_completion.text)
+        for escalation in workflow_escalations:
+            dismissed = self.client.put(f"/api/v2/workspaces/{workspace_id}/escalations/{escalation['id']}/dismiss")
+            self.assertEqual(dismissed.status_code, 200, dismissed.text)
+            self.assertEqual(dismissed.json()["status"], "dismissed")
+        clause_id = clauses.json()[0]["clause"]["id"]
+        decision = self.client.post(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/clauses/{clause_id}/decisions",
+            json={"decision": "approve", "note": "Reviewed in launch test."},
+        )
+        self.assertEqual(decision.status_code, 201, decision.text)
+        clause_detail = self.client.get(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/clauses/{clause_id}"
+        )
+        self.assertEqual(clause_detail.status_code, 200, clause_detail.text)
+        self.assertEqual(clause_detail.json()["decisions"][0]["decision"], "approve")
+        self.assertIn("playbook_clauses", clause_detail.json())
+        completed_review = self.client.put(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/complete"
+        )
+        self.assertEqual(completed_review.status_code, 200, completed_review.text)
+        self.assertTrue(completed_review.json()["run"]["review_complete"])
+        self.assertEqual(completed_review.json()["run"]["status_detail"], "Review complete")
+        audit_package = self.client.get(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/audit-package"
+        )
+        self.assertEqual(audit_package.status_code, 200, audit_package.text)
+        self.assertEqual(audit_package.json()["package_type"], "contract_review_workflow_audit")
+        self.assertGreaterEqual(len(audit_package.json()["clauses"]), 1)
+        self.assertGreaterEqual(len(audit_package.json()["step_trace"]), 5)
+        self.assertGreaterEqual(len(audit_package.json()["escalations"]), 1)
+        self.assertEqual(audit_package.json()["clauses"][0]["decisions"][0]["decision"], "approve")
+        self.assertIn("not autonomous legal advice", audit_package.json()["human_oversight_notice"])
+        workflow_export = self.client.get(
+            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/export"
+        )
+        self.assertEqual(workflow_export.status_code, 200, workflow_export.text)
+        self.assertIn("## Clause Review", workflow_export.text)
+        self.assertIn("AI-assisted workflow draft", workflow_export.text)
+        self.assertIn("Completion: Human review complete", workflow_export.text)
+        self.assertIn("Open escalations: 0", workflow_export.text)
+        self.assertIn("Human decisions recorded: 1", workflow_export.text)
+
         stored_file = UPLOADS_PATH / upload.json()["storage_key"]
         self.assertTrue(stored_file.exists())
         delete_all = self.client.delete(f"/api/v2/workspaces/{workspace_id}/documents")
@@ -225,6 +370,124 @@ class LaunchReadinessTest(unittest.TestCase):
 
     def test_malformed_secret_decrypts_to_empty_string(self) -> None:
         self.assertEqual(decrypt_secret("not encrypted"), "")
+
+    def test_document_indexer_preserves_page_break_source_anchors(self) -> None:
+        path = ROOT / "paged_contract.txt"
+        path.write_text("Page one indemnity.\fPage two termination.", encoding="utf-8")
+        chunks = _extract_chunks(path, "paged_contract.txt")
+        self.assertEqual([chunk["page"] for chunk in chunks], [1, 2])
+        self.assertEqual(chunks[0]["start_offset"], 0)
+        self.assertIn("indemnity", chunks[0]["content"])
+        self.assertIn("termination", chunks[1]["content"])
+
+    def test_clause_extractor_preserves_segment_offsets(self) -> None:
+        text = "Intro text before clauses.\n1. Termination: Either party may terminate for breach after notice.\n2. Payment: Fees are due within 30 days."
+        clauses = extract_clauses(
+            [
+                {
+                    "content": text,
+                    "filename": "contract.txt",
+                    "chunk_index": 0,
+                    "start_offset": 100,
+                    "end_offset": 100 + len(text),
+                }
+            ]
+        )
+        by_type = {clause.clause_type: clause for clause in clauses}
+        self.assertIn("termination", by_type)
+        self.assertIn("payment", by_type)
+        termination = by_type["termination"]
+        expected_start = 100 + text.index("1. Termination")
+        self.assertEqual(termination.source.start_offset, expected_start)
+        self.assertGreater(termination.source.end_offset, termination.source.start_offset)
+        self.assertIn("Termination", termination.source.excerpt)
+
+    def test_clause_extractor_recognizes_commercial_playbook_terms(self) -> None:
+        text = (
+            "1. Subscription Scope: Customer may access the service for authorized users subject to usage limits.\n"
+            "2. Availability: Provider will meet the SLA and uptime commitment.\n"
+            "3. Marks: Supplier retains all trademarks and brand assets.\n"
+            "4. Compliance: Reseller must comply with anti-bribery and export controls.\n"
+            "5. Fees: Pricing, discounts, taxes, expenses, and chargebacks are stated."
+        )
+        clauses = extract_clauses([{"content": text, "filename": "commercial.txt", "chunk_index": 0, "start_offset": 0}])
+        by_type = {clause.clause_type for clause in clauses}
+        self.assertIn("scope", by_type)
+        self.assertIn("warranties", by_type)
+        self.assertIn("ip", by_type)
+        self.assertIn("payment", by_type)
+
+    def test_redliner_uses_playbook_fallback_language(self) -> None:
+        clause = ContractClause(id="clause-1", clause_type="limitation_of_liability", text="Unlimited liability applies.", review_status="pending")
+        playbook_clause = ContractPlaybookClause(
+            id="playbook-clause-1",
+            clause_type="limitation_of_liability",
+            title="Limitation of Liability",
+            approved_text="Liability cap is mutual.",
+            fallback_text="Each party's aggregate liability is capped at fees paid in the prior 12 months.",
+            required=True,
+            severity_default="critical",
+        )
+        risk = RiskFindingResult(
+            clause_id="clause-1",
+            clause_type="limitation_of_liability",
+            risk_level="critical",
+            reasoning="Clause appears to contain prohibited language.",
+        )
+        suggestions = suggest_redlines([clause], [risk], [playbook_clause])
+        self.assertEqual(len(suggestions), 1)
+        self.assertIn("Liability cap is mutual", suggestions[0].suggestion_text)
+        self.assertEqual(suggestions[0].fallback_language, playbook_clause.fallback_text)
+
+    def test_conflict_detector_flags_duplicate_governing_law(self) -> None:
+        clauses = [
+            ContractClause(id="clause-1", clause_type="governing_law", text="This agreement is governed by New York law.", review_status="pending"),
+            ContractClause(id="clause-2", clause_type="governing_law", text="This agreement is governed by California law.", review_status="pending"),
+        ]
+        conflicts = detect_conflicts(clauses)
+        self.assertEqual(len(conflicts), 1)
+        self.assertEqual(conflicts[0].severity, "high")
+        self.assertEqual(conflicts[0].metadata["conflict_type"], "duplicate_unique_clause")
+
+    def test_conflict_detector_flags_payment_ip_and_liability_conflicts(self) -> None:
+        clauses = [
+            ContractClause(id="pay-1", clause_type="payment", text="Invoices are payable within 30 days after receipt.", review_status="pending"),
+            ContractClause(id="pay-2", clause_type="payment", text="Customer will pay net 60 days from invoice date.", review_status="pending"),
+            ContractClause(id="ip-1", clause_type="ip", text="Customer shall own all work product and deliverables.", review_status="pending"),
+            ContractClause(id="ip-2", clause_type="ip", text="Provider retains ownership of all intellectual property.", review_status="pending"),
+            ContractClause(id="lol-1", clause_type="limitation_of_liability", text="All liability is capped at fees paid in the prior twelve months.", review_status="pending"),
+            ContractClause(id="lol-2", clause_type="limitation_of_liability", text="Except for indemnity and confidentiality claims, the cap applies.", review_status="pending"),
+        ]
+        conflict_types = {item.metadata["conflict_type"] for item in detect_conflicts(clauses)}
+        self.assertIn("payment_timing", conflict_types)
+        self.assertIn("ip_ownership", conflict_types)
+        self.assertIn("liability_carveouts", conflict_types)
+
+    def test_conflict_detector_flags_breach_indemnity_and_renewal_conflicts(self) -> None:
+        clauses = [
+            ContractClause(id="breach-1", clause_type="data_breach_notice", text="Processor must notify controller within 24 hours of a security incident.", review_status="pending"),
+            ContractClause(id="breach-2", clause_type="data_breach_notice", text="Processor may provide breach notification within 5 days.", review_status="pending"),
+            ContractClause(id="indemnity-1", clause_type="indemnity", text="Each party shall indemnify the other for third-party claims.", review_status="pending"),
+            ContractClause(id="indemnity-2", clause_type="indemnity", text="Only provider shall indemnify customer for losses.", review_status="pending"),
+            ContractClause(id="term-1", clause_type="termination", text="The agreement automatically renews for successive one-year terms.", review_status="pending"),
+            ContractClause(id="term-2", clause_type="termination", text="The agreement will not renew unless the parties sign a written amendment.", review_status="pending"),
+        ]
+        conflict_types = {item.metadata["conflict_type"] for item in detect_conflicts(clauses)}
+        self.assertIn("data_breach_notice_timing", conflict_types)
+        self.assertIn("indemnity_scope", conflict_types)
+        self.assertIn("renewal_terms", conflict_types)
+
+    def test_intake_routes_builtin_contract_categories(self) -> None:
+        dpa = run_intake("This Data Processing Agreement is between controller and processor for personal data.")
+        sow = run_intake("This Statement of Work describes deliverables, milestones, and acceptance criteria.")
+        saas = run_intake("This SaaS subscription agreement covers access to the hosted software as a service.")
+        consulting = run_intake("This consulting agreement covers professional services and deliverables.")
+        reseller = run_intake("This reseller agreement appoints an authorized reseller for the products.")
+        self.assertEqual(dpa.contract_category, "dpa")
+        self.assertEqual(sow.contract_category, "sow")
+        self.assertEqual(saas.contract_category, "saas")
+        self.assertEqual(consulting.contract_category, "consulting")
+        self.assertEqual(reseller.contract_category, "reseller")
 
     def test_runtime_security_rejects_insecure_production_cookies(self) -> None:
         with self.assertRaises(RuntimeError):

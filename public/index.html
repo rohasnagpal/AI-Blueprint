@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AI Blueprint by Rohas Nagpal</title>
 <link rel="stylesheet" href="/css/fonts.css?v=20260526-self-host-fonts-v1"/>
-<link rel="stylesheet" href="/css/app.css?v=20260526-blueprint-nav-cleanup-v1"/>
+<link rel="stylesheet" href="/css/app.css?v=20260527-upload-scope-v1"/>
 <script src="/js/csp-styles.js?v=20260526-strict-style-csp-v1"></script>
 
 </head>
@@ -514,6 +514,17 @@
       <div class="view-header">
         <h2>Add Documents</h2>
         <p>Upload documents to your knowledge base. AI Blueprint supports PDF, DOCX, TXT, HTML, CSV, JSON and more.</p>
+      </div>
+
+      <div class="upload-scope-panel" id="upload-matter-card">
+        <div class="council-field">
+          <label for="upload-workspace-select">Workspace</label>
+          <select class="council-select" id="upload-workspace-select" onchange="onUploadWorkspaceChange()"></select>
+        </div>
+        <div class="council-field">
+          <label for="upload-matter-select">Matter</label>
+          <select class="council-select" id="upload-matter-select"></select>
+        </div>
       </div>
 
       <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
@@ -1761,7 +1772,7 @@
           <input class="council-input" id="v2-auth-name" autocomplete="name"/>
         </div>
         <div class="council-field">
-          <label for="v2-auth-email">Username or email</label>
+          <label for="v2-auth-email">Username</label>
           <input class="council-input" id="v2-auth-email" autocomplete="username"/>
         </div>
         <div class="council-field">
@@ -1813,6 +1824,6 @@
 
 
 <script src="/js/csp-events.js?v=20260526-strict-csp-v2"></script>
-<script src="/js/app.js?v=20260526-blueprint-nav-cleanup-v1"></script>
+<script src="/js/app.js?v=20260527-upload-scope-v1"></script>
 </body>
 </html>

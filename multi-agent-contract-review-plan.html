@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Blueprint Multi-Agent Contract Review Plan</title>
+<style>
+  :root {
+    --bg: #f6f7f4;
+    --paper: #ffffff;
+    --paper-soft: #f8f4ec;
+    --ink: #20242a;
+    --muted: #66707c;
+    --line: #d9ded7;
+    --line-strong: #bdc7bd;
+    --blue: #275d8d;
+    --teal: #236b63;
+    --green: #3f7b45;
+    --gold: #9a6a14;
+    --red: #a9443e;
+    --violet: #695b96;
+    --shadow: 0 18px 48px rgba(31, 36, 42, 0.09);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background:
+      linear-gradient(180deg, rgba(39, 93, 141, 0.08), transparent 300px),
+      linear-gradient(135deg, #fbfcfa 0%, var(--bg) 52%, #f1eee7 100%);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.55;
+  }
+
+  .shell {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 36px 24px 80px;
+  }
+
+  header {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 34px;
+  }
+
+  .eyebrow {
+    color: var(--blue);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  h1, h2, h3, h4 {
+    margin: 0;
+    letter-spacing: 0;
+    line-height: 1.12;
+  }
+
+  h1 {
+    max-width: 940px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(36px, 5.8vw, 70px);
+    font-weight: 500;
+  }
+
+  h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 32px;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  h4 {
+    color: var(--blue);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin: 18px 0 8px;
+  }
+
+  p { margin: 0 0 13px; }
+  a { color: var(--blue); }
+  code {
+    background: #edf1f4;
+    border: 1px solid #d8e1e8;
+    border-radius: 5px;
+    color: #22384c;
+    padding: 1px 5px;
+    font-size: 0.92em;
+  }
+
+  .summary {
+    max-width: 890px;
+    color: var(--muted);
+    font-size: 18px;
+    margin-top: 18px;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 22px;
+  }
+
+  .badge, .pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 5px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--paper-soft);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .badge.core, .pill.core { background: #edf6ee; border-color: #c7dcc9; color: var(--green); }
+  .badge.new, .pill.new { background: #eaf2f8; border-color: #c7d9e8; color: var(--blue); }
+  .badge.guard, .pill.guard { background: #fff3df; border-color: #ead3a6; color: var(--gold); }
+  .badge.risk, .pill.risk { background: #fff0ee; border-color: #edc2bd; color: var(--red); }
+  .badge.future, .pill.future { background: #f0eef8; border-color: #d7d0eb; color: var(--violet); }
+
+  .toc {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .toc a {
+    display: block;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.82);
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  section {
+    margin-top: 24px;
+    padding: 28px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(31, 36, 42, 0.05);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+  }
+
+  .card {
+    background: #fffefd;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+  }
+
+  .soft { background: var(--paper-soft); }
+  .span-3 { grid-column: span 3; }
+  .span-4 { grid-column: span 4; }
+  .span-5 { grid-column: span 5; }
+  .span-6 { grid-column: span 6; }
+  .span-7 { grid-column: span 7; }
+  .span-8 { grid-column: span 8; }
+  .span-9 { grid-column: span 9; }
+  .span-12 { grid-column: span 12; }
+
+  .callout {
+    border-left: 4px solid var(--blue);
+    background: #eef5fb;
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+
+  .callout.good { border-left-color: var(--green); background: #eff7f0; }
+  .callout.warn { border-left-color: var(--gold); background: #fff7e7; }
+  .callout.risk { border-left-color: var(--red); background: #fff1ef; }
+  .callout.future { border-left-color: var(--violet); background: #f4f1fb; }
+
+  ul, ol {
+    margin: 10px 0 0;
+    padding-left: 22px;
+  }
+
+  li { margin: 7px 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 14px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  th, td {
+    padding: 12px 13px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+    font-size: 14px;
+  }
+
+  th {
+    color: #2f3f4f;
+    background: #edf2f5;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  tr:last-child td { border-bottom: 0; }
+
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(116px, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .node {
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 12px;
+    min-height: 112px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .node strong {
+    display: block;
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .node span {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .phase-list {
+    counter-reset: phase;
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .phase {
+    position: relative;
+    padding: 16px 16px 16px 54px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .phase::before {
+    counter-increment: phase;
+    content: counter(phase);
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    width: 25px;
+    height: 25px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--blue);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .schema {
+    white-space: pre-wrap;
+    background: #20242a;
+    color: #edf3f7;
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .small {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .decision {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .decision .card {
+    min-height: 138px;
+  }
+
+  footer {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 26px;
+    padding: 18px 4px 0;
+  }
+
+  @media (max-width: 960px) {
+    .toc { grid-template-columns: repeat(2, 1fr); }
+    .flow { grid-template-columns: repeat(2, 1fr); }
+    .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-9 { grid-column: span 12; }
+    .split, .decision { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 620px) {
+    .shell { padding: 18px 12px 48px; }
+    header, section { padding: 20px; }
+    .toc { grid-template-columns: 1fr; }
+    .flow { grid-template-columns: 1fr; }
+    table { display: block; overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div class="eyebrow">AI Blueprint Feature Plan</div>
+    <h1>Multi-Agent Contract Review Workflow</h1>
+    <p class="summary">
+      A comprehensive implementation plan for adding a new AI-assisted contract review workflow to AI Blueprint.
+      This plan does not modify the existing contract reviewer persona. The feature is designed as a separate
+      structured workflow with human lawyer oversight, auditable intermediate outputs, playbook comparison,
+      clause-level review, and compatibility with local or private LLM deployments.
+    </p>
+    <div class="meta">
+      <span class="badge new">New feature</span>
+      <span class="badge guard">No persona change</span>
+      <span class="badge core">Human oversight required</span>
+      <span class="badge risk">Not autonomous legal advice</span>
+      <span class="badge future">Plugin-ready architecture</span>
+    </div>
+    <nav class="toc" aria-label="Plan navigation">
+      <a href="#summary">Summary</a>
+      <a href="#principles">Principles</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#prerequisites">Prerequisites</a>
+      <a href="#agents">Agents</a>
+      <a href="#data">Data Model</a>
+      <a href="#orchestration">Orchestration</a>
+      <a href="#api">API</a>
+      <a href="#ui">UI</a>
+      <a href="#audit">Audit</a>
+      <a href="#rollout">Rollout</a>
+      <a href="#testing">Testing</a>
+      <a href="#risks">Risks</a>
+    </nav>
+  </header>
+
+  <section id="summary">
+    <h2>Executive Summary</h2>
+    <div class="grid">
+      <div class="span-7">
+        <p>
+          The current contract review capability should be evolved from a single broad review call into a structured
+          legal workflow. The new feature should run specialized modules in a controlled sequence, persist every
+          important intermediate result, and give lawyers a clause-level review surface instead of a chatbot-style
+          answer.
+        </p>
+        <p>
+          The system should keep the current contract reviewer persona untouched. Any existing persona remains
+          available for chat, legacy review behavior, or comparison. The new workflow should live behind a new runner,
+          new schemas, new storage, and new UI affordances.
+        </p>
+        <div class="callout good">
+          <strong>Recommended implementation stance:</strong>
+          Build an auditable workflow engine with LLM-assisted modules, not a fully autonomous multi-agent legal
+          decision-maker. The system should help lawyers identify, compare, prioritize, and draft suggestions. It
+          should not finalize legal advice or approve contracts.
+        </div>
+      </div>
+      <div class="span-5">
+        <div class="card soft">
+          <h3>Target outcome</h3>
+          <ul>
+            <li>Clause-by-clause extraction with source anchors.</li>
+            <li>Playbook comparison using organization-specific standards.</li>
+            <li>Risk scoring that prioritizes lawyer attention.</li>
+            <li>Redline suggestions that never auto-finalize edits.</li>
+            <li>Multiple audience summaries from the same reviewed evidence.</li>
+            <li>Escalation gates for critical and low-confidence issues.</li>
+            <li>Append-only audit trail for machine and human decisions.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="principles">
+    <h2>Design Principles</h2>
+    <div class="grid">
+      <div class="span-4 card">
+        <span class="pill guard">Legal safety</span>
+        <h3>AI-assisted, not autonomous</h3>
+        <p>
+          The workflow must consistently present outputs as analysis support. It must require human lawyer review for
+          critical findings, missing protections, conflicts, and low-confidence outputs.
+        </p>
+      </div>
+      <div class="span-4 card">
+        <span class="pill core">Traceability</span>
+        <h3>Every conclusion needs a path</h3>
+        <p>
+          Each extracted clause, playbook comparison, risk level, redline suggestion, and summary should be traceable
+          back to source text, agent version, prompt version, model, timestamp, and human decision history.
+        </p>
+      </div>
+      <div class="span-4 card">
+        <span class="pill new">Modularity</span>
+        <h3>Focused modules beat giant prompts</h3>
+        <p>
+          Each module should have a narrow task, bounded context, a strict input schema, a strict output schema, and
+          an independently testable implementation.
+        </p>
+      </div>
+      <div class="span-4 card">
+        <span class="pill core">Private LLM support</span>
+        <h3>Provider-neutral execution</h3>
+        <p>
+          The workflow should use AI Blueprint's existing configured LLM abstraction so hosted, local, and private
+          providers remain supported.
+        </p>
+      </div>
+      <div class="span-4 card">
+        <span class="pill guard">Deterministic where possible</span>
+        <h3>Rules before reasoning</h3>
+        <p>
+          Playbook checks, required clause detection, prohibited clause matching, status transitions, and approval
+          gates should use deterministic rules where possible. LLMs should handle semantic classification and drafting.
+        </p>
+      </div>
+      <div class="span-4 card">
+        <span class="pill future">Extensibility</span>
+        <h3>Custom agents later</h3>
+        <p>
+          The initial version can use built-in modules, but the design should prepare for configurable custom agents,
+          custom playbooks, custom risk policies, and plugin-provided workflow stages.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>Target Architecture</h2>
+    <p>
+      The feature should be implemented as a new workflow path for contract review blueprints. The existing contract
+      reviewer persona should not be edited, renamed, deleted, or made responsible for this orchestration. If the
+      legacy contract review runner remains available, the new workflow can be introduced as a new mode or new
+      blueprint capability.
+    </p>
+
+    <div class="flow" aria-label="Workflow stages">
+      <div class="node">
+        <strong>1. Intake</strong>
+        <span>Classify contract, parties, dates, governing law, category, routing.</span>
+      </div>
+      <div class="node">
+        <strong>2. Clause Extraction</strong>
+        <span>Segment, classify, anchor, and normalize contract clauses.</span>
+      </div>
+      <div class="node">
+        <strong>3. Playbook Comparison</strong>
+        <span>Compare clauses to approved, fallback, prohibited, and required standards.</span>
+      </div>
+      <div class="node">
+        <strong>4. Risk Scoring</strong>
+        <span>Assign low, medium, high, or critical risk with concise reasoning.</span>
+      </div>
+      <div class="node">
+        <strong>5. Redline Suggestions</strong>
+        <span>Suggest fallback wording for lawyer review only.</span>
+      </div>
+      <div class="node">
+        <strong>6. Summaries</strong>
+        <span>Create lawyer, business, and client-facing summaries.</span>
+      </div>
+      <div class="node">
+        <strong>7. Escalation</strong>
+        <span>Force human review for critical, conflicting, missing, or uncertain issues.</span>
+      </div>
+      <div class="node">
+        <strong>8. Human Review</strong>
+        <span>Approve, reject, comment, override, export, and preserve history.</span>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Responsibility</th>
+          <th>Implementation direction</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Workflow Orchestrator</td>
+          <td>Runs the stage graph, handles progress, cancellation, retries, and persistence.</td>
+          <td>New runner module, for example <code>contract_review_workflow_runner.py</code>.</td>
+        </tr>
+        <tr>
+          <td>Agent Modules</td>
+          <td>Perform narrow tasks with strict input and output contracts.</td>
+          <td>New package, for example <code>app/core/contract_agents/</code>.</td>
+        </tr>
+        <tr>
+          <td>Playbook Engine</td>
+          <td>Applies organization standards to extracted clauses.</td>
+          <td>Hybrid deterministic rules plus optional semantic LLM comparison.</td>
+        </tr>
+        <tr>
+          <td>Persistence</td>
+          <td>Stores clauses, findings, suggestions, summaries, step outputs, and human decisions.</td>
+          <td>New Alembic migration with backward compatibility for existing outputs.</td>
+        </tr>
+        <tr>
+          <td>Review UI</td>
+          <td>Lets lawyers inspect clauses, compare playbooks, act on suggestions, and resolve escalations.</td>
+          <td>New run-centric contract review screen or enhanced blueprint panel.</td>
+        </tr>
+        <tr>
+          <td>Audit</td>
+          <td>Records machine outputs, confidence, timestamps, user decisions, and exports.</td>
+          <td>Use existing audit events and skill runs, plus new review-history tables.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="prerequisites">
+    <h2>Implementation Prerequisites</h2>
+    <p>
+      These decisions should be locked before Phase 1 implementation. They affect the database migration, runner
+      skeleton, extraction strategy, and review UI.
+    </p>
+
+    <div class="grid">
+      <div class="span-6 card">
+        <span class="pill risk">Required</span>
+        <h3>Source anchoring upgrade</h3>
+        <p>
+          Clause-level review requires stronger source metadata than a simple chunk index. The document indexing path
+          should preserve page number where available, chunk ID, chunk index, document ID, filename, character offsets
+          within the extracted text, and enough excerpt text to verify the clause.
+        </p>
+      </div>
+      <div class="span-6 card">
+        <span class="pill core">Required</span>
+        <h3>Default playbooks</h3>
+        <p>
+          The first deployment should include at least two built-in playbooks: a general NDA playbook and a general
+          MSA/vendor agreement playbook. Without these, playbook comparison will degrade to "unavailable" too often.
+        </p>
+      </div>
+      <div class="span-6 card">
+        <span class="pill new">Required</span>
+        <h3>Parallel execution choice</h3>
+        <p>
+          Use <code>asyncio.gather</code> inside the background job for concurrent module calls. This matches the
+          existing council runner pattern and avoids introducing Celery or a new task queue in the first version.
+        </p>
+      </div>
+      <div class="span-6 card">
+        <span class="pill guard">Required</span>
+        <h3>Long-contract extraction strategy</h3>
+        <p>
+          Long contracts should be processed in overlapping windows, then merged. The extractor should run over
+          section-sized windows, deduplicate clauses by source span and semantic type, merge partial clauses, and keep
+          source anchors for every merged result.
+        </p>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Decision</th>
+          <th>Chosen approach</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Workflow run storage</td>
+          <td>Extend <code>ContractReviewRun</code> with nullable workflow fields.</td>
+          <td>A separate 1:1 extension table adds joins without clear benefit for the first version.</td>
+        </tr>
+        <tr>
+          <td>Parallelism</td>
+          <td>Use <code>asyncio.gather</code> for safe concurrent calls inside one background job.</td>
+          <td>It fits the current architecture and keeps deployment simple.</td>
+        </tr>
+        <tr>
+          <td>Playbook baseline</td>
+          <td>Seed default NDA and MSA/vendor playbooks.</td>
+          <td>The comparison stage needs real standards on day one.</td>
+        </tr>
+        <tr>
+          <td>Source anchors</td>
+          <td>Update indexing metadata before relying on page or offset UI.</td>
+          <td>Clause review is only credible if findings are traceable to the contract text.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="agents">
+    <h2>Agent and Module Plan</h2>
+    <p>
+      In this plan, "agent" means a bounded workflow module. Not every module should be a free-form LLM. Some should
+      be deterministic services with optional LLM assistance. Each module should have a version, schema, confidence
+      model, and clear failure behavior.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Inputs</th>
+          <th>Outputs</th>
+          <th>Execution style</th>
+          <th>Failure behavior</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Intake Agent</td>
+          <td>Document text, document metadata, linked blueprint config.</td>
+          <td>Contract type, category, parties, dates, governing law, jurisdiction hints, workflow route.</td>
+          <td>LLM-assisted classification with deterministic metadata extraction where possible.</td>
+          <td>Continue only if document is plausibly a contract. Otherwise escalate and stop.</td>
+        </tr>
+        <tr>
+          <td>Clause Extraction Agent</td>
+          <td>Raw text, chunks, source locators, intake result.</td>
+          <td>Normalized clause list with type, text, source anchor, confidence, and extraction notes.</td>
+          <td>LLM-assisted segmentation plus rule-based post-processing.</td>
+          <td>Stop or escalate if extraction quality is too low. Do not fabricate clause coverage.</td>
+        </tr>
+        <tr>
+          <td>Playbook Comparison Agent</td>
+          <td>Extracted clauses, selected playbook, intake category.</td>
+          <td>Per-clause approved, fallback, prohibited, missing, deviation, and standard language references.</td>
+          <td>Deterministic required/prohibited checks first, semantic LLM comparison second.</td>
+          <td>Continue with "playbook unavailable" status only if no matching playbook exists.</td>
+        </tr>
+        <tr>
+          <td>Risk Scoring Agent</td>
+          <td>Clauses, playbook findings, contract category, organization risk policy.</td>
+          <td>Risk level, likelihood, impact, concise reasoning, attention priority.</td>
+          <td>Rules plus LLM explanation. Severity thresholds should be configurable.</td>
+          <td>Unknown risk becomes medium or high with human review, never falsely low.</td>
+        </tr>
+        <tr>
+          <td>Redlining Suggestion Agent</td>
+          <td>Flagged clauses, playbook standards, risk findings.</td>
+          <td>Suggested replacement language, fallback language, negotiation rationale.</td>
+          <td>LLM drafting constrained by playbook text and organization style rules.</td>
+          <td>Omit suggestion if confidence is low or playbook support is missing.</td>
+        </tr>
+        <tr>
+          <td>Summarization Agent</td>
+          <td>Intake, clause findings, risk scores, redline suggestions, escalation state.</td>
+          <td>Lawyer summary, business summary, client-facing explanation, obligations, negotiation points.</td>
+          <td>LLM summarization over validated intermediate data, not raw contract alone.</td>
+          <td>Can degrade gracefully if redlines fail, but must disclose incomplete sections.</td>
+        </tr>
+        <tr>
+          <td>Escalation Agent</td>
+          <td>All findings, confidence scores, conflicts, missing clauses, workflow errors.</td>
+          <td>Escalation records with severity, reason, required action, linked clauses.</td>
+          <td>Mostly deterministic gate with LLM support for ambiguity explanation.</td>
+          <td>Always err toward human review when confidence, conflict, or coverage is uncertain.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="grid" style="margin-top:16px">
+      <div class="span-6 card">
+        <h3>Recommended module package</h3>
+        <ul>
+          <li><code>app/core/contract_agents/intake.py</code></li>
+          <li><code>app/core/contract_agents/clause_extractor.py</code></li>
+          <li><code>app/core/contract_agents/playbook_comparator.py</code></li>
+          <li><code>app/core/contract_agents/risk_scorer.py</code></li>
+          <li><code>app/core/contract_agents/redliner.py</code></li>
+          <li><code>app/core/contract_agents/summarizer.py</code></li>
+          <li><code>app/core/contract_agents/escalation_detector.py</code></li>
+          <li><code>app/core/contract_agents/schemas.py</code></li>
+          <li><code>app/core/contract_agents/registry.py</code></li>
+        </ul>
+      </div>
+      <div class="span-6 card">
+        <h3>Non-goals for the first version</h3>
+        <ul>
+          <li>No automatic Word redlining into the source document.</li>
+          <li>No autonomous contract approval or "safe to sign" conclusion.</li>
+          <li>No changes to the existing contract reviewer persona.</li>
+          <li>No hard dependency on OpenAI-only structured output features.</li>
+          <li>No plugin marketplace for custom agents in the first milestone.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="data">
+    <h2>Data Model Plan</h2>
+    <p>
+      The existing coarse contract review output should remain for compatibility. New runs should additionally write
+      clause-level and step-level records. Human review actions should be append-only so the review history can be
+      reconstructed.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Entity</th>
+          <th>Purpose</th>
+          <th>Important fields</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ContractReviewRun</code> extensions</td>
+          <td>Stores workflow-specific run metadata without a separate 1:1 extension table.</td>
+          <td>workflow_version, mode, status_detail, selected_playbook_id, coverage_score, source_anchor_version.</td>
+        </tr>
+        <tr>
+          <td><code>ContractClause</code></td>
+          <td>Stores extracted clauses for a run.</td>
+          <td>run_id, clause_type, title, text, normalized_text, document_id, chunk_id, page, offsets, confidence.</td>
+        </tr>
+        <tr>
+          <td><code>ContractPlaybook</code></td>
+          <td>Stores organization or workspace-specific playbooks.</td>
+          <td>workspace_id, name, contract_category, jurisdiction, version, status, rules_json.</td>
+        </tr>
+        <tr>
+          <td><code>ContractPlaybookClause</code></td>
+          <td>Stores reusable standards by clause type.</td>
+          <td>playbook_id, clause_type, approved_text, fallback_text, prohibited_patterns, required, severity_default.</td>
+        </tr>
+        <tr>
+          <td><code>ContractPlaybookFinding</code></td>
+          <td>Stores playbook comparison results.</td>
+          <td>clause_id, playbook_clause_id, status, deviation_summary, missing, prohibited_match, confidence.</td>
+        </tr>
+        <tr>
+          <td><code>ContractRiskFinding</code></td>
+          <td>Stores risk scoring results.</td>
+          <td>clause_id, risk_level, likelihood, impact, priority, reasoning, requires_review.</td>
+        </tr>
+        <tr>
+          <td><code>ContractRedlineSuggestion</code></td>
+          <td>Stores AI-generated draft alternatives.</td>
+          <td>clause_id, suggestion_text, fallback_language, rationale, source_playbook_id, confidence, status.</td>
+        </tr>
+        <tr>
+          <td><code>ContractReviewSummary</code></td>
+          <td>Stores audience-specific summaries.</td>
+          <td>run_id, audience, summary_text, obligations_json, negotiation_points_json, unusual_terms_json.</td>
+        </tr>
+        <tr>
+          <td><code>ContractReviewStepOutput</code></td>
+          <td>Stores module outputs and runtime metadata.</td>
+          <td>run_id, step_name, step_version, input_json, output_json, confidence, provider, model, started_at, completed_at.</td>
+        </tr>
+        <tr>
+          <td><code>ContractClauseReviewDecision</code></td>
+          <td>Stores append-only human decisions.</td>
+          <td>clause_id, user_id, decision, note, prior_status_json, created_at.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4>Document indexer metadata prerequisite</h4>
+    <p>
+      Before clause extraction can support reliable source anchors, indexed chunks should carry richer metadata. At
+      minimum, the index should preserve <code>document_id</code>, <code>chunk_id</code>, <code>chunk_index</code>,
+      <code>filename</code>, <code>page</code> when known, <code>start_offset</code>, <code>end_offset</code>, and
+      extraction method metadata. If page numbers are unavailable for a file type, the UI should show chunk and excerpt
+      locators instead of pretending page precision exists.
+    </p>
+
+    <h4>Built-in playbook seed content</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Playbook</th>
+          <th>Required baseline clauses</th>
+          <th>Initial checks</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>General NDA</td>
+          <td>Confidentiality, exclusions, permitted disclosures, term, return/destruction, remedies, governing law, assignment.</td>
+          <td>Missing term, overbroad confidentiality, no exclusions, unilateral obligations, injunctive relief risk, missing governing law.</td>
+        </tr>
+        <tr>
+          <td>General MSA/vendor agreement</td>
+          <td>Payment, scope, acceptance, warranties, limitation of liability, indemnity, confidentiality, IP, termination, data/security, dispute resolution, governing law, assignment, force majeure.</td>
+          <td>Unlimited liability, uncapped indemnity, broad IP assignment, weak termination rights, payment ambiguity, missing data obligations, prohibited non-compete.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4>Minimum JSON shape for clause exchange</h4>
+    <pre class="schema">{
+  "clause_id": "temporary-or-persisted-id",
+  "clause_type": "limitation_of_liability",
+  "title": "Limitation of Liability",
+  "text": "The aggregate liability of either party...",
+  "source": {
+    "document_id": "uuid",
+    "chunk_id": "uuid",
+    "filename": "msa.pdf",
+    "page": 12,
+    "start_offset": 10420,
+    "end_offset": 11280
+  },
+  "classification_confidence": 0.88,
+  "extraction_notes": "Contains cap and exclusion carve-outs."
+}</pre>
+
+    <div class="callout warn">
+      <strong>Persistence rule:</strong>
+      Do not store only final prose. Store the underlying clause records, playbook findings, risk findings, and review
+      decisions. The final memo should be reproducible from structured records plus summaries.
+    </div>
+  </section>
+
+  <section id="orchestration">
+    <h2>Orchestration Plan</h2>
+    <p>
+      The orchestrator should replace the all-in-one review flow for the new feature mode. It should operate as a
+      background job, emit progress events, enforce cancellation, and write a step output after every module.
+    </p>
+
+    <div class="phase-list">
+      <div class="phase">
+        <h3>Load run, config, linked documents, and playbook</h3>
+        <p>
+          Resolve the blueprint, selected documents, selected playbook, model settings, organization risk policy, and
+          review depth. If no indexed documents are linked, fail early with a clear message.
+        </p>
+      </div>
+      <div class="phase">
+        <h3>Build source bundle</h3>
+        <p>
+          Gather full text, chunks, document metadata, and source locators. Preserve enough locator data for clause
+          review. This depends on the document indexer storing page, offset, chunk, filename, and extraction metadata
+          wherever those values are available.
+        </p>
+      </div>
+      <div class="phase">
+        <h3>Run intake</h3>
+        <p>
+          Classify the contract and route to the appropriate review workflow. Select the best playbook based on
+          contract category, governing law, workspace defaults, and user override.
+        </p>
+      </div>
+      <div class="phase">
+        <h3>Run clause extraction</h3>
+        <p>
+          Segment and classify clauses. For long contracts, process overlapping windows of roughly 8,000 characters
+          with overlap, then deduplicate by source span, heading, clause type, and semantic similarity. Persist merged
+          clauses immediately so later steps can link findings to stable clause IDs.
+        </p>
+      </div>
+      <div class="phase">
+        <h3>Run playbook comparison and risk scoring</h3>
+        <p>
+          Playbook comparison should run before final risk scoring. Certain deterministic risk rules can run in
+          parallel, but the final risk score should account for playbook status.
+        </p>
+      </div>
+      <div class="phase">
+        <h3>Run redline suggestions for flagged clauses</h3>
+        <p>
+          Generate suggestions only for clauses that need attention. Suggestions must be stored separately from source
+          text and marked as drafts requiring human approval.
+        </p>
+      </div>
+      <div class="phase">
+        <h3>Run summaries</h3>
+        <p>
+          Produce lawyer, business user, and client-facing summaries from validated structured outputs. Summaries
+          should disclose unresolved escalations and incomplete sections.
+        </p>
+      </div>
+      <div class="phase">
+        <h3>Run escalation detector and finalize status</h3>
+        <p>
+          Create escalation records for critical risk, missing required clauses, conflicting provisions, low
+          confidence, module failures, or ambiguous legal posture. Mark the run complete only as an AI draft review,
+          not as lawyer-approved.
+        </p>
+      </div>
+    </div>
+
+    <div class="decision">
+      <div class="card">
+        <span class="pill core">Sequential</span>
+        <h3>Must run in order</h3>
+        <p class="small">Intake, clause extraction, playbook comparison, final risk scoring, escalation gating.</p>
+      </div>
+      <div class="card">
+        <span class="pill new">Parallel</span>
+        <h3>Can run concurrently</h3>
+        <p class="small">Use <code>asyncio.gather</code> for clause-specific redlines, audience summaries, and deterministic risk prechecks after extraction.</p>
+      </div>
+      <div class="card">
+        <span class="pill risk">Stop gates</span>
+        <h3>Should not continue blindly</h3>
+        <p class="small">Invalid document type, failed extraction, missing source anchors, corrupted playbook, or unsafe output validation failures.</p>
+      </div>
+    </div>
+
+    <h4>Long-contract extraction algorithm</h4>
+    <ol>
+      <li>Split text into legal-structure windows using headings, numbering, and paragraph boundaries where available.</li>
+      <li>Fallback to overlapping character windows when legal headings are unavailable.</li>
+      <li>Extract clauses from each window with source locators and confidence scores.</li>
+      <li>Deduplicate overlapping results by source span, clause type, heading, and normalized text similarity.</li>
+      <li>Merge partial clauses and preserve all contributing source anchors.</li>
+      <li>Flag low-confidence merged clauses for human review instead of treating them as complete.</li>
+    </ol>
+  </section>
+
+  <section id="api">
+    <h2>API Plan</h2>
+    <p>
+      The current contract review run endpoints can remain. New endpoints should expose playbooks, clause-level
+      findings, human decisions, and run summaries. All mutation endpoints should enforce blueprint permissions and
+      record audit events.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Endpoint</th>
+          <th>Purpose</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>GET /contract-review/playbooks</code></td>
+          <td>List playbooks available to the workspace or blueprint.</td>
+          <td>Filter by category, jurisdiction, status, and version.</td>
+        </tr>
+        <tr>
+          <td><code>POST /contract-review/playbooks</code></td>
+          <td>Create a workspace playbook.</td>
+          <td>Owner/editor only. Record audit event.</td>
+        </tr>
+        <tr>
+          <td><code>PUT /contract-review/playbooks/{id}</code></td>
+          <td>Update a playbook draft or create a new version.</td>
+          <td>Prefer versioning over destructive edits to active playbooks.</td>
+        </tr>
+        <tr>
+          <td><code>POST /contract-review/runs</code></td>
+          <td>Start a new workflow run.</td>
+          <td>Add mode/config support for the multi-agent workflow.</td>
+        </tr>
+        <tr>
+          <td><code>GET /contract-review/runs/{run_id}</code></td>
+          <td>Get run, final output, status, and summary.</td>
+          <td>Remain backward compatible with existing output shape.</td>
+        </tr>
+        <tr>
+          <td><code>GET /contract-review/runs/{run_id}/clauses</code></td>
+          <td>List extracted clauses and associated status.</td>
+          <td>Support filters for risk, clause type, review status, and escalation.</td>
+        </tr>
+        <tr>
+          <td><code>GET /contract-review/runs/{run_id}/clauses/{clause_id}</code></td>
+          <td>Get full clause detail.</td>
+          <td>Include source anchor, playbook finding, risk finding, redline suggestion, and decisions.</td>
+        </tr>
+        <tr>
+          <td><code>POST /contract-review/runs/{run_id}/clauses/{clause_id}/decisions</code></td>
+          <td>Approve, reject, request revision, or add note.</td>
+          <td>Append-only. Never overwrite source clause or AI suggestion.</td>
+        </tr>
+        <tr>
+          <td><code>GET /contract-review/runs/{run_id}/trace</code></td>
+          <td>Show module outputs and workflow events.</td>
+          <td>Useful for debugging, audit, and quality review.</td>
+        </tr>
+        <tr>
+          <td><code>GET /contract-review/runs/{run_id}/export</code></td>
+          <td>Export lawyer-ready report.</td>
+          <td>Include unresolved escalations and human review status.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="ui">
+    <h2>UI Plan</h2>
+    <p>
+      The UI should be run-centric. The lawyer should land on a selected contract review run and move through clauses,
+      findings, suggestions, and decisions without relying on a chat transcript.
+    </p>
+    <p>
+      New screens should reuse AI Blueprint's existing UI language: the same navigation model, cards, tables, badges,
+      buttons, modal behavior, typography, spacing, and restrained work-focused visual style. This feature should feel
+      like a deeper Contract Review blueprint screen, not a separate product bolted onto the app.
+    </p>
+
+    <div class="grid">
+      <div class="span-4 card">
+        <h3>Clause-by-clause review panel</h3>
+        <ul>
+          <li>Table or split list of extracted clauses.</li>
+          <li>Clause type, title, source, confidence, risk badge, playbook status.</li>
+          <li>Filters for high-risk, missing, prohibited, unresolved, and reviewed.</li>
+          <li>Selected clause detail with source text and document locator.</li>
+        </ul>
+      </div>
+      <div class="span-4 card">
+        <h3>Risk heatmap</h3>
+        <ul>
+          <li>Clause types grouped by risk level and priority.</li>
+          <li>Counts for low, medium, high, and critical findings.</li>
+          <li>Clicking a cell filters the clause list.</li>
+          <li>Escalated issues are visually distinct from ordinary high risk.</li>
+        </ul>
+      </div>
+      <div class="span-4 card">
+        <h3>AI vs playbook comparison</h3>
+        <ul>
+          <li>Extracted clause text on one side.</li>
+          <li>Playbook standard, fallback, and prohibited markers on the other.</li>
+          <li>Deviation summary and confidence score.</li>
+          <li>Redline suggestion shown as a draft only.</li>
+        </ul>
+      </div>
+      <div class="span-4 card">
+        <h3>Human approval controls</h3>
+        <ul>
+          <li>Approve clause, reject suggestion, request revision, add note.</li>
+          <li>Decision history visible per clause.</li>
+          <li>Reviewer identity and timestamps recorded.</li>
+          <li>Critical escalations cannot be hidden by accidental clicks.</li>
+        </ul>
+      </div>
+      <div class="span-4 card">
+        <h3>Escalation sidebar</h3>
+        <ul>
+          <li>Sticky list of critical and unresolved issues.</li>
+          <li>Links directly to affected clauses.</li>
+          <li>Required action shown plainly.</li>
+          <li>Resolve/dismiss controls based on permissions.</li>
+        </ul>
+      </div>
+      <div class="span-4 card">
+        <h3>Summary tabs</h3>
+        <ul>
+          <li>Lawyer summary.</li>
+          <li>Business user summary.</li>
+          <li>Client-facing explanation.</li>
+          <li>Key obligations, negotiation points, unusual terms, payment and renewal risks.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h4>Suggested screen layout</h4>
+    <div class="split">
+      <div class="card soft">
+        <h3>Left rail</h3>
+        <p class="small">Run status, risk heatmap, filters, escalation count, clause list.</p>
+      </div>
+      <div class="card soft">
+        <h3>Main panel</h3>
+        <p class="small">Selected clause, source anchor, playbook comparison, AI suggestion, decision controls, history.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="audit">
+    <h2>Audit and Traceability Plan</h2>
+    <p>
+      Audit should be treated as a product requirement, not an afterthought. The system should be able to answer:
+      what did the AI see, what did each module produce, what did the human reviewer change or approve, and what was
+      exported?
+    </p>
+    <p>
+      Step outputs should be written immediately after each module completes. They should not be batched at the end of
+      the run, because partial results, failures, cancellation, and retries all need their own trace records.
+    </p>
+
+    <div class="grid">
+      <div class="span-6 card">
+        <h3>Machine traceability</h3>
+        <ul>
+          <li>Workflow version and module versions.</li>
+          <li>Prompt template version per module.</li>
+          <li>Provider, model, temperature, token limits, and runtime metadata.</li>
+          <li>Input and output JSON for each module.</li>
+          <li>Confidence scores and validation errors.</li>
+          <li>Source documents, chunks, and excerpts used for each output.</li>
+        </ul>
+      </div>
+      <div class="span-6 card">
+        <h3>Human traceability</h3>
+        <ul>
+          <li>Clause approvals, rejections, notes, and overrides.</li>
+          <li>Escalation resolution or dismissal decisions.</li>
+          <li>Reviewer user ID and timestamp.</li>
+          <li>Export events and exported report type.</li>
+          <li>Review status transitions.</li>
+          <li>Append-only decision history.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout risk" style="margin-top:16px">
+      <strong>Important audit boundary:</strong>
+      Do not rely only on a generic agent-output table as the legal audit trail. Use existing audit events for user
+      actions, skill runs for module execution, and dedicated review-decision records for lawyer actions.
+    </div>
+  </section>
+
+  <section id="rollout">
+    <h2>Rollout Plan</h2>
+    <p>
+      This should be delivered in phases to avoid destabilizing the existing app. The first version should preserve
+      the current API response where possible while adding richer records and a new review UI.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Phase</th>
+          <th>Scope</th>
+          <th>Deliverables</th>
+          <th>Acceptance criteria</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>0. Design lock</td>
+          <td>Finalize schemas, failure policy, source-anchor metadata, async strategy, long-contract extraction, and playbook shape.</td>
+          <td>Schema definitions, workflow contract, migration plan, default NDA/MSA playbook outline.</td>
+          <td>All stages have typed inputs/outputs, clear stop/degrade behavior, and resolved implementation prerequisites.</td>
+        </tr>
+        <tr>
+          <td>1. Backend foundation</td>
+          <td>Add data model, indexer metadata upgrade, migrations, module package, and workflow runner skeleton.</td>
+          <td>Tables, schemas, richer source metadata, orchestrator, step recording.</td>
+          <td>A run can execute with deterministic/mock modules and persist trace records with source anchors.</td>
+        </tr>
+        <tr>
+          <td>2. Extraction and playbooks</td>
+          <td>Implement intake, windowed clause extraction, default NDA/MSA playbooks, and comparison.</td>
+          <td>Extracted clauses, source anchors, seeded playbooks, playbook findings.</td>
+          <td>Sample NDA and MSA contracts produce clause-level output with source references and playbook results.</td>
+        </tr>
+        <tr>
+          <td>3. Risk, redlines, summaries</td>
+          <td>Implement risk scoring, suggestion drafting, and audience summaries.</td>
+          <td>Risk findings, suggestions, summary records.</td>
+          <td>High-risk clauses are prioritized and suggestions remain drafts.</td>
+        </tr>
+        <tr>
+          <td>4. Escalation and human review</td>
+          <td>Add escalation gates and review decisions.</td>
+          <td>Escalation records, approval/reject endpoints, decision history.</td>
+          <td>Critical findings require visible human resolution.</td>
+        </tr>
+        <tr>
+          <td>5. UI implementation</td>
+          <td>Build run-centric review screen.</td>
+          <td>Clause panel, heatmap, comparison view, summaries, escalation sidebar.</td>
+          <td>Lawyer can complete a review workflow without using chat.</td>
+        </tr>
+        <tr>
+          <td>6. Hardening</td>
+          <td>Test long contracts, provider variability, validation failures, and exports.</td>
+          <td>Smoke tests, fixtures, failure tests, export updates.</td>
+          <td>Runs are reliable, auditable, and backward compatible.</td>
+        </tr>
+        <tr>
+          <td>7. Extensibility</td>
+          <td>Add configurable custom agent registry and plugin hooks.</td>
+          <td>Agent registry, stage config, plugin extension contract.</td>
+          <td>New internal agents can be added without changing core orchestration code.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="testing">
+    <h2>Testing and Quality Plan</h2>
+    <div class="grid">
+      <div class="span-4 card">
+        <h3>Unit tests</h3>
+        <ul>
+          <li>Schema validation.</li>
+          <li>Source-anchor metadata fallback behavior.</li>
+          <li>Risk-level mapping.</li>
+          <li>Playbook required/prohibited checks.</li>
+          <li>Escalation gate rules.</li>
+          <li>Decision append-only behavior.</li>
+        </ul>
+      </div>
+      <div class="span-4 card">
+        <h3>Integration tests</h3>
+        <ul>
+          <li>End-to-end run with mock LLM outputs.</li>
+          <li>Windowed extraction and deduplication for long contracts.</li>
+          <li>Cancellation during each stage.</li>
+          <li>Module failure and recovery policy.</li>
+          <li>Playbook selection by category.</li>
+          <li>Export after human decisions.</li>
+        </ul>
+      </div>
+      <div class="span-4 card">
+        <h3>UI tests</h3>
+        <ul>
+          <li>Clause filtering and selection.</li>
+          <li>Risk heatmap interactions.</li>
+          <li>Approve/reject controls.</li>
+          <li>Escalation visibility.</li>
+          <li>Responsive layout for long clause text.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h4>Fixture set</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Fixture</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Simple NDA</td>
+          <td>Validate basic extraction, confidentiality, term, governing law, and summary.</td>
+        </tr>
+        <tr>
+          <td>Vendor MSA</td>
+          <td>Validate limitation of liability, indemnity, payment, warranties, data/security, and termination.</td>
+        </tr>
+        <tr>
+          <td>Missing governing law</td>
+          <td>Validate missing required clause detection and escalation.</td>
+        </tr>
+        <tr>
+          <td>Prohibited unlimited liability</td>
+          <td>Validate prohibited playbook match and critical risk escalation.</td>
+        </tr>
+        <tr>
+          <td>Long contract</td>
+          <td>Validate chunking, source anchors, latency, and partial failure behavior.</td>
+        </tr>
+        <tr>
+          <td>Low-quality scan text</td>
+          <td>Validate low-confidence extraction and human review gate.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="risks">
+    <h2>Risks and Mitigations</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Risk</th>
+          <th>Why it matters</th>
+          <th>Mitigation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Latency increases</td>
+          <td>Multi-stage review can require several LLM calls.</td>
+          <td>Use background jobs, progress events, parallel clause-level work, and cached playbook comparisons.</td>
+        </tr>
+        <tr>
+          <td>False confidence</td>
+          <td>Legal users may over-trust structured output.</td>
+          <td>Show confidence, source anchors, unresolved escalations, and clear human-review status.</td>
+        </tr>
+        <tr>
+          <td>Weak source anchoring</td>
+          <td>Findings are hard to verify without locators.</td>
+          <td>Persist document, chunk, page, and offset data wherever available.</td>
+        </tr>
+        <tr>
+          <td>Playbook drift</td>
+          <td>Organizations need versioned standards.</td>
+          <td>Version playbooks and store selected playbook version on each run.</td>
+        </tr>
+        <tr>
+          <td>LLM output variability</td>
+          <td>Local and hosted models may produce inconsistent JSON.</td>
+          <td>Use schemas, validation, repair attempts, fallback statuses, and deterministic gates.</td>
+        </tr>
+        <tr>
+          <td>Over-agentizing</td>
+          <td>Too many LLM calls can create complexity without value.</td>
+          <td>Keep deterministic services deterministic; use LLMs only where semantic judgment or drafting is useful.</td>
+        </tr>
+        <tr>
+          <td>Accidental legal advice posture</td>
+          <td>The product must not imply autonomous legal approval.</td>
+          <td>Use product language, status flags, exports, and gates that require lawyer review before external use.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="final">
+    <h2>Build Order Recommendation</h2>
+    <div class="callout good">
+      <p>
+        Start with backend structure and data persistence before the UI. The most important architectural shift is not
+        the number of agents. It is making the workflow clause-level, schema-validated, auditable, and reviewable by a
+        human lawyer.
+      </p>
+    </div>
+    <ol>
+      <li>Lock schemas and table design.</li>
+      <li>Lock source-anchor metadata and update the indexer plan.</li>
+      <li>Choose <code>asyncio.gather</code> for first-version parallel execution.</li>
+      <li>Define default NDA and MSA/vendor playbooks.</li>
+      <li>Define the long-contract windowing, extraction, and merge strategy.</li>
+      <li>Add workflow runner skeleton with mock modules.</li>
+      <li>Add clause extraction with source anchors.</li>
+      <li>Add playbook CRUD and seeded default playbooks.</li>
+      <li>Add playbook comparison and risk scoring.</li>
+      <li>Add redline suggestions and summaries.</li>
+      <li>Add escalation gates and decision history.</li>
+      <li>Add run-centric UI panels.</li>
+      <li>Harden with tests, fixtures, exports, and provider compatibility checks.</li>
+      <li>Add custom agent registry once the built-in workflow is stable.</li>
+    </ol>
+  </section>
+
+  <footer>
+    Prepared as a standalone implementation plan. This document intentionally avoids editing the existing contract
+    reviewer persona and treats the multi-agent contract review system as a new AI Blueprint feature.
+  </footer>
+</main>
+</body>
+</html>
