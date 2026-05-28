@@ -81,7 +81,7 @@ class LaunchReadinessTest(unittest.TestCase):
     def test_public_launch_flow_and_guardrails(self) -> None:
         health = self.client.get("/api/v2/health")
         self.assertEqual(health.status_code, 200, health.text)
-        self.assertEqual(health.json()["database"]["migration_revision"], "0023_translation_runs")
+        self.assertEqual(health.json()["database"]["migration_revision"], "0024_draft_runs")
         self.assertTrue(health.json()["secrets"]["key_configured"])
         self.assertEqual(health.headers["x-content-type-options"], "nosniff")
         self.assertEqual(health.headers["x-frame-options"], "DENY")
@@ -101,6 +101,22 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(public_translation.json()["target_language"], "Hindi")
         self.assertEqual(public_translation.json()["mode"], "legal")
         self.assertIn("translated_html", public_translation.json())
+
+        public_draft = self.client.post(
+            "/api/v2/drafts/public",
+            json={
+                "document_type": "legal-notice",
+                "jurisdiction": "India",
+                "tone": "formal",
+                "parties": "Sender: Example Pvt Ltd\nRecipient: Vendor LLP",
+                "facts": "Vendor LLP failed to deliver services by 1 May 2026 despite repeated reminders.",
+                "key_terms": "Demand cure within 7 days.",
+            },
+        )
+        self.assertEqual(public_draft.status_code, 200, public_draft.text)
+        self.assertEqual(public_draft.json()["document_type"], "legal-notice")
+        self.assertIn("draft_html", public_draft.json())
+        self.assertTrue(public_draft.json()["review_warnings"])
 
         index = self.client.get("/index.html")
         self.assertEqual(index.status_code, 200, index.text)

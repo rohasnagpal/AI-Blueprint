@@ -670,6 +670,41 @@ class TranslationRun(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class DraftRun(Base):
+    __tablename__ = "draft_runs"
+    __table_args__ = (
+        Index("ix_draft_runs_workspace_created", "workspace_id", "created_at"),
+        Index("ix_draft_runs_workspace_document_type", "workspace_id", "document_type"),
+        Index("ix_draft_runs_workspace_id", "workspace_id"),
+        Index("ix_draft_runs_matter_id", "matter_id"),
+        Index("ix_draft_runs_created_by_user_id", "created_by_user_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str | None] = mapped_column(ForeignKey("matters.id", ondelete="SET NULL"), index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    document_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    jurisdiction: Mapped[str | None] = mapped_column(String(150))
+    tone: Mapped[str] = mapped_column(String(100), nullable=False, default="formal")
+    audience: Mapped[str | None] = mapped_column(String(255))
+    facts_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    config_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    draft_html: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    draft_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    assumptions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    missing_information_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    review_warnings_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    sources_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    provider: Mapped[str | None] = mapped_column(String(64))
+    model: Mapped[str | None] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="completed")
+    error: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Skill(Base):
     __tablename__ = "skills"
 
