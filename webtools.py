@@ -9,6 +9,9 @@ import database
 
 USER_AGENT = "AI Blueprint/1.0 (+local user initiated request)"
 MAX_WEB_BYTES = 2_000_000
+DEFAULT_ENRICHED_RESULTS = 3
+MIN_USEFUL_PAGE_TEXT_CHARS = 1_000
+MAX_SEARCH_PAGE_EXCERPT_CHARS = 12_000
 
 
 class TextExtractor(HTMLParser):
@@ -129,6 +132,92 @@ async def fetch_page_text(url: str) -> dict:
     }
 
 
+async def fetch_page_text_browser(url: str, timeout_ms: int = 15_000) -> dict:
+    url = validate_http_url(url)
+    try:
+        from playwright.async_api import async_playwright
+    except Exception as exc:
+        raise RuntimeError("Playwright is not installed.") from exc
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        try:
+            context = await browser.new_context(
+                user_agent=USER_AGENT,
+                java_script_enabled=True,
+                ignore_https_errors=True,
+            )
+            page = await context.new_page()
+
+            async def block_heavy_assets(route):
+                request = route.request
+                if request.resource_type in {"image", "media", "font", "stylesheet"}:
+                    await route.abort()
+                else:
+                    await route.continue_()
+
+            await page.route("**/*", block_heavy_assets)
+            response = await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+            await page.wait_for_timeout(500)
+            text = await page.locator("body").inner_text(timeout=2_000)
+            title = await page.title()
+            final_url = page.url
+            status = response.status if response else None
+        finally:
+            await browser.close()
+
+    extracted = "\n".join(line.strip() for line in text.splitlines() if line.strip())
+    if not extracted:
+        raise ValueError("No readable text found at this URL.")
+
+    return {
+        "url": final_url,
+        "title": (title or urlparse(final_url).netloc)[:180],
+        "text": extracted[:200_000],
+        "size_bytes": len(extracted.encode("utf-8")),
+        "status": status,
+    }
+
+
+async def enrich_search_results(
+    results: list[dict],
+    *,
+    max_pages: int = DEFAULT_ENRICHED_RESULTS,
+    min_useful_chars: int = MIN_USEFUL_PAGE_TEXT_CHARS,
+) -> list[dict]:
+    if not results or max_pages <= 0:
+        return results
+
+    enriched: list[dict] = []
+    for index, result in enumerate(results):
+        item = dict(result)
+        if index < max_pages and item.get("url"):
+            page = None
+            method = ""
+            try:
+                page = await fetch_page_text(item["url"])
+                method = "http"
+            except Exception as exc:
+                item["page_fetch_error"] = str(exc)
+
+            if not page or len(page.get("text", "")) < min_useful_chars:
+                try:
+                    page = await fetch_page_text_browser(item["url"])
+                    method = "browser"
+                except Exception as exc:
+                    if not item.get("page_fetch_error"):
+                        item["page_fetch_error"] = str(exc)
+
+            if page:
+                item["url"] = page.get("url") or item["url"]
+                item["page_title"] = page.get("title") or item.get("title")
+                item["page_excerpt"] = page.get("text", "")[:MAX_SEARCH_PAGE_EXCERPT_CHARS]
+                item["page_size_bytes"] = page.get("size_bytes")
+                item["page_fetch_method"] = method
+        enriched.append(item)
+    return enriched
+
+
 async def web_search(query: str, count: int = 5) -> list[dict]:
     searxng_base_url = database.get_setting("searxng_base_url").strip().rstrip("/")
     if searxng_base_url:
@@ -232,9 +321,11 @@ def format_search_context(results: list[dict]) -> str:
         return "No web search results found."
     lines = []
     for i, result in enumerate(results, 1):
+        excerpt = result.get("page_excerpt") or ""
         lines.append(
             f"[{i}] {result.get('title', '')}\n"
             f"URL: {result.get('url', '')}\n"
             f"Snippet: {result.get('snippet', '')}"
+            + (f"\nPage excerpt: {excerpt}" if excerpt else "")
         )
     return "\n\n".join(lines)

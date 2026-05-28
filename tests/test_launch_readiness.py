@@ -606,6 +606,24 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertIn("health insurance", persona["tags"])
         self.assertTrue(any("country or jurisdiction is unclear" in item for item in persona["constraints"]))
 
+    def test_builtin_consumer_document_personas(self) -> None:
+        personas = {persona["id"]: persona for persona in database._builtin_personas()}
+        expected = {
+            "medical-bill-decoder": ("Medical Bill Decoder", "Healthcare"),
+            "lease-agreement-reviewer": ("Lease Agreement Reviewer", "Housing"),
+            "employment-offer-explainer": ("Employment Offer Explainer", "Work & Career"),
+            "loan-mortgage-explainer": ("Loan / Mortgage Explainer", "Finance"),
+            "warranty-explainer": ("Warranty Explainer", "Consumer"),
+        }
+        for persona_id, (name, category) in expected.items():
+            with self.subTest(persona_id=persona_id):
+                persona = personas[persona_id]
+                self.assertEqual(persona["name"], name)
+                self.assertEqual(persona["category"], category)
+                self.assertIn("default to India", persona["system_prompt"])
+                self.assertIn("india default", persona["tags"])
+                self.assertTrue(any("unclear" in item and "default to India" in item for item in persona["constraints"]))
+
     def test_runtime_security_rejects_insecure_production_cookies(self) -> None:
         with self.assertRaises(RuntimeError):
             validate_runtime_security(Settings(environment="production", secure_cookies=False))

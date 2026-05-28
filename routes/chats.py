@@ -25,7 +25,7 @@ from app.core.models import (
     WorkspaceMember,
 )
 from app.core.security import hash_session_token
-from webtools import format_search_context, web_search
+from webtools import enrich_search_results, format_search_context, web_search
 
 router = APIRouter()
 
@@ -551,14 +551,17 @@ async def _stream(
     try:
         if use_web_search:
             try:
+                yield _status_event("Searching the web", 6)
                 web_results = await web_search(message)
+                yield _status_event("Reading top web sources", 9)
+                web_results = await enrich_search_results(web_results)
                 for result in web_results:
                     src = {
                         "type": "source",
                         "kind": "web",
                         "filename": result.get("title") or result.get("url"),
                         "url": result.get("url"),
-                        "excerpt": result.get("snippet", ""),
+                        "excerpt": result.get("page_excerpt") or result.get("snippet", ""),
                     }
                     collected_sources.append(src)
                     yield f"data: {json.dumps(src)}\n\n"
