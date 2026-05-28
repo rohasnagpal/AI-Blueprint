@@ -991,6 +991,64 @@
   .attach-btn:hover { color: var(--text); border-color: var(--accent); }
   .attach-btn svg { width: 15px; height: 15px; }
 
+  .voice-btn {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all var(--transition);
+    padding: 0;
+  }
+
+  .voice-btn:hover,
+  .voice-btn.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+
+  .voice-btn.connecting {
+    color: var(--warning);
+    border-color: var(--warning);
+  }
+
+  .voice-btn svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    stroke: currentColor;
+  }
+
+  .voice-live-card {
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 12.5px;
+  }
+
+  .voice-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--warning);
+    box-shadow: 0 0 0 4px rgba(217, 119, 6, .12);
+    flex-shrink: 0;
+  }
+
+  .voice-live-card.active .voice-live-dot { background: var(--success); }
+  .voice-live-title { color: var(--text); font-weight: 600; }
+  .voice-live-status { margin-left: auto; color: var(--text-subtle); }
+
   .web-search-btn {
     width: 32px; height: 32px;
     border-radius: var(--radius-sm);

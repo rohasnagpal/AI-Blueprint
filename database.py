@@ -38,6 +38,8 @@ DEFAULTS = {
     "email_persona_id": "",
     "email_doc_context": "none",
     "chat_model": "gpt-5.2",
+    "realtime_model": "gpt-realtime",
+    "realtime_voice": "marin",
     "openai_assistants_model": "gpt-4.1",
     "embedding_model": "text-embedding-3-large",
     "local_embedding_model": "all-MiniLM-L6-v2",

@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 import database
 from app.api.router import router as v2_router
+from app.api.realtime import router as realtime_router
 from app.core.bootstrap import ensure_default_admin
 from app.core.config import get_settings, validate_runtime_security
 from app.core.database import run_migrations
@@ -140,6 +141,7 @@ app.include_router(council_router, prefix="/api")
 app.include_router(email_router, prefix="/api")
 app.include_router(persona_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
+app.include_router(realtime_router, prefix="/api")
 app.include_router(v2_router)
 
 BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
