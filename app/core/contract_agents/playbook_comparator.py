@@ -24,14 +24,14 @@ def compare_to_playbook(clauses: list[ContractClause], playbook_clauses: list[Co
             )
             continue
         prohibited_match = _first_prohibited_match(clause.text, playbook_clause)
-        status = "prohibited" if prohibited_match else "approved"
+        status = "prohibited" if prohibited_match else "no_prohibited_match"
         findings.append(
             PlaybookFindingResult(
                 clause_id=clause.id,
                 clause_type=clause.clause_type,
                 playbook_clause_id=playbook_clause.id,
                 status=status,
-                deviation_summary="Potential prohibited language found." if prohibited_match else "No prohibited language found by deterministic check.",
+                deviation_summary="Potential prohibited language found." if prohibited_match else "No prohibited language found by deterministic check; semantic alignment still requires review.",
                 prohibited_match=prohibited_match,
                 confidence_score=0.82,
             )

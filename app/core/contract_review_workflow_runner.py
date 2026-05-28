@@ -58,38 +58,42 @@ def execute_contract_review_workflow(job_id: str, run_id: str) -> None:
             update_job_status(db, job=job, status="running", progress=5, message="Contract workflow review started")
             db.commit()
 
+            step_started = utcnow()
             chunks = _linked_chunks(db, run)
             if not chunks:
                 raise RuntimeError("No indexed documents are linked to this Contract Review blueprint")
             source_bundle = _source_bundle(chunks)
             full_text = "\n\n".join(item["content"] for item in source_bundle)
-            _record_step(db, run, "source_bundle", {"linked_documents": len(chunks)}, {"chunks": len(source_bundle), "text_chars": len(full_text)}, status="completed")
+            _record_step(db, run, "source_bundle", {"linked_documents": len(chunks)}, {"chunks": len(source_bundle), "text_chars": len(full_text)}, status="completed", started_at=step_started)
             add_job_event(db, job=job, event_type="progress", message="Loaded source bundle", metadata={"progress": 12, "chunks": len(source_bundle)})
             job.progress = 12
             job.heartbeat_at = utcnow()
             db.commit()
 
             ensure_job_not_cancelled(db, job)
+            step_started = utcnow()
             intake = run_intake(full_text)
-            _record_step(db, run, "intake", {"text_chars": len(full_text)}, intake.model_dump(), confidence=intake.confidence_score)
+            _record_step(db, run, "intake", {"text_chars": len(full_text)}, intake.model_dump(), confidence=intake.confidence_score, started_at=step_started)
             add_job_event(db, job=job, event_type="progress", message="Completed intake", metadata={"progress": 22, "contract_category": intake.contract_category})
             job.progress = 22
             job.heartbeat_at = utcnow()
             db.commit()
 
             ensure_job_not_cancelled(db, job)
-            playbook = _select_playbook(db, config, intake.contract_category)
+            playbook = _select_playbook(db, config, intake.contract_category, run.workspace_id)
             if playbook:
                 run.selected_playbook_id = playbook.id
+            step_started = utcnow()
             clause_results = extract_clauses(source_bundle)
             clauses = _persist_clauses(db, run, clause_results)
-            _record_step(db, run, "clause_extraction", {"chunks": len(source_bundle)}, [item.model_dump() for item in clause_results], confidence=_avg([item.confidence_score for item in clause_results]))
+            _record_step(db, run, "clause_extraction", {"chunks": len(source_bundle)}, [item.model_dump() for item in clause_results], confidence=_avg([item.confidence_score for item in clause_results]), started_at=step_started)
             add_job_event(db, job=job, event_type="progress", message="Extracted contract clauses", metadata={"progress": 40, "clauses": len(clauses)})
             job.progress = 40
             job.heartbeat_at = utcnow()
             db.commit()
 
             ensure_job_not_cancelled(db, job)
+            step_started = utcnow()
             playbook_clauses = _playbook_clauses(db, playbook.id) if playbook else []
             comparison_results = compare_to_playbook(clauses, playbook_clauses)
             _persist_playbook_findings(db, run, comparison_results, playbook)
@@ -100,6 +104,7 @@ def execute_contract_review_workflow(job_id: str, run_id: str) -> None:
                 {"playbook_id": playbook.id if playbook else None, "clauses": len(clauses)},
                 [item.model_dump() for item in comparison_results],
                 confidence=_avg([item.confidence_score for item in comparison_results]),
+                started_at=step_started,
             )
             add_job_event(db, job=job, event_type="progress", message="Compared clauses to playbook", metadata={"progress": 55, "findings": len(comparison_results)})
             job.progress = 55
@@ -107,44 +112,49 @@ def execute_contract_review_workflow(job_id: str, run_id: str) -> None:
             db.commit()
 
             ensure_job_not_cancelled(db, job)
+            step_started = utcnow()
             risk_results = score_risks(comparison_results)
             _persist_risk_findings(db, run, risk_results)
-            _record_step(db, run, "risk_scoring", {"findings": len(comparison_results)}, [item.model_dump() for item in risk_results], confidence=_avg([item.confidence_score for item in risk_results]))
+            _record_step(db, run, "risk_scoring", {"findings": len(comparison_results)}, [item.model_dump() for item in risk_results], confidence=_avg([item.confidence_score for item in risk_results]), started_at=step_started)
             add_job_event(db, job=job, event_type="progress", message="Scored contract risks", metadata={"progress": 68, "risks": len(risk_results)})
             job.progress = 68
             job.heartbeat_at = utcnow()
             db.commit()
 
             ensure_job_not_cancelled(db, job)
+            step_started = utcnow()
             conflict_results = detect_conflicts(clauses)
-            _record_step(db, run, "conflict_detection", {"clauses": len(clauses)}, [item.model_dump() for item in conflict_results], status="completed")
+            _record_step(db, run, "conflict_detection", {"clauses": len(clauses)}, [item.model_dump() for item in conflict_results], status="completed", started_at=step_started)
             add_job_event(db, job=job, event_type="progress", message="Checked contract conflicts", metadata={"progress": 72, "conflicts": len(conflict_results)})
             job.progress = 72
             job.heartbeat_at = utcnow()
             db.commit()
 
             ensure_job_not_cancelled(db, job)
+            step_started = utcnow()
             redline_results = suggest_redlines(clauses, risk_results, playbook_clauses)
             _persist_redlines(db, run, redline_results, playbook)
-            _record_step(db, run, "redline_suggestions", {"risks": len(risk_results)}, [item.model_dump() for item in redline_results], confidence=_avg([item.confidence_score for item in redline_results]))
+            _record_step(db, run, "redline_suggestions", {"risks": len(risk_results)}, [item.model_dump() for item in redline_results], confidence=_avg([item.confidence_score for item in redline_results]), started_at=step_started)
             add_job_event(db, job=job, event_type="progress", message="Generated draft redline suggestions", metadata={"progress": 78, "suggestions": len(redline_results)})
             job.progress = 78
             job.heartbeat_at = utcnow()
             db.commit()
 
             ensure_job_not_cancelled(db, job)
+            step_started = utcnow()
             summary_results = build_summaries(intake, clauses, risk_results)
             _persist_summaries(db, run, summary_results)
-            _record_step(db, run, "summarization", {"clauses": len(clauses), "risks": len(risk_results)}, [item.model_dump() for item in summary_results], status="completed")
+            _record_step(db, run, "summarization", {"clauses": len(clauses), "risks": len(risk_results)}, [item.model_dump() for item in summary_results], status="completed", started_at=step_started)
             add_job_event(db, job=job, event_type="progress", message="Built review summaries", metadata={"progress": 86, "summaries": len(summary_results)})
             job.progress = 86
             job.heartbeat_at = utcnow()
             db.commit()
 
             ensure_job_not_cancelled(db, job)
+            step_started = utcnow()
             escalation_results = detect_escalations(risk_results) + conflict_results
             _persist_escalations(db, run, escalation_results)
-            _record_step(db, run, "escalation_detection", {"risks": len(risk_results), "conflicts": len(conflict_results)}, [item.model_dump() for item in escalation_results], status="completed")
+            _record_step(db, run, "escalation_detection", {"risks": len(risk_results), "conflicts": len(conflict_results)}, [item.model_dump() for item in escalation_results], status="completed", started_at=step_started)
             run.coverage_score = _coverage_score(clauses, playbook_clauses)
             _persist_compat_output(db, run, intake.model_dump(), risk_results, summary_results, source_bundle)
             run.status = "completed"
@@ -203,16 +213,34 @@ def _source_bundle(chunks) -> list[dict[str, Any]]:
     return bundle
 
 
-def _select_playbook(db: Session, config: dict, category: str) -> ContractPlaybook | None:
+def _select_playbook(db: Session, config: dict, category: str, workspace_id: str) -> ContractPlaybook | None:
     if config.get("playbook_id"):
         playbook = db.get(ContractPlaybook, str(config["playbook_id"]))
-        if playbook:
+        if playbook and playbook.status == "active" and playbook.workspace_id in {None, workspace_id}:
             return playbook
     preferred = category if category in {"msa", "nda", "dpa", "sow", "saas", "consulting", "reseller"} else None
-    query = select(ContractPlaybook).where(ContractPlaybook.status == "active")
-    if preferred:
-        query = query.where(ContractPlaybook.contract_category == preferred)
-    return db.execute(query.order_by(ContractPlaybook.is_builtin.desc(), ContractPlaybook.created_at.asc())).scalars().first()
+    fallbacks = {
+        "saas": ["msa"],
+        "sow": ["msa"],
+        "consulting": ["msa"],
+        "reseller": ["msa"],
+    }
+    for candidate in ([preferred] if preferred else []) + fallbacks.get(category, []):
+        playbook = _first_playbook_for_category(db, candidate, workspace_id)
+        if playbook:
+            return playbook
+    return _first_playbook_for_category(db, None, workspace_id)
+
+
+def _first_playbook_for_category(db: Session, category: str | None, workspace_id: str) -> ContractPlaybook | None:
+    query = select(ContractPlaybook).where(
+        ContractPlaybook.status == "active",
+        (ContractPlaybook.workspace_id == workspace_id) | (ContractPlaybook.workspace_id.is_(None)),
+    )
+    if category:
+        query = query.where(ContractPlaybook.contract_category == category)
+    playbooks = db.execute(query.order_by(ContractPlaybook.created_at.asc())).scalars().all()
+    return sorted(playbooks, key=lambda item: (item.workspace_id is None, not item.is_builtin, item.created_at))[0] if playbooks else None
 
 
 def _playbook_clauses(db: Session, playbook_id: str) -> list[ContractPlaybookClause]:
@@ -351,6 +379,7 @@ def _record_step(
     status: str = "completed",
     confidence: float | None = None,
     error: str | None = None,
+    started_at=None,
 ) -> None:
     now = utcnow()
     db.add(
@@ -367,7 +396,7 @@ def _record_step(
             confidence_score=confidence,
             error=error,
             metadata_json=json.dumps({"runner": WORKFLOW_VERSION}, sort_keys=True),
-            started_at=now,
+            started_at=started_at or now,
             completed_at=now if status in {"completed", "failed"} else None,
         )
     )

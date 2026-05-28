@@ -10,7 +10,7 @@ def run_intake(text: str) -> IntakeResult:
     if "non-disclosure" in lower or "confidentiality agreement" in lower or "nda" in lower:
         category = "nda"
         contract_type = "Non-Disclosure Agreement"
-    elif "data processing agreement" in lower or "data protection addendum" in lower or "processor" in lower and "controller" in lower:
+    elif "data processing agreement" in lower or "data protection addendum" in lower or ("processor" in lower and "controller" in lower):
         category = "dpa"
         contract_type = "Data Processing Agreement"
     elif "statement of work" in lower or re.search(r"\bsow\b", lower):
@@ -32,7 +32,7 @@ def run_intake(text: str) -> IntakeResult:
     parties = _extract_parties(text)
     dates = re.findall(r"\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|[A-Z][a-z]+ \d{1,2}, \d{4})\b", text)[:8]
     governing_law = _extract_governing_law(text)
-    confidence = 0.75 if category != "general" else 0.45
+    confidence = _classification_confidence(lower, category, parties, governing_law)
     return IntakeResult(
         contract_type=contract_type,
         contract_category=category,
@@ -63,3 +63,20 @@ def _extract_governing_law(text: str) -> str | None:
 
 def _clean_party(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip(" ,.;")
+
+
+def _classification_confidence(lower: str, category: str, parties: list[str], governing_law: str | None) -> float:
+    if category == "general":
+        return 0.5 if parties or governing_law else 0.42
+    score = 0.68
+    if parties:
+        score += 0.05
+    if governing_law:
+        score += 0.03
+    if category in {"nda", "dpa", "sow"}:
+        score += 0.06
+    if category == "dpa" and ("data processing agreement" in lower or "data protection addendum" in lower):
+        score += 0.04
+    if category in {"saas", "consulting", "reseller"}:
+        score += 0.03
+    return round(min(score, 0.86), 2)

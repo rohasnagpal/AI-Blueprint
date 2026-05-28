@@ -2,6 +2,7 @@ import json
 import os
 import time
 import unittest
+import uuid
 from pathlib import Path
 
 
@@ -19,18 +20,26 @@ os.environ["AI_BLUEPRINT_SECRET_KEY_FILE"] = str(SECRET_PATH)
 os.environ["AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE"] = str(LEGACY_SECRET_PATH)
 os.environ["AI_BLUEPRINT_AUTH_RATE_LIMIT_ATTEMPTS"] = "100"
 
+import database
+
+database.DB_PATH = str(LEGACY_DB_PATH)
+database.SECRET_KEY_FILE = str(LEGACY_SECRET_PATH)
+
 from fastapi.testclient import TestClient
 
 from main import app
 from app.core.contract_agents.clause_extractor import extract_clauses
 from app.core.contract_agents.conflict_detector import detect_conflicts
 from app.core.contract_agents.intake import run_intake
+from app.core.contract_agents.playbook_comparator import compare_to_playbook
 from app.core.contract_agents.redliner import suggest_redlines
+from app.core.contract_agents.risk_scorer import score_risks
 from app.core.contract_agents.schemas import RiskFindingResult
 from app.core.config import Settings, get_settings, validate_runtime_security
 from app.core.database import SessionLocal
 from app.core.document_indexer import _extract_chunks
-from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, KnowledgeChunk, KnowledgeEmbedding
+from app.core.contract_review_workflow_runner import _select_playbook
+from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, KnowledgeChunk, KnowledgeEmbedding, User, Workspace
 from app.core.secrets import decrypt_secret
 
 
@@ -402,6 +411,35 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertGreater(termination.source.end_offset, termination.source.start_offset)
         self.assertIn("Termination", termination.source.excerpt)
 
+    def test_clause_extractor_tracks_window_offsets_and_varies_confidence(self) -> None:
+        prefix = "Background information. " * 430
+        text = prefix + "\n1. Termination: Either party may terminate this agreement for material breach after notice and cure. Termination rights survive."
+        clauses = extract_clauses(
+            [
+                {
+                    "content": text,
+                    "filename": "long-contract.txt",
+                    "chunk_index": 0,
+                    "start_offset": 200,
+                    "end_offset": 200 + len(text),
+                }
+            ],
+            window_size=800,
+            overlap=50,
+        )
+        termination = next(clause for clause in clauses if clause.clause_type == "termination")
+        self.assertEqual(termination.source.start_offset, 200 + text.index("1. Termination"))
+        self.assertEqual(termination.source.end_offset, termination.source.start_offset + len(termination.text))
+
+        varied = extract_clauses(
+            [
+                {"content": "Payment must be received within 30 days.", "filename": "a.txt", "chunk_index": 0, "start_offset": 0},
+                {"content": "1. Termination: Either party may terminate for breach after notice and cure. Termination remedies survive.", "filename": "b.txt", "chunk_index": 1, "start_offset": 100},
+            ]
+        )
+        scores = {clause.clause_type: clause.confidence_score for clause in varied}
+        self.assertGreater(scores["termination"], scores["payment"])
+
     def test_clause_extractor_recognizes_commercial_playbook_terms(self) -> None:
         text = (
             "1. Subscription Scope: Customer may access the service for authorized users subject to usage limits.\n"
@@ -438,6 +476,65 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(len(suggestions), 1)
         self.assertIn("Liability cap is mutual", suggestions[0].suggestion_text)
         self.assertEqual(suggestions[0].fallback_language, playbook_clause.fallback_text)
+
+    def test_redliner_suggests_generic_language_for_medium_unknown_clause(self) -> None:
+        clause = ContractClause(id="clause-unknown", clause_type="non_compete", text="A non-compete applies.", review_status="pending")
+        risk = RiskFindingResult(
+            clause_id="clause-unknown",
+            clause_type="non_compete",
+            risk_level="medium",
+            reasoning="Clause was extracted but has no matching playbook standard.",
+        )
+        suggestions = suggest_redlines([clause], [risk], [])
+        self.assertEqual(len(suggestions), 1)
+        self.assertIn("preferred position", suggestions[0].suggestion_text)
+
+    def test_playbook_comparator_does_not_mark_deterministic_pass_as_approved(self) -> None:
+        clause = ContractClause(id="clause-1", clause_type="payment", text="Customer pays undisputed invoices within 30 days.", review_status="pending")
+        playbook_clause = ContractPlaybookClause(
+            id="playbook-clause-1",
+            clause_type="payment",
+            title="Payment",
+            approved_text="Customer pays undisputed invoices within 30 days.",
+            fallback_text="Customer will pay undisputed invoices within 30 days.",
+            prohibited_patterns_json=json.dumps(["payment due immediately"]),
+            required=True,
+            severity_default="medium",
+        )
+        findings = compare_to_playbook([clause], [playbook_clause])
+        self.assertEqual(findings[0].status, "no_prohibited_match")
+        self.assertIn("semantic alignment", findings[0].deviation_summary)
+        risks = score_risks(findings)
+        self.assertEqual(risks[0].risk_level, "low")
+
+    def test_select_playbook_ignores_other_workspace_playbooks(self) -> None:
+        unique = uuid.uuid4().hex
+        with SessionLocal() as db:
+            user = User(id=f"user-{unique}", email=f"{unique}@example.test", display_name="Scope Test", password_hash="x")
+            workspace_a = Workspace(id=f"workspace-a-{unique}", name="Workspace A", slug=f"workspace-a-{unique}", created_by_user_id=user.id)
+            workspace_b = Workspace(id=f"workspace-b-{unique}", name="Workspace B", slug=f"workspace-b-{unique}", created_by_user_id=user.id)
+            db.add_all([user, workspace_a, workspace_b])
+            db.commit()
+
+            foreign_playbook = ContractPlaybook(
+                id=f"foreign-playbook-{unique}",
+                workspace_id=workspace_a.id,
+                name="Foreign NDA",
+                contract_category="nda",
+                version="1.0",
+                status="active",
+                rules_json="{}",
+                is_builtin=False,
+                created_by_user_id=user.id,
+            )
+            db.add(foreign_playbook)
+            db.commit()
+
+            selected = _select_playbook(db, {"playbook_id": foreign_playbook.id}, "nda", workspace_b.id)
+            self.assertIsNotNone(selected)
+            self.assertNotEqual(selected.id, foreign_playbook.id)
+            self.assertIsNone(selected.workspace_id)
+            self.assertEqual(selected.contract_category, "nda")
 
     def test_conflict_detector_flags_duplicate_governing_law(self) -> None:
         clauses = [

@@ -51,7 +51,7 @@ def extract_clauses(chunks: list[dict], *, window_size: int = 8000, overlap: int
                         end_offset=source_end,
                         excerpt=text[:500],
                     ),
-                    confidence_score=0.72,
+                    confidence_score=_confidence_for(segment, clause_type),
                     extraction_notes="Keyword-classified first-pass clause extraction.",
                 )
             )
@@ -74,7 +74,7 @@ def _windows(chunks: list[dict], *, window_size: int, overlap: int) -> list[dict
             item["text"] = text[start:end]
             if item.get("start_offset") is not None:
                 item["start_offset"] = int(item["start_offset"]) + start
-            if item.get("start_offset") is not None:
+                # Window-local end offset is derived from the adjusted start.
                 item["end_offset"] = int(item["start_offset"]) + len(item["text"])
             windows.append(item)
             if end == len(text):
@@ -118,6 +118,25 @@ def _classify(segment: dict | str) -> str | None:
         if any(keyword in lower for keyword in keywords):
             return clause_type
     return None
+
+
+def _confidence_for(segment: dict, clause_type: str) -> float:
+    text = segment["text"]
+    lower = text.lower()
+    keywords = CLAUSE_KEYWORDS.get(clause_type, [])
+    match_count = sum(1 for keyword in keywords if keyword in lower)
+    has_heading = bool(re.match(r"^(?:\d+\.|[A-Z][A-Za-z ]{3,}:)", text))
+    score = 0.52
+    score += min(match_count, 3) * 0.07
+    if has_heading:
+        score += 0.1
+    if len(text) >= 120:
+        score += 0.05
+    if len(text) >= 400:
+        score += 0.04
+    if len(text) < 80:
+        score -= 0.05
+    return round(max(0.45, min(score, 0.9)), 2)
 
 
 def _source_offset(base: int | None, local_offset: int) -> int | None:

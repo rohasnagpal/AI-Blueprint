@@ -11,14 +11,14 @@ def suggest_redlines(
     playbook_by_type = {clause.clause_type: clause for clause in playbook_clauses or []}
     suggestions = []
     for risk in risks:
-        if risk.risk_level not in {"high", "critical"} or not risk.clause_id:
+        if risk.risk_level not in {"medium", "high", "critical"} or not risk.clause_id:
             continue
         clause = clauses_by_id.get(risk.clause_id)
         if not clause:
             continue
         playbook_clause = playbook_by_type.get(clause.clause_type)
         fallback = playbook_clause.fallback_text if playbook_clause and playbook_clause.fallback_text else "Use the organization's approved fallback language for this clause type before external delivery."
-        standard = playbook_clause.approved_text if playbook_clause and playbook_clause.approved_text else "the applicable playbook"
+        standard = playbook_clause.approved_text if playbook_clause and playbook_clause.approved_text else "the organization's preferred position"
         suggestions.append(
             RedlineSuggestionResult(
                 clause_id=clause.id,

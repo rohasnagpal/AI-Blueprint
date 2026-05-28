@@ -16,6 +16,9 @@ def score_risks(findings: list[PlaybookFindingResult]) -> list[RiskFindingResult
         elif finding.status == "not_in_playbook":
             level = "medium"
             reasoning = "Clause was extracted but has no matching playbook standard."
+        elif finding.status in {"approved", "no_prohibited_match"}:
+            level = "low"
+            reasoning = finding.deviation_summary or "No deterministic playbook issue found."
         else:
             level = "low"
             reasoning = "No deterministic playbook issue found."
