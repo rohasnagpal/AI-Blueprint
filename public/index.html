@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AI Blueprint by Rohas Nagpal</title>
 <link rel="stylesheet" href="/css/fonts.css?v=20260526-self-host-fonts-v1"/>
-<link rel="stylesheet" href="/css/app.css?v=20260527-contract-review-layout-v6"/>
+<link rel="stylesheet" href="/css/app.css?v=20260528-translate-layout-v6"/>
 <script src="/js/csp-styles.js?v=20260526-strict-style-csp-v1"></script>
 
 </head>
@@ -56,6 +56,10 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
       View Documents
       <span class="nav-badge" id="docs-count-badge">0</span>
+    </button>
+    <button type="button" onclick="switchViewFromMore('translate')" id="more-translate">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+      Translate
     </button>
     <button type="button" onclick="switchViewFromMore('email')" id="more-email">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
@@ -575,6 +579,189 @@
       <div class="upload-queue">
         <div class="upload-queue-title" id="upload-queue-title" data-csp-style="display:none">Uploading</div>
         <div id="upload-queue-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TRANSLATE VIEW ── -->
+  <div class="view" id="view-translate">
+    <div class="add-doc-view translate-view">
+      <div class="view-header">
+        <h2>Translate</h2>
+        <p>Translate pasted text or one document with mode-specific review warnings.</p>
+      </div>
+
+      <div class="upload-scope-panel" id="translate-scope-card">
+        <div class="council-field">
+          <label for="translate-workspace-select">Workspace</label>
+          <select class="council-select" id="translate-workspace-select" onchange="onTranslateWorkspaceChange()"></select>
+        </div>
+        <div class="council-field">
+          <label for="translate-matter-select">Matter</label>
+          <select class="council-select" id="translate-matter-select"></select>
+        </div>
+      </div>
+
+      <div class="settings-card translate-setup-card">
+        <div class="council-form">
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="translate-source-type">Source</label>
+              <select class="council-select" id="translate-source-type" onchange="setTranslateSourceType(this.value)">
+                <option value="text">Paste text</option>
+                <option value="upload">Upload document</option>
+              </select>
+            </div>
+            <div class="council-field">
+              <label for="translate-source-language">Source language</label>
+              <select class="council-select" id="translate-source-language">
+                <option value="auto">Auto-detect</option>
+                <option>Afrikaans</option>
+                <option>Arabic</option>
+                <option>Bengali</option>
+                <option>Chinese Simplified</option>
+                <option>Chinese Traditional</option>
+                <option>Dutch</option>
+                <option>English</option>
+                <option>French</option>
+                <option>German</option>
+                <option>Gujarati</option>
+                <option>Hebrew</option>
+                <option>Hindi</option>
+                <option>Indonesian</option>
+                <option>Italian</option>
+                <option>Japanese</option>
+                <option>Kannada</option>
+                <option>Korean</option>
+                <option>Malay</option>
+                <option>Malayalam</option>
+                <option>Marathi</option>
+                <option>Persian</option>
+                <option>Portuguese</option>
+                <option>Punjabi</option>
+                <option>Russian</option>
+                <option>Spanish</option>
+                <option>Swahili</option>
+                <option>Tamil</option>
+                <option>Telugu</option>
+                <option>Thai</option>
+                <option>Turkish</option>
+                <option>Urdu</option>
+                <option>Vietnamese</option>
+              </select>
+            </div>
+            <div class="council-field">
+              <label for="translate-target-language">Target language</label>
+              <select class="council-select" id="translate-target-language">
+                <option value="">Choose target language</option>
+                <option>Afrikaans</option>
+                <option>Arabic</option>
+                <option>Bengali</option>
+                <option>Chinese Simplified</option>
+                <option>Chinese Traditional</option>
+                <option>Dutch</option>
+                <option>English</option>
+                <option>French</option>
+                <option>German</option>
+                <option>Gujarati</option>
+                <option>Hebrew</option>
+                <option>Hindi</option>
+                <option>Indonesian</option>
+                <option>Italian</option>
+                <option>Japanese</option>
+                <option>Kannada</option>
+                <option>Korean</option>
+                <option>Malay</option>
+                <option>Malayalam</option>
+                <option>Marathi</option>
+                <option>Persian</option>
+                <option>Portuguese</option>
+                <option>Punjabi</option>
+                <option>Russian</option>
+                <option>Spanish</option>
+                <option>Swahili</option>
+                <option>Tamil</option>
+                <option>Telugu</option>
+                <option>Thai</option>
+                <option>Turkish</option>
+                <option>Urdu</option>
+                <option>Vietnamese</option>
+              </select>
+            </div>
+            <div class="council-field">
+              <label for="translate-mode">Mode</label>
+              <select class="council-select" id="translate-mode">
+                <option value="legal">Legal</option>
+                <option value="business">Business</option>
+                <option value="technical">Technical</option>
+                <option value="medical">Medical</option>
+                <option value="marketing">Marketing</option>
+                <option value="academic">Academic</option>
+                <option value="plain-language">Plain-language</option>
+                <option value="literal">Literal</option>
+              </select>
+            </div>
+          </div>
+          <div class="council-field">
+            <label for="translate-context">Context</label>
+            <textarea class="council-textarea" id="translate-context" rows="3" placeholder="Optional: jurisdiction, audience, industry, terminology preferences, or document purpose"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="translate-input-grid">
+        <div class="settings-card translate-source-card" id="translate-text-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Source Text</div><div class="settings-card-subtitle">Paste the content to translate.</div></div>
+          </div>
+          <textarea class="council-textarea translate-source-textarea" id="translate-source-text" placeholder="Paste source text here"></textarea>
+        </div>
+
+        <div class="translate-upload-wrap" id="translate-upload-card" data-csp-style="display:none">
+          <div class="upload-zone translate-upload-zone" id="translate-upload-zone" onclick="document.getElementById('translate-file-input').click()">
+            <input type="file" id="translate-file-input" data-csp-style="display:none" accept=".pdf,.txt,.csv,.md,.json,.html,.htm"/>
+            <div class="upload-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <h3>Choose one document</h3>
+            <p>PDF, TXT, CSV, MD, JSON, HTML</p>
+            <button class="upload-btn" type="button">Choose File</button>
+          </div>
+          <div class="upload-queue">
+            <div class="upload-queue-title" id="translate-file-title" data-csp-style="display:none">Selected document</div>
+            <div id="translate-file-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="translate-actions">
+        <button class="btn-primary" type="button" id="translate-run-btn" onclick="runTranslation()">Translate</button>
+        <button class="btn-secondary" type="button" onclick="resetTranslation()">Clear</button>
+        <span class="translate-status" id="translate-status"></span>
+      </div>
+
+      <div class="translate-result-grid" id="translate-result-grid" data-csp-style="display:none">
+        <div class="settings-card translate-result-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">HTML Translation</div><div class="settings-card-subtitle" id="translate-result-meta"></div></div>
+            <div class="settings-card-actions">
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Copy HTML" aria-label="Copy HTML" onclick="copyTranslationHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download HTML" aria-label="Download HTML" onclick="downloadTranslationHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="translate-html-preview" id="translate-html-preview"></div>
+        </div>
+
+        <div class="settings-card translate-review-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Review</div><div class="settings-card-subtitle">Warnings, notes, and quality checks.</div></div>
+          </div>
+          <div class="translate-review-list" id="translate-review-list"></div>
+        </div>
       </div>
     </div>
   </div>

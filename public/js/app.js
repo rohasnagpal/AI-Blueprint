@@ -1,5 +1,5 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], connectedFolders: [], importedFolders: JSON.parse(localStorage.getItem('aibp_imported_folders') || '[]'), chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], liveModels: {}, liveModelRequestId: 0, editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, contractReviewPlaybooks: [], contractReviewModules: [], editingContractPlaybookId: null, activeContractRun: null, activeContractClauses: [], activeContractTrace: [], activeContractEscalations: [], contractReviewFilters: { risk: 'all', status: 'all', type: 'all', sort: 'risk' }, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], connectedFolders: [], importedFolders: JSON.parse(localStorage.getItem('aibp_imported_folders') || '[]'), chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), councilTemplates: [], councilRuns: [], councilBuilder: null, councilEditingTemplateId: null, models: [], liveModels: {}, liveModelRequestId: 0, editingModelId: null, activeCouncilRunId: null, councilPollTimer: null, councilRenderKey: '', adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, translation: { sourceType: 'text', file: null, result: null, isRunning: false }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, contractReviewPlaybooks: [], contractReviewModules: [], editingContractPlaybookId: null, activeContractRun: null, activeContractClauses: [], activeContractTrace: [], activeContractEscalations: [], contractReviewFilters: { risk: 'all', status: 'all', type: 'all', sort: 'risk' }, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 
 // ── TOAST ──────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -901,6 +901,43 @@ function onUploadWorkspaceChange() {
 
 function selectedUploadMatterId() {
   const value = document.getElementById('upload-matter-select')?.value || '';
+  return value.trim() || null;
+}
+
+function renderTranslateScopeSelector() {
+  const workspaceSelect = document.getElementById('translate-workspace-select');
+  const matterSelect = document.getElementById('translate-matter-select');
+  const card = document.getElementById('translate-scope-card');
+  if (!workspaceSelect || !matterSelect || !card) return;
+  const workspaces = App.v2.workspaces || [];
+  if (!App.v2.enabled || !App.v2.user || !workspaces.length) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'grid';
+  const currentWorkspaceId = translateWorkspaceId();
+  workspaceSelect.innerHTML = workspaces.map(w => `<option value="${esc(w.workspace_id)}" ${w.workspace_id === currentWorkspaceId ? 'selected' : ''}>${esc(w.workspace_name || 'Workspace')}</option>`).join('');
+  const selectedMatter = matterSelect.value || (App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : '');
+  const matters = uploadMattersForWorkspace(currentWorkspaceId);
+  matterSelect.innerHTML = '<option value="">No matter</option>' + matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  if (!matters.length && currentWorkspaceId) loadUploadMattersForWorkspace(currentWorkspaceId).then(renderTranslateScopeSelector).catch(() => {});
+}
+
+function translateWorkspaceId() {
+  const selectValue = document.getElementById('translate-workspace-select')?.value || '';
+  const workspaces = App.v2.workspaces || [];
+  if (selectValue && workspaces.some(w => w.workspace_id === selectValue)) return selectValue;
+  return App.v2.workspaceId || workspaces[0]?.workspace_id || null;
+}
+
+function onTranslateWorkspaceChange() {
+  const matterSelect = document.getElementById('translate-matter-select');
+  if (matterSelect) matterSelect.value = '';
+  renderTranslateScopeSelector();
+}
+
+function selectedTranslateMatterId() {
+  const value = document.getElementById('translate-matter-select')?.value || '';
   return value.trim() || null;
 }
 
@@ -4325,6 +4362,194 @@ async function apiError(response) {
   return data.detail || data.error || response.statusText || 'Request failed';
 }
 
+// ── TRANSLATION ───────────────────────────────────────────────────────────
+function setTranslateSourceType(value) {
+  App.translation.sourceType = value === 'upload' ? 'upload' : 'text';
+  const textCard = document.getElementById('translate-text-card');
+  const uploadCard = document.getElementById('translate-upload-card');
+  if (textCard) textCard.style.display = App.translation.sourceType === 'text' ? 'block' : 'none';
+  if (uploadCard) uploadCard.style.display = App.translation.sourceType === 'upload' ? 'block' : 'none';
+}
+
+function initTranslationUpload() {
+  const zone = document.getElementById('translate-upload-zone');
+  const input = document.getElementById('translate-file-input');
+  if (!zone || !input) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='var(--accent)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor=''; });
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor=''; selectTranslationFile(e.dataTransfer.files?.[0]); });
+  input.addEventListener('change', () => { selectTranslationFile(input.files?.[0]); input.value=''; });
+}
+
+function selectTranslationFile(file) {
+  if (!file) return;
+  const allowed = ['.pdf','.txt','.csv','.md','.json','.html','.htm'];
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  const maxMb = parseInt(App.settings.max_file_size_mb || 25);
+  if (!allowed.includes(ext)) {
+    showToast(`${file.name}: File type not supported for translation.`, 'error');
+    return;
+  }
+  if (file.size > maxMb * 1024 * 1024) {
+    showToast(`${file.name}: Exceeds ${maxMb} MB limit.`, 'error');
+    return;
+  }
+  App.translation.file = file;
+  renderTranslationFile();
+}
+
+function renderTranslationFile() {
+  const title = document.getElementById('translate-file-title');
+  const list = document.getElementById('translate-file-list');
+  if (!title || !list) return;
+  const file = App.translation.file;
+  title.style.display = file ? 'block' : 'none';
+  if (!file) {
+    list.innerHTML = '';
+    return;
+  }
+  const ext = file.name.split('.').pop().toUpperCase();
+  const cls = {PDF:'icon-pdf',TXT:'icon-txt',CSV:'icon-csv',MD:'icon-txt',JSON:'icon-txt',HTML:'icon-html',HTM:'icon-html'}[ext]||'icon-txt';
+  list.innerHTML = `<div class="upload-item"><div class="upload-item-icon ${cls}">${esc(ext)}</div><div class="upload-item-info"><div class="upload-item-name">${esc(file.name)}</div><div class="translate-file-note">Ready to translate</div></div><div class="upload-item-size">${fmtBytes(file.size)}</div><button class="icon-btn" type="button" title="Remove file" onclick="clearTranslationFile()">×</button></div>`;
+}
+
+function clearTranslationFile() {
+  App.translation.file = null;
+  renderTranslationFile();
+}
+
+function collectTranslationPayload() {
+  const sourceLanguage = document.getElementById('translate-source-language')?.value || 'auto';
+  const targetLanguage = document.getElementById('translate-target-language')?.value.trim() || '';
+  const mode = document.getElementById('translate-mode')?.value || 'legal';
+  const context = document.getElementById('translate-context')?.value.trim() || '';
+  if (!targetLanguage) throw new Error('Target language is required.');
+  return {sourceLanguage, targetLanguage, mode, context};
+}
+
+async function runTranslation() {
+  if (App.translation.isRunning) return;
+  const btn = document.getElementById('translate-run-btn');
+  const status = document.getElementById('translate-status');
+  try {
+    const payload = collectTranslationPayload();
+    App.translation.isRunning = true;
+    if (btn) btn.disabled = true;
+    if (status) status.textContent = 'Translating...';
+    let r;
+    const signedIn = !!(App.v2.enabled && App.v2.user && translateWorkspaceId());
+    if (App.translation.sourceType === 'upload') {
+      if (!App.translation.file) throw new Error('Choose one document to translate.');
+      const fd = new FormData();
+      fd.append('file', App.translation.file);
+      fd.append('source_language', payload.sourceLanguage);
+      fd.append('target_language', payload.targetLanguage);
+      fd.append('mode', payload.mode);
+      if (payload.context) fd.append('context', payload.context);
+      if (signedIn && selectedTranslateMatterId()) fd.append('matter_id', selectedTranslateMatterId());
+      const url = signedIn
+        ? `/api/v2/workspaces/${encodeURIComponent(translateWorkspaceId())}/translations/upload`
+        : '/api/v2/translations/public/upload';
+      r = await fetch(url, {method:'POST', body:fd});
+    } else {
+      const text = document.getElementById('translate-source-text')?.value.trim() || '';
+      if (!text) throw new Error('Paste text to translate.');
+      const body = {
+        text,
+        source_language: payload.sourceLanguage,
+        target_language: payload.targetLanguage,
+        mode: payload.mode,
+        context: payload.context || null,
+      };
+      if (signedIn && selectedTranslateMatterId()) body.matter_id = selectedTranslateMatterId();
+      const url = signedIn
+        ? `/api/v2/workspaces/${encodeURIComponent(translateWorkspaceId())}/translations/text`
+        : '/api/v2/translations/public/text';
+      r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    }
+    if (!r.ok) throw new Error(await apiError(r));
+    App.translation.result = await r.json();
+    renderTranslationResult();
+    showToast('Translation complete.');
+  } catch(e) {
+    showToast('Translation failed: ' + e.message, 'error');
+  } finally {
+    App.translation.isRunning = false;
+    if (btn) btn.disabled = false;
+    if (status) status.textContent = '';
+  }
+}
+
+function sanitizeTranslationHtml(htmlText) {
+  const template = document.createElement('template');
+  template.innerHTML = htmlText || '';
+  template.content.querySelectorAll('script,style,iframe,object,embed,link,meta').forEach(node => node.remove());
+  template.content.querySelectorAll('*').forEach(node => {
+    [...node.attributes].forEach(attr => {
+      const name = attr.name.toLowerCase();
+      const value = attr.value || '';
+      if (name.startsWith('on') || value.toLowerCase().startsWith('javascript:')) node.removeAttribute(attr.name);
+    });
+  });
+  return template.innerHTML;
+}
+
+function renderTranslationResult() {
+  const result = App.translation.result;
+  const grid = document.getElementById('translate-result-grid');
+  const preview = document.getElementById('translate-html-preview');
+  const meta = document.getElementById('translate-result-meta');
+  const review = document.getElementById('translate-review-list');
+  if (!result || !grid || !preview || !review) return;
+  grid.style.display = 'grid';
+  preview.innerHTML = sanitizeTranslationHtml(result.translated_html || `<p>${esc(result.translated_text || '')}</p>`);
+  if (meta) meta.textContent = `${result.mode || 'translation'} to ${result.target_language || ''}${result.persisted ? ' · saved to workspace' : ' · local result'}`;
+  const warnings = result.warnings || [];
+  const notes = result.translator_notes || [];
+  const preserved = result.preserved_terms || [];
+  const quality = result.quality_check || {};
+  review.innerHTML = `
+    <div class="translate-review-section"><strong>Warnings</strong>${renderTranslationList(warnings, 'No warnings returned.')}</div>
+    <div class="translate-review-section"><strong>Translator notes</strong>${renderTranslationList(notes, 'No notes returned.')}</div>
+    <div class="translate-review-section"><strong>Preserved terms</strong>${renderTranslationList(preserved, 'No preserved terms returned.')}</div>
+    <div class="translate-review-section"><strong>Quality check</strong><pre>${esc(JSON.stringify(quality, null, 2))}</pre></div>
+  `;
+}
+
+function renderTranslationList(items, emptyText) {
+  if (!Array.isArray(items) || !items.length) return `<p>${esc(emptyText)}</p>`;
+  return `<ul>${items.map(item => `<li>${esc(typeof item === 'string' ? item : JSON.stringify(item))}</li>`).join('')}</ul>`;
+}
+
+async function copyTranslationHtml() {
+  const result = App.translation.result;
+  if (!result) return;
+  await navigator.clipboard.writeText(result.translated_html || result.translated_text || '');
+  showToast('Translation copied.');
+}
+
+function downloadTranslationHtml() {
+  const result = App.translation.result;
+  if (!result) return;
+  const htmlDoc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Translation</title></head><body>${result.translated_html || `<pre>${esc(result.translated_text || '')}</pre>`}</body></html>`;
+  const blob = new Blob([htmlDoc], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `translation-${Date.now()}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function resetTranslation() {
+  App.translation.file = null;
+  App.translation.result = null;
+  document.getElementById('translate-source-text').value = '';
+  document.getElementById('translate-context').value = '';
+  document.getElementById('translate-target-language').value = '';
+  document.getElementById('translate-result-grid').style.display = 'none';
+  renderTranslationFile();
+}
+
 // ── UPLOAD ────────────────────────────────────────────────────────────────
 function initUpload() {
   const zone = document.getElementById('upload-zone');
@@ -4811,9 +5036,9 @@ document.addEventListener('click', () => {
 });
 
 // ── VIEW SWITCHING ────────────────────────────────────────────────────────
-const VIEWS = {chat:'view-chat',blueprints:'view-blueprints',matters:'view-matters',plugins:'view-plugins',councils:'view-councils',personas:'view-personas',email:'view-email','add-doc':'view-add-doc','view-docs':'view-view-docs',workspaces:'view-settings',settings:'view-settings','admin-users':'view-settings'};
-const NAVS = {chat:'nav-chat',blueprints:'more-blueprints',matters:'more-matters',plugins:'more-plugins',councils:'nav-councils',personas:'nav-personas',email:'more-email','add-doc':'more-add-doc','view-docs':'more-view-docs',workspaces:'more-workspaces',settings:'more-settings','admin-users':'nav-admin-users'};
-const TITLES = {chat:'Chat',blueprints:'Blueprints',matters:'Matters',plugins:'Plugins',councils:'Councils',personas:'Personas',email:'Email','add-doc':'Add Document','view-docs':'View Documents',workspaces:'Workspaces',settings:'Settings','admin-users':'Admin Users'};
+const VIEWS = {chat:'view-chat',blueprints:'view-blueprints',matters:'view-matters',plugins:'view-plugins',councils:'view-councils',personas:'view-personas',email:'view-email','add-doc':'view-add-doc',translate:'view-translate','view-docs':'view-view-docs',workspaces:'view-settings',settings:'view-settings','admin-users':'view-settings'};
+const NAVS = {chat:'nav-chat',blueprints:'more-blueprints',matters:'more-matters',plugins:'more-plugins',councils:'nav-councils',personas:'nav-personas',email:'more-email','add-doc':'more-add-doc',translate:'more-translate','view-docs':'more-view-docs',workspaces:'more-workspaces',settings:'more-settings','admin-users':'nav-admin-users'};
+const TITLES = {chat:'Chat',blueprints:'Blueprints',matters:'Matters',plugins:'Plugins',councils:'Councils',personas:'Personas',email:'Email','add-doc':'Add Document',translate:'Translate','view-docs':'View Documents',workspaces:'Workspaces',settings:'Settings','admin-users':'Admin Users'};
 const LAST_VIEW_KEY = 'aibp_last_view';
 
 function switchView(name) {
@@ -4824,7 +5049,7 @@ function switchView(name) {
   document.getElementById(VIEWS[name])?.classList.add('active');
   document.getElementById(NAVS[name])?.classList.add('active');
   document.getElementById('view-settings')?.classList.toggle('workspace-standalone', name === 'workspaces');
-  const moreViews = ['blueprints', 'matters', 'add-doc', 'view-docs', 'email', 'plugins', 'workspaces', 'settings', 'admin-users'];
+  const moreViews = ['blueprints', 'matters', 'add-doc', 'translate', 'view-docs', 'email', 'plugins', 'workspaces', 'settings', 'admin-users'];
   document.getElementById('nav-more')?.classList.toggle('active', moreViews.includes(name));
   document.querySelectorAll('.sidebar-more-menu button').forEach(b => b.classList.remove('active'));
   const moreActive = document.getElementById('more-' + name) || (name === 'admin-users' ? document.getElementById('nav-admin-users') : null);
@@ -4836,6 +5061,7 @@ function switchView(name) {
   if (name === 'councils') loadCouncils();
   if (name === 'personas') renderPersonas();
   if (name === 'add-doc') { renderConnectedFolders(); renderUploadMatterSelector(); }
+  if (name === 'translate') { renderTranslateScopeSelector(); setTranslateSourceType(App.translation.sourceType); renderTranslationFile(); }
   if (name === 'email') { renderEmailControls(); loadEmailMessages(); }
   if (name === 'workspaces') {
     const workspaceNav = document.getElementById('settings-nav-workspaces');
@@ -4920,4 +5146,4 @@ function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(e
 
 // ── START ─────────────────────────────────────────────────────────────────
 document.addEventListener('click', closeChatMenus);
-document.addEventListener('DOMContentLoaded', () => { init(); initUpload(); });
+document.addEventListener('DOMContentLoaded', () => { init(); initUpload(); initTranslationUpload(); });

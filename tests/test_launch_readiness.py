@@ -81,7 +81,7 @@ class LaunchReadinessTest(unittest.TestCase):
     def test_public_launch_flow_and_guardrails(self) -> None:
         health = self.client.get("/api/v2/health")
         self.assertEqual(health.status_code, 200, health.text)
-        self.assertEqual(health.json()["database"]["migration_revision"], "0022_contract_review_commercial_playbooks")
+        self.assertEqual(health.json()["database"]["migration_revision"], "0023_translation_runs")
         self.assertTrue(health.json()["secrets"]["key_configured"])
         self.assertEqual(health.headers["x-content-type-options"], "nosniff")
         self.assertEqual(health.headers["x-frame-options"], "DENY")
@@ -91,6 +91,16 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertIn("style-src-attr 'none'", csp)
         self.assertIn("object-src 'none'", csp)
         self.assertNotIn("'unsafe-inline'", csp)
+
+        public_translation = self.client.post(
+            "/api/v2/translations/public/text",
+            json={"text": "The agreement terminates on 31 December 2026.", "target_language": "Hindi", "mode": "legal"},
+        )
+        self.assertEqual(public_translation.status_code, 200, public_translation.text)
+        self.assertEqual(public_translation.json()["source_type"], "text")
+        self.assertEqual(public_translation.json()["target_language"], "Hindi")
+        self.assertEqual(public_translation.json()["mode"], "legal")
+        self.assertIn("translated_html", public_translation.json())
 
         index = self.client.get("/index.html")
         self.assertEqual(index.status_code, 200, index.text)
@@ -585,6 +595,16 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(saas.contract_category, "saas")
         self.assertEqual(consulting.contract_category, "consulting")
         self.assertEqual(reseller.contract_category, "reseller")
+
+    def test_builtin_insurance_policy_explainer_persona(self) -> None:
+        personas = {persona["id"]: persona for persona in database._builtin_personas()}
+        persona = personas["insurance-policy-explainer-india"]
+        self.assertEqual(persona["name"], "Insurance Policy Explainer")
+        self.assertEqual(persona["category"], "Insurance")
+        self.assertIn("global insurance policy explainer", persona["system_prompt"])
+        self.assertIn("default to India", persona["system_prompt"])
+        self.assertIn("health insurance", persona["tags"])
+        self.assertTrue(any("country or jurisdiction is unclear" in item for item in persona["constraints"]))
 
     def test_runtime_security_rejects_insecure_production_cookies(self) -> None:
         with self.assertRaises(RuntimeError):
