@@ -3066,8 +3066,8 @@ async function openChat(chatId) {
   App.currentChatId = chatId;
   const chat = App.chats.find(c => c.id === chatId);
   const context = chat?.doc_context || 'all';
-  App.chatMode = context === 'none' ? 'general' : 'documents';
-  App.selectedDocIds = context === 'none' ? 'all' : context === 'all' ? 'all' : context.split(',').filter(Boolean);
+  App.chatMode = context === 'help' ? 'help' : context === 'none' ? 'general' : 'documents';
+  App.selectedDocIds = ['none', 'help'].includes(context) ? 'all' : context === 'all' ? 'all' : context.split(',').filter(Boolean);
   App.selectedPersonaId = chat?.persona_id || '';
   if (chat?.v2_workspace_id) {
     App.v2.workspaceId = chat.v2_workspace_id;
@@ -3780,6 +3780,13 @@ function setChatMode(mode) {
   updateChatModeUI();
 }
 
+function activateHelpChat() {
+  switchView('chat');
+  setChatMode('help');
+  const input = document.getElementById('chat-input');
+  if (input) input.focus();
+}
+
 function updateChatModeUI() {
   if (App.chatMode === 'documents' && !App.documents.length && !App.v2.documents.length) App.chatMode = 'general';
   const label = document.getElementById('input-mode-label');
@@ -3787,13 +3794,17 @@ function updateChatModeUI() {
   const input = document.getElementById('chat-input');
   const docOpt = document.getElementById('mode-option-documents');
   const generalOpt = document.getElementById('mode-option-general');
-  if (label) label.textContent = App.chatMode === 'general' ? 'General' : 'Documents';
-  if (icon) icon.innerHTML = App.chatMode === 'general'
-    ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
-    : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
-  if (input) input.placeholder = App.chatMode === 'general' ? 'Ask anything...' : 'Ask anything about your documents...';
+  const helpOpt = document.getElementById('mode-option-help');
+  if (label) label.textContent = App.chatMode === 'help' ? 'Help' : App.chatMode === 'general' ? 'General' : 'Documents';
+  if (icon) icon.innerHTML = App.chatMode === 'help'
+    ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17h.01"/></svg>'
+    : App.chatMode === 'general'
+      ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+      : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+  if (input) input.placeholder = App.chatMode === 'help' ? 'Ask how to use AI Blueprint...' : App.chatMode === 'general' ? 'Ask anything...' : 'Ask anything about your documents...';
   docOpt?.classList.toggle('active', App.chatMode === 'documents');
   generalOpt?.classList.toggle('active', App.chatMode === 'general');
+  helpOpt?.classList.toggle('active', App.chatMode === 'help');
   updateDocSelector();
   updateChatScopeControls();
 }
@@ -3802,6 +3813,14 @@ function updateDocSelector() {
   const badge = document.getElementById('input-doc-badge');
   const topbarLabel = document.getElementById('topbar-doc-label');
   if (!badge && !topbarLabel) return;
+  if (App.chatMode === 'help') {
+    if (badge) {
+      badge.textContent = 'AI Blueprint help';
+      badge.style.display = 'inline-flex';
+    }
+    if (topbarLabel) topbarLabel.textContent = 'Help';
+    return;
+  }
   if (App.chatMode === 'general') {
     const scopeLabel = v2ChatScopeLabel();
     if (badge) {
@@ -5031,7 +5050,7 @@ async function sendMessage() {
   conv.style.display = 'block';
   if (!App.currentChatId) {
     try {
-      const docCtx = App.chatMode === 'general' ? 'none' : App.selectedDocIds === 'all' ? 'all' : App.selectedDocIds.join(',');
+      const docCtx = App.chatMode === 'help' ? 'help' : App.chatMode === 'general' ? 'none' : App.selectedDocIds === 'all' ? 'all' : App.selectedDocIds.join(',');
       const r = await fetch('/api/chats', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({doc_context:docCtx, persona_id:App.selectedPersonaId || null, ...v2ChatScopePayload()})});
       const chat = await r.json();
       if (!r.ok) throw new Error(chat.detail || chat.error || 'Chat creation failed');

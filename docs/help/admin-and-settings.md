@@ -21,6 +21,12 @@ Examples:
 
 Do not expose API keys in screenshots, logs, commits, or shared exports.
 
+## Email Settings
+
+Email uses IMAP for incoming mail and SMTP for outgoing replies. Configure IMAP host, port, username, password, and folder before checking mail. Configure SMTP host, port, TLS verification, username, password, and from address before sending replies.
+
+Email drafting can use a default persona and document context. Sending requires human approval.
+
 ## RAG Settings
 
 Important RAG settings include:

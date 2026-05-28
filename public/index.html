@@ -136,6 +136,9 @@
       <button class="icon-btn" id="v2-logout-topbar" type="button" title="Log out" aria-label="Log out" onclick="logoutV2()" data-csp-style="display:none">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
+      <button class="icon-btn" id="topbar-help-btn" type="button" title="Help" aria-label="Help" onclick="activateHelpChat()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17h.01"/></svg>
+      </button>
     </div>
   </div>
 
@@ -186,6 +189,10 @@
             <button class="input-mode-option" id="mode-option-general" type="button" onclick="setChatMode('general')">
               <strong>General</strong>
               <span>No document search</span>
+            </button>
+            <button class="input-mode-option" id="mode-option-help" type="button" onclick="setChatMode('help')">
+              <strong>Help</strong>
+              <span>How to use AI Blueprint</span>
             </button>
           </div>
         </div>
@@ -2014,6 +2021,6 @@
 
 
 <script src="/js/csp-events.js?v=20260526-strict-csp-v2"></script>
-<script src="/js/app.js?v=20260528-live-voice-welcome-v2"></script>
+<script src="/js/app.js?v=20260528-topbar-help-v1"></script>
 </body>
 </html>

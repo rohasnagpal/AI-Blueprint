@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -184,6 +185,106 @@ def _build_general_system_prompt(settings: dict) -> str:
         f"Answer the user's question directly without using uploaded document context.\n"
         f"Response length preference: {length}."
     )
+
+
+def _build_help_system_prompt(settings: dict) -> str:
+    lang = settings.get("response_language", "English")
+    return (
+        "You are AI Blueprint's product help assistant. "
+        f"Always respond in {lang}. "
+        "Answer only from the supplied AI Blueprint help context and current app context. "
+        "Give practical, step-by-step UI guidance. "
+        "If the help context does not contain the answer, say you do not know from the help docs and suggest the closest relevant area. "
+        "Do not provide legal advice while answering product-use questions."
+    )
+
+
+def _help_docs_dir() -> Path:
+    return Path(__file__).resolve().parents[1] / "docs" / "help"
+
+
+def _help_chunks() -> list[dict]:
+    chunks = []
+    root = _help_docs_dir()
+    if not root.exists():
+        return chunks
+    for path in sorted(root.glob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        title = path.stem.replace("-", " ").title()
+        current_heading = title
+        current_lines = []
+
+        def flush():
+            body = "\n".join(current_lines).strip()
+            if body:
+                chunks.append(
+                    {
+                        "title": title,
+                        "section": current_heading,
+                        "source": str(path.relative_to(Path(__file__).resolve().parents[1])),
+                        "content": body,
+                    }
+                )
+
+        for line in text.splitlines():
+            heading = re.match(r"^(#{1,3})\s+(.+)$", line)
+            if heading:
+                flush()
+                current_heading = heading.group(2).strip()
+                current_lines = [line]
+            else:
+                current_lines.append(line)
+        flush()
+    return chunks
+
+
+def _score_help_chunk(query_terms: set[str], chunk: dict) -> int:
+    title_text = f"{chunk['title']} {chunk['section']}".lower()
+    source_text = chunk["source"].lower().replace("-", " ")
+    content_text = chunk["content"].lower()
+    title_terms = set(re.findall(r"[a-zA-Z0-9_]+", title_text))
+    source_terms = set(re.findall(r"[a-zA-Z0-9_]+", source_text))
+    content_terms = set(re.findall(r"[a-zA-Z0-9_]+", content_text))
+    score = 0
+    for term in query_terms:
+        if term in title_terms:
+            score += 5
+        if term in source_terms:
+            score += 4
+        if term in content_terms:
+            score += 1
+    return score
+
+
+def _search_help(message: str, limit: int = 5) -> list[dict]:
+    terms = {term.lower() for term in re.findall(r"[a-zA-Z0-9_]+", message) if len(term) > 2}
+    expansions = {
+        "translate": {"translate", "translation", "translations", "translated", "translating"},
+        "translation": {"translate", "translation", "translations", "translated", "translating"},
+        "persona": {"persona", "personas"},
+        "personas": {"persona", "personas"},
+        "create": {"create", "creating", "created"},
+        "sync": {"sync", "synced", "synchronization"},
+        "folder": {"folder", "folders"},
+        "document": {"document", "documents"},
+        "documents": {"document", "documents"},
+        "blueprint": {"blueprint", "blueprints"},
+        "plugin": {"plugin", "plugins"},
+        "council": {"council", "councils"},
+        "matter": {"matter", "matters"},
+        "workspace": {"workspace", "workspaces"},
+    }
+    expanded_terms = set()
+    for term in terms:
+        expanded_terms.update(expansions.get(term, {term}))
+    terms = expanded_terms
+    chunks = _help_chunks()
+    if not terms:
+        return chunks[:limit]
+    scored = [(chunk, _score_help_chunk(terms, chunk)) for chunk in chunks]
+    scored.sort(key=lambda item: (item[1], item[0]["title"], item[0]["section"]), reverse=True)
+    matches = [chunk for chunk, score in scored if score > 0]
+    return (matches or chunks[:limit])[:limit]
 
 
 def _get_persona(persona_id: str | None) -> dict | None:
@@ -450,13 +551,14 @@ async def send_message(chat_id: str, body: SendMessage, request: Request):
 
     provider_name = settings.get("rag_provider", "openai")
     doc_context = chat["doc_context"]
-    use_documents = doc_context != "none"
-    doc_ids = None if doc_context in ("all", "none") else [d.strip() for d in doc_context.split(",") if d.strip()]
+    use_help = doc_context == "help"
+    use_documents = doc_context not in ("none", "help")
+    doc_ids = None if doc_context in ("all", "none", "help") else [d.strip() for d in doc_context.split(",") if d.strip()]
     persona = _get_persona(chat["persona_id"] if "persona_id" in chat.keys() else None)
     v2_scope = _v2_scope_from_chat(chat)
 
     return StreamingResponse(
-        _stream(chat_id, chat, body.message, settings, provider_name, doc_ids, use_documents, persona, body.web_search, v2_scope),
+        _stream(chat_id, chat, body.message, settings, provider_name, doc_ids, use_documents, persona, body.web_search, v2_scope, use_help),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -543,6 +645,7 @@ async def _stream(
     persona: dict | None,
     use_web_search: bool,
     v2_scope: dict | None = None,
+    use_help: bool = False,
 ) -> AsyncGenerator[str, None]:
     collected_content = []
     collected_sources = []
@@ -568,7 +671,16 @@ async def _stream(
             except Exception as e:
                 yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
                 web_results = []
-        if not use_documents:
+        if use_help:
+            async for event in _stream_help(message, settings, persona):
+                yield event
+                data = _parse_sse(event)
+                if data:
+                    if data.get("type") == "token":
+                        collected_content.append(data.get("content", ""))
+                    elif data.get("type") == "source":
+                        collected_sources.append(data)
+        elif not use_documents:
             async for event in _stream_general(message, settings, persona, web_results):
                 yield event
                 data = _parse_sse(event)
@@ -620,6 +732,88 @@ async def _stream(
         conn.close()
 
     yield f'data: {json.dumps({"type": "done"})}\n\n'
+
+
+async def _stream_help(message: str, settings: dict, persona: dict | None) -> AsyncGenerator[str, None]:
+    yield _status_event("Searching AI Blueprint help", 18)
+    chunks = _search_help(message)
+    if not chunks:
+        yield f'data: {json.dumps({"type": "error", "content": "No help documentation is available."})}\n\n'
+        return
+
+    for chunk in chunks:
+        src = {
+            "type": "source",
+            "kind": "help",
+            "filename": chunk["source"],
+            "excerpt": chunk["section"],
+        }
+        yield f"data: {json.dumps(src)}\n\n"
+
+    help_context = "\n\n---\n\n".join(
+        f"[{chunk['source']} > {chunk['section']}]\n{chunk['content'][:2200]}"
+        for chunk in chunks
+    )
+    system_prompt = _apply_persona_prompt(_build_help_system_prompt(settings), persona)
+    full_message = (
+        "AI Blueprint help context:\n"
+        f"{help_context}\n\n"
+        "Current app context:\n"
+        "- User selected Help mode in chat.\n"
+        "- Treat this as a product-use question, not a legal document question.\n\n"
+        f"User help request: {message}"
+    )
+    llm_provider = settings.get("local_llm_provider", "openai")
+    model = settings.get("chat_model", "gpt-4o")
+    temperature = float(settings.get("temperature", 0.2))
+    max_tokens = _max_tokens_for_persona(settings, persona)
+    yield _status_event("Generating help answer", 55)
+
+    if llm_provider == "ollama":
+        async for token in _stream_ollama(system_prompt, full_message, model, temperature, max_tokens, settings):
+            yield token
+    elif llm_provider == "anthropic":
+        anthropic_key = settings.get("anthropic_api_key", "")
+        if not anthropic_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Anthropic API key not configured."})}\n\n'
+            return
+        async for token in _stream_anthropic(anthropic_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "groq":
+        groq_key = settings.get("groq_api_key", "")
+        if not groq_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Groq API key not configured."})}\n\n'
+            return
+        async for token in _stream_groq(groq_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "openrouter":
+        openrouter_key = settings.get("openrouter_api_key", "")
+        if not openrouter_key:
+            yield f'data: {json.dumps({"type": "error", "content": "OpenRouter API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_openrouter_chat(openrouter_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "gemini":
+        gemini_key = settings.get("gemini_api_key", "")
+        if not gemini_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Google Gemini API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_gemini(gemini_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "xai":
+        xai_key = settings.get("xai_api_key", "")
+        if not xai_key:
+            yield f'data: {json.dumps({"type": "error", "content": "xAI API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_xai_chat(xai_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    else:
+        openai_key = settings.get("openai_api_key", "")
+        if not openai_key:
+            yield f'data: {json.dumps({"type": "error", "content": "OpenAI API key not configured. Go to Settings → API Keys."})}\n\n'
+            return
+        async for token in _stream_openai_chat(openai_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
 
 
 async def _stream_general(message: str, settings: dict, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:

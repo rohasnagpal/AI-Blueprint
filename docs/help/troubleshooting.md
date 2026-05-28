@@ -74,6 +74,34 @@ Improve the objective and council design:
 
 Open Settings and add the provider API key for the selected provider. Confirm the selected model belongs to that provider.
 
+## Email Does Not Import Messages
+
+Check IMAP host, port, username, password, and folder. Confirm the mailbox has unread messages and the email provider allows IMAP access. Some providers require app-specific passwords.
+
+## Email Draft Generation Fails
+
+Check that the selected chat model provider has a configured API key. If the draft uses document context, confirm the selected documents are indexed and the RAG scope is correct.
+
+## Email Sending Fails
+
+Check SMTP host, port, username, password, TLS setting, and from address. Confirm the email provider allows SMTP sending and does not require a separate app password.
+
+## Translation Fails
+
+Check that a target language is selected, source text or one supported upload is provided, and the configured chat model provider has a working API key. For uploaded files, confirm the file type is supported.
+
+## Connected Folder Sync Fails
+
+Check that the folder path exists, the app has permission to read it, and the files are supported. Reconnect the folder if the path changed.
+
+## Persona Does Not Affect Voice
+
+Stop the current voice session and start a new one after changing persona. Voice reads the selected persona only when the Realtime session starts.
+
+## Council Output Is Missing Evidence
+
+Check that the council run has document context, documents are indexed, and the objective includes searchable facts or issues.
+
 ## Output Should Not Be Used Directly
 
 AI Blueprint outputs require professional review. Verify facts, citations, legal authorities, deadlines, procedural rules, privilege issues, and client instructions before external use.

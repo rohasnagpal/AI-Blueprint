@@ -35,6 +35,14 @@ Use **Councils** for configurable multi-agent analysis in the legacy council int
 
 Use **Settings** to configure model providers, API keys, RAG settings, app branding, and user/admin options.
 
+Use **Email** to poll an inbox, generate AI-assisted draft replies, review them, and send approved replies through SMTP.
+
+Use **Personas** to create or select role-based assistant behavior.
+
+Use **Translate** to translate pasted text or one document with review warnings and HTML output.
+
+Use **Add Document** and **View Documents** to upload, connect, sync, search, and manage knowledge-base files.
+
 ## Good First Prompts
 
 For general chat:
