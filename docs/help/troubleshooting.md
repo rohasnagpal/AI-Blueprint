@@ -86,9 +86,35 @@ Check that the selected chat model provider has a configured API key. If the dra
 
 Check SMTP host, port, username, password, TLS setting, and from address. Confirm the email provider allows SMTP sending and does not require a separate app password.
 
+## Draft Generation Fails
+
+Check that the configured chat model provider has a working API key and that the selected model is available for that provider. If source documents are selected, confirm they are indexed and belong to the selected workspace or matter.
+
+## Draft Has Too Many Placeholders
+
+Add missing party details, dates, amounts, addresses, deadlines, governing law, and key terms. Placeholders usually mean the model was instructed not to invent facts.
+
+## Draft Source Documents Are Missing
+
+Check:
+
+- The correct workspace is selected.
+- The correct matter is selected.
+- Documents were uploaded or ingested successfully.
+- Documents are indexed.
+- The documents belong to the selected matter or workspace scope.
+
+## Draft History Does Not Load
+
+Confirm the user is signed in, the correct workspace is selected, and the draft job completed successfully. Refresh Draft History after generation completes.
+
 ## Translation Fails
 
-Check that a target language is selected, source text or one supported upload is provided, and the configured chat model provider has a working API key. For uploaded files, confirm the file type is supported.
+Check that a target language is selected, source text or one supported upload is provided, and the configured chat model provider has a working API key. For uploaded files, confirm the file type is supported and the file contains extractable text.
+
+## Translation Output Looks Incomplete
+
+Try a smaller source text, add context, or use a more precise mode such as Legal or Literal. For scanned documents, extract text with OCR before uploading if the app cannot read the file contents.
 
 ## Connected Folder Sync Fails
 

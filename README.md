@@ -1,54 +1,72 @@
 # AI Blueprint for Lawyers
 
-Legal work depends on confidential documents, source-grounded reasoning, repeatable workflows, professional review, and auditability. AI Blueprint is being built around those requirements first.
+A local-first legal AI workspace for document-grounded chat, legal drafting, contract review, legal research, translation, email drafting, and multi-agent legal workflows.
 
-The goal is not to replace legal judgment. The goal is to give lawyers a structured AI workspace for reviewing documents, preparing arguments, drafting client communications, testing positions, and organizing matter knowledge.
+AI Blueprint is built for lawyers, firms, legal teams, and legal operations teams that need AI to work with confidential documents, matter context, source grounding, review workflows, and auditability.
+
+The goal is not to replace legal judgment. The goal is to give lawyers a structured workspace for reviewing documents, preparing arguments, drafting work product, testing positions, translating legal material, and organizing matter knowledge with stronger control over data, models, and retrieval scope.
 
 ## Core Capabilities
 
-- **Private document intelligence through internal and external RAG**  
-  Query firm files, matter documents, contracts, emails, precedents, policies, statutes, regulations, and approved external sources while keeping sensitive knowledge scoped and controlled.
+- **Document-grounded legal chat and RAG**  
+  Ask questions across uploaded files, matter documents, contracts, emails, precedents, policies, statutes, regulations, and approved sources with scoped retrieval.
 
-- **Citation-backed answers with source grounding**  
-  Every material claim can point back to the document, clause, page, email, case note, statute, regulation, or uploaded source it came from.
+- **Legal drafting workspace**  
+  Generate legal notices, agreements, replies, board documents, clauses, client-facing drafts, and other legal work product from facts, parties, terms, instructions, jurisdiction, tone, and optional source documents. Drafts include printable HTML, plain text, assumptions, missing information, review warnings, source usage, progress events, and saved draft history.
 
-- **Reusable expert personas**  
-  Configure role-specific AI behavior such as Commercial Lawyer, Litigation Associate, Contract Reviewer, Regulatory Counsel, Partner Reviewer, Plain-English Summarizer, or Evidence Analyst.
+- **Contract review workflows**  
+  Review contracts against playbooks, extract clauses, identify risks, compare fallback positions, generate redline suggestions, create negotiation points, produce summaries, record human review decisions, and export audit packages.
 
-- **Multi-agent legal councils**  
-  Run structured legal workflows where one agent drafts, another critiques, another checks evidence, and another synthesizes a final recommendation. Useful for arbitration preparation, litigation strategy, mediation planning, settlement analysis, contract negotiation, due diligence review, regulatory risk assessment, and internal partner review.
+- **Legal research workflows**  
+  Create research memos, authority matrices, legal tests, citation packs, limitation analysis, assumptions, and exportable research outputs.
+
+- **Multi-agent councils and arbitration preparation**  
+  Run configurable multi-agent workflows for adversarial review, evidence checking, issue mapping, arbitration prep, litigation strategy, settlement analysis, and partner review.
 
 - **Email and client communication drafting**  
-  Draft replies, follow-ups, summaries, client updates, negotiation responses, and internal matter emails using the right persona and document context.
+  Poll IMAP inboxes, generate AI-assisted replies using personas and document context, review drafts, and send approved replies through SMTP.
 
-- **Matter, client, and workspace organization**  
-  Keep knowledge, chats, documents, runs, personas, permissions, and outputs organized by firm, team, client, matter, or project.
+- **Translation for legal and business documents**  
+  Translate pasted text or uploaded documents with legal, business, technical, literal, and plain-language modes, review warnings, translator notes, preserved terms, and downloadable HTML output.
 
-- **Purpose-built legal workflows**  
-  Support contract review, legal research, issue spotting, risk analysis, diligence summaries, clause comparison, chronology building, and memo drafting as defined workflows rather than generic chat.
+- **Live voice assistance**  
+  Use OpenAI Realtime voice for spoken legal assistance, matter walkthroughs, document questions, and workflow guidance, including document search in Documents mode.
 
-- **Auditability, permissions, and trust controls**  
-  Track who ran what, which sources were used, what model produced the output, what changed between versions, and which users or roles can access each matter.
+- **Workspaces, matters, users, and permissions**  
+  Organize documents, blueprints, plugins, members, roles, outputs, and access by workspace and matter.
+
+- **Blueprints and plugins**  
+  Enable repeatable workflows through blueprint plugins, currently Contract Review, AI Council, and Legal Research.
+
+- **Document management**  
+  Upload files, ingest URLs, connect local folders, sync folder sources, index documents, search document libraries, and manage deletion.
+
+- **Personas and role-specific behavior**  
+  Configure reusable legal roles such as Contract Reviewer, Litigation Associate, Legal Researcher, Partner Reviewer, Plain-English Explainer, Evidence Analyst, and Client Email Drafter.
+
+- **Auditability, jobs, and trust controls**  
+  Track runs, job progress, exports, escalations, audit events, provider/model use, encrypted secrets, review warnings, and human approval points.
 
 - **Local-first and privacy-conscious deployment**  
-  Let firms use AI on sensitive legal material with stronger control over storage, retrieval, credentials, model routing, and data exposure.
+  Run locally or deploy for teams with explicit runtime paths, secure cookies, CORS controls, migrations, encrypted secrets, and protected upload/database storage.
 
 ## Example Workflows
 
-- Review a contract against a playbook and produce a risk summary.
-- Prepare for arbitration by mapping facts, claims, evidence, and counterarguments.
+- Draft a legal notice from facts, parties, jurisdiction, tone, and selected source documents.
+- Review a contract against a playbook and produce risks, fallback language, summaries, and an audit package.
+- Prepare for arbitration by mapping facts, claims, evidence, counterarguments, and procedural risks.
 - Build a litigation chronology from pleadings, exhibits, emails, and notes.
-- Draft a legal research memo with citations and uncertainty clearly marked.
+- Draft a legal research memo with authorities, limitations, and uncertainty clearly marked.
+- Translate a legal document into another language with preserved terms and review warnings.
+- Generate and approve a document-grounded client email reply.
 - Compare clauses across versions of an agreement.
-- Prepare a mediation or settlement strategy memo.
-- Summarize a matter for a client or supervising partner.
 - Run a partner-review council before sending work product.
 
 ## Local and Network Versions
 
 AI Blueprint can be used in two ways:
 
-- **Local version:** run AI Blueprint privately on one machine for solo lawyers, experiments, document review, research, and local-first workflows.
+- **Local version:** run AI Blueprint privately on one machine for solo lawyers, experiments, document review, drafting, research, translation, and local-first workflows.
 - **Network/server version:** run AI Blueprint for a firm, team, or legal department with shared workspaces, matter access, permissions, audit trails, reusable blueprints, and centralized configuration.
 
 The local version is the fastest way to start. The network version is the direction for multi-user legal practice.
@@ -59,13 +77,13 @@ Requirements:
 
 - Python 3.10 or newer
 - A browser
-- Provider API keys depending on the models and retrieval mode you choose
+- Provider API keys depending on the models, voice, and retrieval mode you choose
 
 Run locally:
 
 ```bash
-git clone https://github.com/yourusername/ai-blueprint.git
-cd ai-blueprint
+git clone <repo-url>
+cd AIBlueprint
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -80,32 +98,66 @@ Open:
 http://127.0.0.1:8000
 ```
 
-On first use, open Settings and add the model or provider keys you need.
+On first use, complete the setup flow, create or select a workspace, and open Settings to add the model or provider keys you need.
 
-The multi-user workspace layer starts with an interactive admin setup flow. For
-closed local deployments that need a temporary bootstrap account, set
-`AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN=true` before starting the server, then sign
-in with the bootstrap credentials and immediately change them.
+For closed local deployments that need a temporary bootstrap account, set `AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN=true` before starting the server, then sign in with the bootstrap credentials and immediately change them. Do not use the bootstrap account path for public deployments.
+
+## First Run
+
+The fastest successful path is:
+
+1. Sign in or complete first-run admin setup.
+2. Create or select a workspace.
+3. Create a matter for the client, dispute, transaction, research project, or internal file.
+4. Add provider API keys in Settings.
+5. Upload or ingest relevant documents.
+6. Wait until documents are indexed.
+7. Use Chat, Draft, Translate, Email, Voice, or a Blueprint workflow.
+8. Review all outputs before using them in client, court, regulatory, or transaction work.
+
+## Built With
+
+- Python
+- FastAPI
+- Uvicorn
+- SQLAlchemy
+- Alembic
+- SQLite
+- OpenAI and Groq provider integrations
+- Optional local RAG dependencies with Chroma, LlamaIndex, and sentence-transformers
+- Vanilla HTML, CSS, and JavaScript frontend
 
 ## Configuration
 
-AI Blueprint supports configurable model providers, document retrieval settings, personas, councils, email settings, and workspace behavior from inside the app.
+AI Blueprint supports configurable model providers, document retrieval settings, personas, councils, email settings, workspaces, upload limits, app branding, and deployment controls from inside the app and through environment variables.
 
 For legal use, configure the system around the matter:
 
 - which documents are available
 - which sources are approved
-- which persona or workflow should be used
+- which persona, draft settings, or workflow should be used
 - which users can access the matter
 - which outputs need review before use
+- which model providers may receive prompts, document snippets, embeddings, and outputs
+
+For production settings, see [Deployment Guide](docs/DEPLOYMENT.md).
 
 ## Privacy Note
 
-AI Blueprint is designed as a local-first legal AI workspace. Sensitive runtime data such as uploaded documents, chat history, local databases, vector indexes, logs, and API keys should not be committed to version control.
+AI Blueprint is designed as a local-first legal AI workspace. Sensitive runtime data such as uploaded documents, chat history, draft history, translation history, local databases, vector indexes, logs, and API keys should not be committed to version control.
 
-When using external model or retrieval providers, review where document text, prompts, embeddings, and outputs are sent before using the system with confidential material.
+When using external model, embedding, retrieval, email, or voice providers, review where document text, prompts, embeddings, credentials, audio, and outputs are sent before using the system with confidential material.
 
 AI Blueprint supports legal workflows but does not replace professional legal judgment. Review all outputs before using them in client, court, regulatory, or transaction work.
+
+## Documentation
+
+- [User Help Pack](docs/help/README.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Public Launch Checklist](docs/PUBLIC_LAUNCH_CHECKLIST.md)
+- [Operations Guide](OPERATIONS.md)
+- [Security Policy](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## Public Deployment
 
@@ -114,24 +166,37 @@ Before exposing AI Blueprint to public users, review:
 - [Deployment Guide](docs/DEPLOYMENT.md)
 - [Public Launch Checklist](docs/PUBLIC_LAUNCH_CHECKLIST.md)
 
-Production deployments should run database migrations explicitly before app
-startup:
+Production deployments should run database migrations explicitly before app startup:
 
 ```bash
 .venv/bin/python scripts/migrate.py
 ```
 
-Keep `AI_BLUEPRINT_RUN_MIGRATIONS_ON_STARTUP=false` in production so multiple
-workers cannot race while applying migrations.
+Keep `AI_BLUEPRINT_RUN_MIGRATIONS_ON_STARTUP=false` in production so multiple workers cannot race while applying migrations.
+
+## Development
+
+Install dependencies and run the app as shown in Quick Start. Before opening a pull request, run:
+
+```bash
+python -m compileall main.py database.py routes rag app migrations
+python -m unittest discover -s tests
+```
+
+See [Contributing](CONTRIBUTING.md) for contribution expectations.
 
 ## Development Status
 
-AI Blueprint is an evolving open-source platform being shaped into a legal AI blueprint system for lawyers, firms, and legal teams.
+AI Blueprint is an evolving open-source platform being shaped into a practical legal AI workspace for lawyers, firms, and legal teams.
 
-The current project includes the foundations for document intelligence, personas, councils, email drafting, legal research, contract review, workspaces, permissions, and auditability. The product direction is a practical legal AI workspace that can start locally and grow into a networked firm platform.
+The current project includes document-grounded chat, live voice, legal drafting, translation, email drafting, personas, document management, workspaces and matters, contract review, legal research, multi-agent councils, permissions, jobs, audit events, encrypted secrets, and deployment controls.
 
-## Contributors
+## License
 
-- Rohas Nagpal
-- Claude
-- Codex
+No open-source license has been declared yet. Add a `LICENSE` file before treating this repository as openly licensed.
+
+## Authors and Acknowledgments
+
+Created by Rohas Nagpal.
+
+This project has been developed with assistance from AI coding tools including Claude and Codex.

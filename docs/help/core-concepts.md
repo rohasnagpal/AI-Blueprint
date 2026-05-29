@@ -42,6 +42,28 @@ A plugin must be enabled for a workspace before users can create blueprints from
 
 A run is one execution of a blueprint workflow. Runs have status values such as pending, running, completed, or failed. Runs may generate outputs, exports, audit events, summaries, findings, or review screens.
 
+## Draft
+
+A draft is generated legal work product created from structured inputs such as document type, jurisdiction, tone, audience, parties, facts, key terms, drafting instructions, and optional source documents.
+
+Drafts are not blueprint runs. They are standalone workspace outputs that can be copied, printed, downloaded, and reopened from Draft History.
+
+## Draft Run
+
+A draft run is the job-backed process that creates a draft. It may include planning, drafting, QA/revision, rendering, saving, assumptions, missing information, review warnings, and source usage.
+
+## Translation Run
+
+A translation run translates pasted text or one uploaded document. It may produce HTML output, translator notes, preserved terms, review warnings, and quality checks.
+
+## Job
+
+A job tracks longer-running work such as draft generation and blueprint runs. Jobs can have pending, running, completed, failed, or cancelled status values and may expose progress events.
+
+## Escalation
+
+An escalation is a flagged issue that needs attention, such as a high-risk contract finding or workflow concern. Escalations should be resolved or dismissed only after human review.
+
 ## Persona
 
 A persona changes assistant behavior. Personas can provide role, tone, reasoning style, output structure, and constraints. Text chat and live voice can use the selected persona.

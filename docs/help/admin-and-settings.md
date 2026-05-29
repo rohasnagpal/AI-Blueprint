@@ -4,7 +4,7 @@ Settings control model providers, API keys, RAG behavior, app branding, upload l
 
 ## Model Providers
 
-Typed chat uses the configured Chat Model provider and model. Supported providers in the app include OpenAI, Anthropic, Groq, OpenRouter, Gemini, xAI, and Ollama, depending on installed packages and configured keys.
+Typed chat, Draft, Translate, Email draft generation, and most text-based workflows use the configured Chat Model provider and model. Supported providers in the app include OpenAI, Anthropic, Groq, OpenRouter, Gemini, xAI, and Ollama, depending on installed packages and configured keys.
 
 Live voice uses OpenAI Realtime and requires an OpenAI API key, regardless of the typed chat provider.
 
@@ -16,6 +16,7 @@ Examples:
 
 - Groq typed chat requires a Groq API key.
 - OpenAI typed chat requires an OpenAI API key.
+- Draft and Translate require a working configured chat model provider for full model-generated output.
 - Live voice requires an OpenAI API key.
 - Web search may require configured search provider keys.
 
@@ -26,6 +27,12 @@ Do not expose API keys in screenshots, logs, commits, or shared exports.
 Email uses IMAP for incoming mail and SMTP for outgoing replies. Configure IMAP host, port, username, password, and folder before checking mail. Configure SMTP host, port, TLS verification, username, password, and from address before sending replies.
 
 Email drafting can use a default persona and document context. Sending requires human approval.
+
+## Draft and Translate Settings
+
+Draft and Translate use the configured chat model provider. If no provider is configured, Draft may return fallback structure and Translate may return a warning instead of a full translation.
+
+For Draft, better results usually require a model that can follow structured JSON instructions and handle longer legal context. For Translate, choose a model suitable for the source and target languages.
 
 ## RAG Settings
 

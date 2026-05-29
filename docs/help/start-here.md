@@ -1,6 +1,6 @@
 # Start Here
 
-AI Blueprint is a legal AI workspace for document-grounded chat, live voice assistance, reusable personas, matter organization, and plugin-backed workflows called blueprints.
+AI Blueprint is a legal AI workspace for document-grounded chat, legal drafting, translation, live voice assistance, reusable personas, matter organization, and plugin-backed workflows called blueprints.
 
 The fastest successful path is:
 
@@ -9,7 +9,7 @@ The fastest successful path is:
 3. Create a matter for the client, dispute, transaction, or project.
 4. Upload relevant documents.
 5. Wait until documents are indexed.
-6. Choose either Chat, Voice, or a Blueprint workflow.
+6. Choose Chat, Draft, Translate, Email, Voice, or a Blueprint workflow.
 7. Use Documents mode whenever answers should be grounded in uploaded files.
 
 ## First-Time Setup
@@ -28,6 +28,8 @@ After sign-in, confirm:
 Use **Chat** for quick questions, summaries, explanations, and document Q&A.
 
 Use **Voice** for live spoken conversation. Voice can use selected personas and, in Documents mode, can search the current document scope.
+
+Use **Draft** to generate legal notices, agreements, replies, clauses, board documents, client-facing drafts, and other legal work product from structured facts, terms, instructions, and optional source documents.
 
 Use **Blueprints** for structured legal workflows such as Contract Review, AI Council, and Legal Research.
 
@@ -62,6 +64,12 @@ For voice:
 - "Help me prepare this matter."
 - "Search the documents for termination provisions."
 - "Walk me through this arbitration blueprint."
+
+For drafting:
+
+- "Draft a legal notice from these facts and source documents."
+- "Prepare a client-friendly summary letter using this matter background."
+- "Draft a board resolution with these key terms."
 
 For blueprints:
 
