@@ -129,3 +129,9 @@ workers cannot race while applying migrations.
 AI Blueprint is an evolving open-source platform being shaped into a legal AI blueprint system for lawyers, firms, and legal teams.
 
 The current project includes the foundations for document intelligence, personas, councils, email drafting, legal research, contract review, workspaces, permissions, and auditability. The product direction is a practical legal AI workspace that can start locally and grow into a networked firm platform.
+
+## Contributors
+
+- Rohas Nagpal
+- Claude
+- Codex
