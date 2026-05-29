@@ -37,7 +37,7 @@ class AdminUserUpdateIn(BaseModel):
 
 class PasswordResetIn(BaseModel):
     password: str = Field(min_length=8)
-    must_change_credentials: bool = True
+    must_change_credentials: bool = False
 
 
 class MembershipIn(BaseModel):
@@ -177,7 +177,7 @@ async def create_user(
         password_hash=hash_password(body.password),
         is_active=body.is_active,
         is_system_admin=body.is_system_admin,
-        must_change_credentials=True,
+        must_change_credentials=False,
     )
     db.add(user)
     db.flush()

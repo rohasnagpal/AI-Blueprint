@@ -63,9 +63,14 @@ DEFAULTS = {
     "vector_store_id": "",
     "assistant_id": "",
     "app_name": "AI Blueprint by Rohas Nagpal",
-    "app_intro": "Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action.",
-    "suggested_questions": '["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]',
+    "app_intro": "Open source AI-native infrastructure for Lawyers",
+    "suggested_questions": "[]",
 }
+
+OLD_DEFAULT_SUGGESTED_QUESTIONS = (
+    '["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents","What dates or deadlines are mentioned?","Explain this in simple terms"]',
+    '["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents"]',
+)
 
 API_KEY_FIELDS = {
     "openai_api_key", "openrouter_api_key", "anthropic_api_key", "groq_api_key", "gemini_api_key",
@@ -285,12 +290,28 @@ def init_db():
         (DEFAULTS["app_name"], "AI Blueprint"),
     )
     conn.execute(
+        "UPDATE settings SET value = ? WHERE key = 'app_name' AND value = ?",
+        (DEFAULTS["app_name"], "AI Blueprint for Lawyers"),
+    )
+    conn.execute(
         "UPDATE settings SET value = ? WHERE key = 'app_intro' AND value = ?",
         (
             DEFAULTS["app_intro"],
             "Build, run and chat with AI agents, pipelines and tools. Powered by your documents.",
         ),
     )
+    conn.execute(
+        "UPDATE settings SET value = ? WHERE key = 'app_intro' AND value = ?",
+        (
+            DEFAULTS["app_intro"],
+            "Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action.",
+        ),
+    )
+    for old_questions in OLD_DEFAULT_SUGGESTED_QUESTIONS:
+        conn.execute(
+            "UPDATE settings SET value = ? WHERE key = 'suggested_questions' AND value = ?",
+            (DEFAULTS["suggested_questions"], old_questions),
+        )
     _seed_council_templates(conn)
     _ensure_builtin_template_updates(conn)
     _seed_ai_models(conn)

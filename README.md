@@ -1,5 +1,12 @@
 # AI Blueprint for Lawyers
 
+[![CI](https://img.shields.io/github/actions/workflow/status/rohasnagpal/AI-Blueprint/ci.yml?branch=main&label=CI)](https://github.com/rohasnagpal/AI-Blueprint/actions/workflows/ci.yml)
+[![Installers](https://img.shields.io/github/actions/workflow/status/rohasnagpal/AI-Blueprint/build-installers.yml?label=installers)](https://github.com/rohasnagpal/AI-Blueprint/actions/workflows/build-installers.yml)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.136.1-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](https://github.com/rohasnagpal/AI-Blueprint/blob/main/Dockerfile)
+[![License](https://img.shields.io/github/license/rohasnagpal/AI-Blueprint)](https://github.com/rohasnagpal/AI-Blueprint/blob/main/LICENSE)
+
 A local-first legal AI workspace for document-grounded chat, legal drafting, contract review, legal research, translation, email drafting, and multi-agent legal workflows.
 
 AI Blueprint is built for lawyers, firms, legal teams, and legal operations teams that need AI to work with confidential documents, matter context, source grounding, review workflows, and auditability.
@@ -193,7 +200,7 @@ The current project includes document-grounded chat, live voice, legal drafting,
 
 ## License
 
-No open-source license has been declared yet. Add a `LICENSE` file before treating this repository as openly licensed.
+AI Blueprint is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
 
 ## Authors and Acknowledgments
 

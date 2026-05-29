@@ -693,14 +693,14 @@ function renderAdminUsers() {
           <div class="council-actions">
             <span class="council-status ${user.is_active ? 'completed' : 'error'}">${user.is_active ? 'active' : 'inactive'}</span>
             ${user.is_system_admin ? '<span class="council-status running">system admin</span>' : ''}
-            ${user.must_change_credentials ? '<span class="council-status">reset required</span>' : ''}
+            ${user.must_change_credentials ? '<span class="council-status">password change pending</span>' : ''}
           </div>
         </div>
         <div class="admin-user-fields">
           <input class="council-input admin-user-username" data-id="${esc(user.id)}" value="${esc(user.username || '')}" placeholder="Username"/>
           <input class="council-input admin-user-display" data-id="${esc(user.id)}" value="${esc(user.display_name || '')}" placeholder="Display name"/>
           <input class="council-input admin-user-email" data-id="${esc(user.id)}" value="${esc(user.email || '')}" placeholder="Email"/>
-          <input class="council-input admin-user-password" data-id="${esc(user.id)}" type="password" value="" placeholder="New password" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')"/>
+          <input class="council-input admin-user-password" data-id="${esc(user.id)}" type="password" value="" placeholder="New password" autocomplete="new-password" minlength="8" readonly onfocus="this.removeAttribute('readonly')"/>
         </div>
         <div class="admin-user-memberships">${memberships}</div>
         <div class="council-form-row">
@@ -721,17 +721,30 @@ function renderAdminUsers() {
 }
 
 async function createAdminUser() {
+  const usernameInput = document.getElementById('admin-user-username');
+  const displayInput = document.getElementById('admin-user-display');
+  const passwordInput = document.getElementById('admin-user-password');
   const payload = {
-    username: document.getElementById('admin-user-username')?.value.trim(),
-    display_name: document.getElementById('admin-user-display')?.value.trim(),
+    username: usernameInput?.value.trim(),
+    display_name: displayInput?.value.trim(),
     email: document.getElementById('admin-user-email')?.value.trim() || null,
-    password: document.getElementById('admin-user-password')?.value || '',
+    password: passwordInput?.value || '',
     workspace_id: document.getElementById('admin-user-workspace')?.value || null,
     workspace_role: document.getElementById('admin-user-role')?.value || 'member',
     is_system_admin: !!document.getElementById('admin-user-system-admin')?.checked
   };
   if (!payload.username || !payload.display_name || !payload.password) {
     showToast('Username, display name, and temporary password are required.', 'error');
+    return;
+  }
+  if (payload.username.length < 3) {
+    showToast('Username must be at least 3 characters.', 'error');
+    usernameInput?.focus();
+    return;
+  }
+  if (payload.password.length < 8) {
+    showToast('Temporary password must be at least 8 characters.', 'error');
+    passwordInput?.focus();
     return;
   }
   try {
@@ -765,14 +778,22 @@ async function saveAdminUser(userId) {
 }
 
 async function resetAdminUserPassword(userId) {
-  const password = adminInput('.admin-user-password', userId)?.value || '';
+  const passwordInput = adminInput('.admin-user-password', userId);
+  const password = passwordInput?.value || '';
   if (!password) {
     showToast('Enter a new password first.', 'error');
+    passwordInput?.focus();
+    return;
+  }
+  if (password.length < 8) {
+    showToast('New password must be at least 8 characters.', 'error');
+    passwordInput?.focus();
     return;
   }
   try {
-    const r = await fetch(`/api/v2/admin/users/${encodeURIComponent(userId)}/reset-password`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password, must_change_credentials:true})});
+    const r = await fetch(`/api/v2/admin/users/${encodeURIComponent(userId)}/reset-password`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password, must_change_credentials:false})});
     if (!r.ok) throw new Error(await apiError(r));
+    if (passwordInput) passwordInput.value = '';
     await loadAdminUsers();
     showToast('Password reset.');
   } catch(e) { showToast('Failed to reset password: ' + e.message, 'error'); }
@@ -2367,6 +2388,8 @@ function populateSettingsUI() {
   if (ragSel && s.rag_provider) { ragSel.value = s.rag_provider; onRagProviderChange(s.rag_provider); }
   set('ollama-base-url-input', s.ollama_base_url || 'http://localhost:11434');
   set('ollama-api-key-input', s.ollama_api_key ? '••••••••' : '');
+  hydrateProviderKeyLinks();
+  hydrateKeyToggles();
   renderEmailControls();
   // Show connected status for API keys
   document.querySelectorAll('.provider-card').forEach(card => {
@@ -2381,6 +2404,49 @@ function populateSettingsUI() {
       status.className = hasValue ? 'provider-status connected' : 'provider-status not-connected';
     }
     if (input && k) input.value = hasValue ? '••••••••' : '';
+  });
+}
+
+const PROVIDER_KEY_URLS = {
+  'OpenAI': 'https://platform.openai.com/api-keys',
+  'OpenRouter': 'https://openrouter.ai/settings/keys',
+  'Anthropic': 'https://console.anthropic.com/settings/keys',
+  'Google Gemini': 'https://aistudio.google.com/app/apikey',
+  'Mistral AI': 'https://console.mistral.ai/api-keys',
+  'Cohere': 'https://dashboard.cohere.com/api-keys',
+  'Groq': 'https://console.groq.com/keys',
+  'Ollama': 'https://ollama.com/settings/keys',
+  'xAI (Grok)': 'https://console.x.ai/api-keys',
+  'Cloudflare Workers AI': 'https://dash.cloudflare.com/profile/api-tokens',
+  'Together AI': 'https://api.together.xyz/settings/api-keys',
+  'Brave Search': 'https://api-dashboard.search.brave.com/app/keys',
+  'SearXNG': 'https://docs.searxng.org/admin/installation.html'
+};
+
+function hydrateProviderKeyLinks() {
+  document.querySelectorAll('.provider-card').forEach(card => {
+    const nameEl = card.querySelector('.provider-name');
+    const name = nameEl?.childNodes?.[0]?.textContent?.trim() || nameEl?.textContent?.trim();
+    const url = PROVIDER_KEY_URLS[name];
+    if (!nameEl || !url || nameEl.querySelector('.provider-key-link')) return;
+    const link = document.createElement('a');
+    link.className = 'provider-key-link';
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.title = `Open ${name} API key page`;
+    link.setAttribute('aria-label', `Open ${name} API key page`);
+    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+    nameEl.appendChild(link);
+  });
+}
+
+function hydrateKeyToggles() {
+  document.querySelectorAll('.key-toggle').forEach(btn => {
+    btn.type = 'button';
+    btn.title = 'Show API key';
+    btn.setAttribute('aria-label', 'Show API key');
+    btn.setAttribute('aria-pressed', 'false');
   });
 }
 
@@ -2842,7 +2908,7 @@ function saveRagProviderSettings() {
 async function resetAllSettings() {
   if (!confirm('Reset all settings to defaults? API keys will be cleared.')) return;
   try {
-    const defaults = { rag_provider:'openai', chat_model:'gpt-5.2', openai_assistants_model:'gpt-4.1', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', openrouter_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint by Rohas Nagpal', app_intro:'Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action.', suggested_questions:'["Summarize the key points","What are the main findings?","List all action items","Compare sections across documents"]' };
+    const defaults = { rag_provider:'openai', chat_model:'gpt-5.2', openai_assistants_model:'gpt-4.1', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', openrouter_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint by Rohas Nagpal', app_intro:'Open source AI-native infrastructure for Lawyers', suggested_questions:'[]' };
     await saveSettings(defaults);
   } catch(e) { showToast('Reset failed.', 'error'); }
 }
@@ -4388,6 +4454,12 @@ async function deleteCouncilTemplate(templateId) {
 
 async function apiError(response) {
   const data = await response.json().catch(() => ({}));
+  if (Array.isArray(data.detail)) {
+    return data.detail.map((item) => {
+      const field = Array.isArray(item.loc) ? item.loc.filter(part => part !== 'body').join('.') : '';
+      return field ? `${field}: ${item.msg}` : item.msg;
+    }).filter(Boolean).join('; ') || response.statusText || 'Request failed';
+  }
   return data.detail || data.error || response.statusText || 'Request failed';
 }
 
@@ -5773,6 +5845,22 @@ document.addEventListener('click', () => {
   closeSidebarMore();
 });
 
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeMobileSidebar();
+});
+
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 760) closeMobileSidebar();
+});
+
+function openMobileSidebar() {
+  document.body.classList.add('mobile-sidebar-open');
+}
+
+function closeMobileSidebar() {
+  document.body.classList.remove('mobile-sidebar-open');
+}
+
 // ── VIEW SWITCHING ────────────────────────────────────────────────────────
 const VIEWS = {chat:'view-chat',blueprints:'view-blueprints',matters:'view-matters',plugins:'view-plugins',councils:'view-councils',personas:'view-personas',email:'view-email','add-doc':'view-add-doc',translate:'view-translate',draft:'view-draft','view-docs':'view-view-docs',workspaces:'view-settings',settings:'view-settings','admin-users':'view-settings'};
 const NAVS = {chat:'nav-chat',blueprints:'more-blueprints',matters:'more-matters',plugins:'more-plugins',councils:'nav-councils',personas:'nav-personas',email:'more-email','add-doc':'more-add-doc',translate:'more-translate',draft:'more-draft','view-docs':'more-view-docs',workspaces:'more-workspaces',settings:'more-settings','admin-users':'nav-admin-users'};
@@ -5781,6 +5869,8 @@ const LAST_VIEW_KEY = 'aibp_last_view';
 
 function switchView(name) {
   if (!VIEWS[name]) name = 'chat';
+  closeMobileSidebar();
+  document.body.classList.toggle('chat-view-active', name === 'chat');
   localStorage.setItem(LAST_VIEW_KEY, name);
   Object.values(VIEWS).forEach(id => document.getElementById(id)?.classList.remove('active'));
   Object.values(NAVS).forEach(id => document.getElementById(id)?.classList.remove('active'));
@@ -5820,6 +5910,7 @@ function switchView(name) {
 function restoreSavedView() {
   const saved = localStorage.getItem(LAST_VIEW_KEY);
   if (saved && VIEWS[saved]) switchView(saved);
+  else document.body.classList.add('chat-view-active');
 }
 
 // ── SETTINGS TABS ─────────────────────────────────────────────────────────
@@ -5858,10 +5949,15 @@ function toggleThemeFromSettings(el) {
 
 // ── EXISTING HELPERS ──────────────────────────────────────────────────────
 function toggleKey(btn) {
-  const input = btn.previousElementSibling;
-  const hide = input.type === 'password';
-  input.type = hide ? 'text' : 'password';
-  btn.innerHTML = hide
+  const input = btn.closest('.key-input-wrap')?.querySelector('.key-input');
+  if (!input) return;
+  const reveal = input.type === 'password';
+  input.type = reveal ? 'text' : 'password';
+  btn.type = 'button';
+  btn.setAttribute('aria-pressed', reveal ? 'true' : 'false');
+  btn.setAttribute('aria-label', reveal ? 'Hide API key' : 'Show API key');
+  btn.title = reveal ? 'Hide API key' : 'Show API key';
+  btn.innerHTML = reveal
     ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
     : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
 }
@@ -5885,4 +5981,4 @@ function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(e
 
 // ── START ─────────────────────────────────────────────────────────────────
 document.addEventListener('click', closeChatMenus);
-document.addEventListener('DOMContentLoaded', () => { init(); initUpload(); initTranslationUpload(); });
+document.addEventListener('DOMContentLoaded', () => { hydrateProviderKeyLinks(); hydrateKeyToggles(); init(); initUpload(); initTranslationUpload(); });

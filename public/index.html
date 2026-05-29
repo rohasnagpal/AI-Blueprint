@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AI Blueprint by Rohas Nagpal</title>
 <link rel="stylesheet" href="/css/fonts.css?v=20260526-self-host-fonts-v1"/>
-<link rel="stylesheet" href="/css/app.css?v=20260528-draft-generator-v1"/>
+<link rel="stylesheet" href="/css/app.css?v=20260529-api-key-links-v1"/>
 <script src="/js/csp-styles.js?v=20260526-strict-style-csp-v1"></script>
 
 </head>
-<body>
+<body class="chat-view-active">
 
 <!-- SIDEBAR -->
-<aside class="sidebar">
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()" aria-hidden="true"></div>
+<aside class="sidebar" id="app-sidebar">
   <div class="sidebar-brand">
     <div class="brand-icon">
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -117,6 +118,9 @@
 <main class="main">
   <!-- TOP BAR -->
   <div class="topbar">
+    <button class="mobile-menu-btn" type="button" title="Open navigation" aria-label="Open navigation" onclick="openMobileSidebar()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
     <span class="topbar-title" id="topbar-title">Chat</span>
     <div class="doc-selector" id="doc-selector" onclick="toggleChatModeMenu(event)" title="Choose chat context">
       <div class="dot"></div>
@@ -154,15 +158,9 @@
         <div class="welcome-icon">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </div>
-        <h2 id="welcome-title">AI Blueprint</h2>
-        <p id="welcome-intro">Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action.</p>
+        <h2 id="welcome-title">AI Blueprint by Rohas Nagpal</h2>
+        <p id="welcome-intro">Open source AI-native infrastructure for Lawyers</p>
         <div class="suggestion-chips" id="suggestion-chips-list">
-          <div class="chip" onclick="fillInput(this)">Summarize the key points</div>
-          <div class="chip" onclick="fillInput(this)">What are the main findings?</div>
-          <div class="chip" onclick="fillInput(this)">List all action items</div>
-          <div class="chip" onclick="fillInput(this)">Compare sections across documents</div>
-          <div class="chip" onclick="fillInput(this)">What dates or deadlines are mentioned?</div>
-          <div class="chip" onclick="fillInput(this)">Explain this in simple terms</div>
         </div>
       </div>
 
@@ -1777,7 +1775,7 @@
                 <div class="settings-row-label">Intro Text</div>
                 <div class="settings-row-desc">Subtitle shown below the app name</div>
               </div>
-              <textarea id="inp-app-intro" rows="2" placeholder="Build private AI workspaces where documents, specialist agents, and multi-agent workflows turn knowledge into answers and action." data-csp-style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+              <textarea id="inp-app-intro" rows="2" placeholder="Open source AI-native infrastructure for Lawyers" data-csp-style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
             </div>
             <div class="settings-row" data-csp-style="flex-direction:column;align-items:flex-start;gap:8px">
               <div class="settings-row-info">
@@ -1864,16 +1862,16 @@
 
           <div class="settings-card">
             <div class="settings-card-header">
-              <div><div class="settings-card-title">New User</div><div class="settings-card-subtitle">New users must change their password on first sign-in.</div></div>
+              <div><div class="settings-card-title">New User</div><div class="settings-card-subtitle">New users can sign in with the password set here.</div></div>
             </div>
             <div class="council-form">
               <div class="council-form-row">
-                <div class="council-field"><label for="admin-user-username">Username</label><input class="council-input" id="admin-user-username" autocomplete="off"/></div>
+                <div class="council-field"><label for="admin-user-username">Username</label><input class="council-input" id="admin-user-username" autocomplete="off" minlength="3" maxlength="100"/></div>
                 <div class="council-field"><label for="admin-user-display">Display name</label><input class="council-input" id="admin-user-display" autocomplete="off"/></div>
               </div>
               <div class="council-form-row">
                 <div class="council-field"><label for="admin-user-email">Email</label><input class="council-input" id="admin-user-email" type="email" placeholder="Optional"/></div>
-                <div class="council-field"><label for="admin-user-password">Temporary password</label><input class="council-input" id="admin-user-password" type="password" autocomplete="new-password"/></div>
+                <div class="council-field"><label for="admin-user-password">Temporary password</label><input class="council-input" id="admin-user-password" type="password" autocomplete="new-password" minlength="8"/></div>
               </div>
               <div class="council-form-row">
                 <div class="council-field"><label for="admin-user-workspace">Workspace</label><select class="council-select" id="admin-user-workspace"></select></div>
@@ -2158,6 +2156,6 @@
 
 
 <script src="/js/csp-events.js?v=20260526-strict-csp-v2"></script>
-<script src="/js/app.js?v=20260528-draft-generator-v1"></script>
+<script src="/js/app.js?v=20260529-api-key-links-v1"></script>
 </body>
 </html>
