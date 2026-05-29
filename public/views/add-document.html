@@ -1,0 +1,70 @@
+  <!-- ── ADD DOCUMENT VIEW ── -->
+  <div class="view" id="view-add-doc">
+    <div class="add-doc-view">
+      <div class="view-header">
+        <h2>Add Documents</h2>
+        <p>Upload documents to your knowledge base. AI Blueprint supports PDF, DOCX, TXT, HTML, CSV, JSON and more.</p>
+      </div>
+
+      <div class="upload-scope-panel" id="upload-matter-card">
+        <div class="council-field">
+          <label for="upload-workspace-select">Workspace</label>
+          <select class="council-select" id="upload-workspace-select" onchange="onUploadWorkspaceChange()"></select>
+        </div>
+        <div class="council-field">
+          <label for="upload-matter-select">Matter</label>
+          <select class="council-select" id="upload-matter-select"></select>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <input type="file" id="file-input" data-csp-style="display:none" multiple accept=".pdf,.docx,.txt,.csv,.xlsx,.md,.json,.html,.htm"/>
+        <div class="upload-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <h3>Drag & drop your files here</h3>
+        <p>Or click to browse from your computer</p>
+        <div class="file-types">
+          <span class="file-type-badge">PDF</span>
+          <span class="file-type-badge">DOCX</span>
+          <span class="file-type-badge">TXT</span>
+          <span class="file-type-badge">CSV</span>
+          <span class="file-type-badge">XLSX</span>
+          <span class="file-type-badge">MD</span>
+          <span class="file-type-badge">JSON</span>
+          <span class="file-type-badge">HTML</span>
+        </div>
+        <button class="upload-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Choose Files
+        </button>
+      </div>
+
+      <div class="url-ingest">
+        <input id="url-ingest-input" type="url" placeholder="Paste a webpage URL to add it as a document"/>
+        <button type="button" onclick="ingestUrl()">Add URL</button>
+      </div>
+
+      <div class="connected-folders-panel">
+        <div class="connected-folders-head">
+          <div>
+            <div class="settings-card-title">Connected Folders</div>
+            <div class="settings-card-subtitle">Browse imports once. Enter a local path and connect it to enable repeat Sync.</div>
+          </div>
+        </div>
+        <div class="connected-folder-add">
+          <input type="file" id="folder-input" data-csp-style="display:none" webkitdirectory directory multiple/>
+          <input id="connected-folder-path" type="text" placeholder="/Users/you/Documents/Matter Folder"/>
+          <button type="button" onclick="browseConnectedFolder()">Browse</button>
+          <button type="button" onclick="addConnectedFolder()">Connect Folder</button>
+        </div>
+        <div class="connected-folders-list" id="connected-folders-list"></div>
+      </div>
+
+      <!-- Upload queue -->
+      <div class="upload-queue">
+        <div class="upload-queue-title" id="upload-queue-title" data-csp-style="display:none">Uploading</div>
+        <div id="upload-queue-list"></div>
+      </div>
+    </div>
+  </div>

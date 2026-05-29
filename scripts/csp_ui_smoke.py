@@ -55,8 +55,11 @@ def main() -> None:
             expect(page.locator("#v2-auth-modal")).not_to_be_visible()
 
         expect(page.locator("#nav-more")).to_be_visible()
-        click_more(page)
-        page.locator("#more-settings").click()
+        expect(page.locator("#nav-settings")).to_be_visible()
+        if page.locator("#more-workspaces").count():
+            raise AssertionError("Workspaces should not appear in the More menu")
+
+        page.locator("#nav-settings").click()
         expect_active(page, "#view-settings")
 
         click_more(page)

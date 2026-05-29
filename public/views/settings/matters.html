@@ -1,0 +1,44 @@
+<div class="settings-section" id="stab-matters">
+          <div class="settings-section-title">Matters</div>
+          <div class="settings-section-desc">Create, edit, and remove matters in a workspace.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">Workspace</div><div class="settings-card-subtitle">Choose the workspace whose matters you want to manage.</div></div>
+              <button class="btn-secondary" type="button" onclick="loadWorkspaceManager()">Refresh</button>
+            </div>
+            <div class="council-form">
+              <div class="council-form-row">
+                <div class="council-field"><label for="matter-manager-workspace-select">Workspace</label><select class="council-select" id="matter-manager-workspace-select" onchange="selectWorkspaceManagerWorkspace(this.value)"></select></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">New Matter</div><div class="settings-card-subtitle">Create a matter in the selected workspace.</div></div>
+            </div>
+            <div class="council-form">
+              <div class="council-form-row">
+                <div class="council-field"><label for="matter-name">Matter name</label><input class="council-input" id="matter-name" autocomplete="off"/></div>
+                <div class="council-field"><label for="matter-client">Client</label><input class="council-input" id="matter-client" autocomplete="off" placeholder="Optional"/></div>
+              </div>
+              <div class="council-form-row">
+                <div class="council-field"><label for="matter-status">Status</label><select class="council-select" id="matter-status"><option value="active">Active</option><option value="closed">Closed</option></select></div>
+                <div class="council-field"><label for="matter-description">Description</label><input class="council-input" id="matter-description" autocomplete="off" placeholder="Optional"/></div>
+              </div>
+              <div class="council-actions">
+                <button class="btn-primary" type="button" onclick="createWorkspaceManagerMatter()">Create Matter</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">Matters</div><div class="settings-card-subtitle">Edit or remove matters in the selected workspace.</div></div>
+            </div>
+            <div class="council-list" id="workspace-manager-matters"></div>
+          </div>
+        </div>
+
+        <!-- USERS -->

@@ -1,0 +1,63 @@
+<div class="settings-section" id="stab-documents">
+          <div class="settings-section-title">Documents</div>
+          <div class="settings-section-desc">Control which file types are accepted and how documents are managed.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+              <div><div class="settings-card-title">Accepted File Types</div></div>
+            </div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">PDF (.pdf)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Word Document (.docx)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Plain Text (.txt)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">CSV (.csv)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Excel Spreadsheet (.xlsx)</div></div><div class="settings-row-control"><div class="s-toggle" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Markdown (.md)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">HTML (.html, .htm)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+            <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">PowerPoint (.pptx)</div></div><div class="settings-row-control"><div class="s-toggle" onclick="this.classList.toggle('on')"></div></div></div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              <div><div class="settings-card-title">Storage & Limits</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Max File Size</div>
+                <div class="settings-row-desc">Maximum size per uploaded file</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-max-file-size">
+                  <option value="5">5 MB</option>
+                  <option value="10">10 MB</option>
+                  <option value="25" selected>25 MB</option>
+                  <option value="50">50 MB</option>
+                  <option value="100">100 MB</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Auto-delete After</div>
+                <div class="settings-row-desc">Automatically remove documents after a set period</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-auto-delete">
+                  <option value="0" selected>Never</option>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90">90 days</option>
+                  <option value="365">1 year</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveDocsSettings()">Save changes</button>
+          </div>
+        </div>
+
+        <!-- APPEARANCE -->

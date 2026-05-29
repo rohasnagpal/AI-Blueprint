@@ -130,7 +130,7 @@ async def request_context(request: Request, call_next):
         "base-uri 'self'; "
         "form-action 'self'",
     )
-    if request.url.path == "/" or request.url.path.endswith(".html"):
+    if request.url.path == "/" or request.url.path in APP_ROUTES or request.url.path.endswith(".html"):
         response.headers["Cache-Control"] = "no-store, max-age=0"
     elif request.url.path.endswith((".js", ".css")):
         response.headers["Cache-Control"] = "public, max-age=3600"
@@ -164,6 +164,31 @@ app.include_router(realtime_router, prefix="/api")
 app.include_router(v2_router)
 
 BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+
+APP_ROUTES = {
+    "/chat",
+    "/personas",
+    "/settings",
+    "/settings/workspaces",
+    "/settings/users",
+    "/documents",
+    "/documents/add",
+    "/email",
+    "/translate",
+    "/draft",
+    "/contract-review",
+    "/admin/users",
+}
+
+
+async def app_route_fallback():
+    return FileResponse(BASE_DIR / "public" / "index.html")
+
+
+for route_path in APP_ROUTES:
+    app.add_api_route(route_path, app_route_fallback, methods=["GET"], include_in_schema=False)
+
+
 app.mount("/", StaticFiles(directory=BASE_DIR / "public", html=True), name="static")
 
 if __name__ == "__main__":

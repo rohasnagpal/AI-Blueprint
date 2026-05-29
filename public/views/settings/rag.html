@@ -1,0 +1,86 @@
+<div class="settings-section" id="stab-rag">
+          <div class="settings-section-title">RAG Behaviour</div>
+          <div class="settings-section-desc">Control how AI Blueprint retrieves and uses content from your documents.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <div><div class="settings-card-title">Retrieval</div><div class="settings-card-subtitle">How documents are searched and ranked</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Top K Results</div>
+                <div class="settings-row-desc">Number of document chunks retrieved per query</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-slider-wrap">
+                  <input type="range" class="s-slider" id="sl-top-k" min="1" max="20" value="5" oninput="this.nextElementSibling.textContent=this.value"/>
+                  <span class="s-slider-val">5</span>
+                </div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Similarity Threshold</div>
+                <div class="settings-row-desc">Minimum relevance score to include a chunk as a source</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-slider-wrap">
+                  <input type="range" class="s-slider" id="sl-similarity" min="0" max="100" value="72" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)"/>
+                  <span class="s-slider-val">0.72</span>
+                </div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Retrieval Strategy</div>
+                <div class="settings-row-desc">How chunks are matched to your query</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-retrieval">
+                  <option value="semantic">Semantic (vector)</option>
+                  <option value="keyword">Keyword (BM25)</option>
+                  <option value="hybrid">Hybrid (semantic + keyword)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <div><div class="settings-card-title">Chunking</div><div class="settings-card-subtitle">How uploaded documents are split for indexing</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Chunk Size</div>
+                <div class="settings-row-desc">Number of tokens per document chunk</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-slider-wrap">
+                  <input type="range" class="s-slider" id="sl-chunk-size" min="128" max="2048" step="128" value="512" oninput="this.nextElementSibling.textContent=this.value"/>
+                  <span class="s-slider-val">512</span>
+                </div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Chunk Overlap</div>
+                <div class="settings-row-desc">Overlapping tokens between adjacent chunks for context continuity</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-slider-wrap">
+                  <input type="range" class="s-slider" id="sl-chunk-overlap" min="0" max="256" step="16" value="64" oninput="this.nextElementSibling.textContent=this.value"/>
+                  <span class="s-slider-val">64</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveRagSettings()">Save changes</button>
+          </div>
+        </div>
+
+        <!-- CHAT PREFERENCES -->

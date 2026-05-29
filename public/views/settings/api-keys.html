@@ -1,0 +1,329 @@
+<div class="settings-section active" id="stab-api-keys">
+          <div class="settings-section-title">API Keys</div>
+          <div class="settings-section-desc">Connect AI models, web search, and future external services. Keys are stored locally and never shared.</div>
+
+          <div class="api-key-category" data-category="ai">
+            <div class="api-key-category-header">
+              <div>
+                <div class="api-key-category-title">AI Providers</div>
+                <div class="api-key-category-desc">Model, embedding, and inference services used by chat, documents, review, draft, and translate.</div>
+              </div>
+              <span class="api-key-category-count">12 providers</span>
+            </div>
+
+          <!-- OpenAI -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#d4f0d4;color:#16a34a;">OAI</div>
+              <div>
+                <div class="provider-name">OpenAI</div>
+                <div class="provider-desc">GPT-5.2, GPT-5 mini, GPT-4.1 — platform.openai.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="sk-proj-…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- OpenRouter -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#ede9fe;color:#6d28d9;">OR</div>
+              <div>
+                <div class="provider-name">OpenRouter</div>
+                <div class="provider-desc">OpenAI-compatible access to multiple model providers — openrouter.ai</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="sk-or-v1-…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Anthropic -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#fde8d0;color:#c2410c;">ANT</div>
+              <div>
+                <div class="provider-name">Anthropic</div>
+                <div class="provider-desc">Claude Opus 4.7, Sonnet 4.6, Haiku 4.5 — anthropic.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="sk-ant-api03-…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Gemini -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#dbeafe;color:#2563eb;">GEM</div>
+              <div>
+                <div class="provider-name">Google Gemini</div>
+                <div class="provider-desc">Gemini 2.5 Pro, Flash, Flash-Lite — aistudio.google.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="AIza…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Perplexity -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#ccfbf1;color:#0f766e;">PPLX</div>
+              <div>
+                <div class="provider-name">Perplexity</div>
+                <div class="provider-desc">Agent API presets for fast search, pro search, and deep research — perplexity.ai</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="pplx-…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Mistral -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#ede9fe;color:#7c3aed;">MIS</div>
+              <div>
+                <div class="provider-name">Mistral AI</div>
+                <div class="provider-desc">Mistral Large 3, Medium 3.5, Small 4 — console.mistral.ai</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Cohere -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#d1fae5;color:#065f46;">COH</div>
+              <div>
+                <div class="provider-name">Cohere</div>
+                <div class="provider-desc">Command A+, Command A, Command R+ — dashboard.cohere.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Groq -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#fef9c3;color:#854d0e;">GRQ</div>
+              <div>
+                <div class="provider-name">Groq</div>
+                <div class="provider-desc">GPT-OSS and Llama models via ultra-fast inference — console.groq.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="gsk_…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Ollama -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#eef2ff;color:#4338ca;">OLL</div>
+              <div>
+                <div class="provider-name">Ollama</div>
+                <div class="provider-desc">Local Ollama or ollama.com API. Local use does not need a key.</div>
+              </div>
+              <span class="provider-status not-connected">Local default</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" id="ollama-api-key-input" type="password" placeholder="ollama api key"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveOllamaSettings()">Save</button>
+            </div>
+            <div class="provider-key-row" data-csp-style="margin-top:8px">
+              <div class="key-input-wrap">
+                <input class="key-input" id="ollama-base-url-input" type="text" placeholder="http://localhost:11434"/>
+              </div>
+              <button class="key-save-btn" onclick="saveOllamaSettings()">Save URL</button>
+            </div>
+            <div class="provider-key-row" data-csp-style="margin-top:8px;justify-content:flex-end">
+              <button class="btn-secondary" onclick="testOllamaConnection()">Test Ollama</button>
+            </div>
+          </div>
+
+          <!-- xAI Grok -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#f1f5f9;color:#0f172a;">XAI</div>
+              <div>
+                <div class="provider-name">xAI (Grok)</div>
+                <div class="provider-desc">Grok 4.3 models — console.x.ai</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="xai-…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Cloudflare Workers AI -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#fff7ed;color:#c2410c;">CF</div>
+              <div>
+                <div class="provider-name">Cloudflare Workers AI</div>
+                <div class="provider-desc">Kimi, GPT-OSS, Llama via Cloudflare edge — dash.cloudflare.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="Account ID + API Token"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Together AI -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#f0fdf4;color:#15803d;">TOG</div>
+              <div>
+                <div class="provider-name">Together AI</div>
+                <div class="provider-desc">Kimi, DeepSeek, GPT-OSS, Llama at scale — api.together.xyz</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          </div>
+
+          <div class="api-key-category" data-category="search">
+            <div class="api-key-category-header">
+              <div>
+                <div class="api-key-category-title">Search Providers</div>
+                <div class="api-key-category-desc">Web search services used when search is enabled in chat.</div>
+              </div>
+              <span class="api-key-category-count">2 providers</span>
+            </div>
+
+          <!-- Brave Search -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#fff7ed;color:#d97706;">WEB</div>
+              <div>
+                <div class="provider-name">Brave Search</div>
+                <div class="provider-desc">Web search results for cited chat answers — api.search.brave.com</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="BSA…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- SearXNG -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#e0f2fe;color:#0369a1;">SX</div>
+              <div>
+                <div class="provider-name">SearXNG</div>
+                <div class="provider-desc">Optional free metasearch endpoint. Leave blank to use no-key DuckDuckGo fallback.</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="text" placeholder="https://your-searxng.example"/>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          </div>
+
+        </div>
+
+        <!-- MODEL -->

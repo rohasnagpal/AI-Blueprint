@@ -1,0 +1,128 @@
+<div class="settings-section" id="stab-rag-provider">
+          <div class="settings-section-title">RAG Provider</div>
+          <div class="settings-section-desc">Choose how AI Blueprint stores and searches your documents. You can switch at any time — existing documents will be re-indexed.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <div><div class="settings-card-title">Active RAG Backend</div><div class="settings-card-subtitle">Controls how documents are chunked, embedded and retrieved</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Provider</div>
+                <div class="settings-row-desc">Switching will re-index all your documents automatically</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="rag-provider-select" onchange="onRagProviderChange(this.value)" data-csp-style="min-width:240px;">
+                  <option value="openai">OpenAI RAG (recommended)</option>
+                  <option value="llamaindex">Local — LlamaIndex + ChromaDB (free, offline)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- OpenAI RAG info -->
+          <div class="settings-card" id="rag-openai-info">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><div class="settings-card-title">OpenAI RAG</div><div class="settings-card-subtitle">Uses OpenAI Files API + Vector Stores</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Requires</div>
+                <div class="settings-row-desc">OpenAI API key (enter in API Keys tab)</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status connected">Ready</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Cost</div>
+                <div class="settings-row-desc">Charged per token by OpenAI — see openai.com/pricing</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status not-connected">Paid</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Works offline</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status not-connected">No</span></div>
+            </div>
+          </div>
+
+          <!-- LlamaIndex info -->
+          <div class="settings-card" id="rag-llamaindex-info" data-csp-style="display:none;">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><div class="settings-card-title">Local RAG — LlamaIndex + ChromaDB</div><div class="settings-card-subtitle">Runs entirely on your laptop, no API key needed</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Embedding Model</div>
+                <div class="settings-row-desc">Runs locally via sentence-transformers (downloads on first use, ~90MB)</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select">
+                  <option>all-MiniLM-L6-v2 (fast, small)</option>
+                  <option>all-mpnet-base-v2 (balanced)</option>
+                  <option>paraphrase-multilingual-MiniLM-L12-v2 (best for non-English)</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Cost</div>
+                <div class="settings-row-desc">Completely free — everything runs on your machine</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status connected">Free</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Works offline</div>
+              </div>
+              <div class="settings-row-control"><span class="provider-status connected">Yes</span></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">LLM for answers</div>
+                <div class="settings-row-desc">Still needs an API key for the language model (OpenAI, Groq, etc.) unless you use Ollama locally</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select">
+                  <option>OpenAI (API key required)</option>
+                  <option>Groq (API key required, free tier)</option>
+                  <option>Ollama (fully local, no key needed)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card danger-zone">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div><div class="settings-card-title">Danger Zone</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Delete All Documents</div>
+                <div class="settings-row-desc">Permanently remove all uploaded documents and their vector indexes. Cannot be undone.</div>
+              </div>
+              <div class="settings-row-control">
+                <button class="danger-btn" onclick="deleteAllDocuments()">Delete all documents</button>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Reset All Settings</div>
+                <div class="settings-row-desc">Restore all settings to their defaults including API keys.</div>
+              </div>
+              <div class="settings-row-control">
+                <button class="danger-btn" onclick="resetAllSettings()">Reset settings</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveRagProviderSettings()">Save changes</button>
+          </div>
+        </div>

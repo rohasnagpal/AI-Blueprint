@@ -1,0 +1,33 @@
+<div class="settings-section" id="stab-workspaces">
+          <div class="settings-section-title">Workspaces</div>
+          <div class="settings-section-desc">Create workspaces and edit workspace details.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">Workspace</div><div class="settings-card-subtitle">Choose the workspace to manage.</div></div>
+              <button class="btn-secondary" type="button" onclick="loadWorkspaceManager()">Refresh</button>
+            </div>
+            <div class="council-form">
+              <div class="council-form-row">
+                <div class="council-field"><label for="workspace-manager-select">Workspace</label><select class="council-select" id="workspace-manager-select" onchange="selectWorkspaceManagerWorkspace(this.value)"></select></div>
+              </div>
+            </div>
+            <div class="council-form" id="workspace-manager-detail"></div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">New Workspace</div><div class="settings-card-subtitle">Creating a workspace makes you its workspace admin.</div></div>
+            </div>
+            <div class="council-form">
+              <div class="council-form-row">
+                <div class="council-field"><label for="workspace-name">Name</label><input class="council-input" id="workspace-name" autocomplete="off"/></div>
+              </div>
+              <div class="council-actions">
+                <button class="btn-primary" type="button" onclick="createWorkspaceManagerWorkspace()">Create Workspace</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MATTERS -->

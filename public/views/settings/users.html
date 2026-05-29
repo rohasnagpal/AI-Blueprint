@@ -1,0 +1,38 @@
+<div class="settings-section" id="stab-users">
+          <div class="settings-section-title">Users</div>
+          <div class="settings-section-desc">Create accounts, reset passwords, and manage workspace access.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">New User</div><div class="settings-card-subtitle">New users can sign in with the password set here.</div></div>
+            </div>
+            <div class="council-form">
+              <div class="council-form-row">
+                <div class="council-field"><label for="admin-user-username">Username</label><input class="council-input" id="admin-user-username" autocomplete="off" minlength="3" maxlength="100"/></div>
+                <div class="council-field"><label for="admin-user-display">Display name</label><input class="council-input" id="admin-user-display" autocomplete="off"/></div>
+              </div>
+              <div class="council-form-row">
+                <div class="council-field"><label for="admin-user-email">Email</label><input class="council-input" id="admin-user-email" type="email" placeholder="Optional"/></div>
+                <div class="council-field"><label for="admin-user-password">Temporary password</label><input class="council-input" id="admin-user-password" type="password" autocomplete="new-password" minlength="8"/></div>
+              </div>
+              <div class="council-form-row">
+                <div class="council-field"><label for="admin-user-workspace">Workspace</label><select class="council-select" id="admin-user-workspace"></select></div>
+                <div class="council-field"><label for="admin-user-role">Workspace role</label><select class="council-select" id="admin-user-role"><option value="member">Member</option><option value="admin">Admin</option></select></div>
+              </div>
+              <div class="council-actions">
+                <label class="admin-check"><input id="admin-user-system-admin" type="checkbox"/> System admin</label>
+                <button class="btn-primary" type="button" onclick="createAdminUser()">Create User</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">User Accounts</div><div class="settings-card-subtitle">System admins can edit users and workspace access.</div></div>
+              <button class="btn-secondary" type="button" onclick="loadAdminUsers()">Refresh</button>
+            </div>
+            <div class="council-list" id="admin-users-list"></div>
+          </div>
+        </div>
+
+        <!-- RAG PROVIDER -->

@@ -1,0 +1,56 @@
+  <!-- ── EMAIL VIEW ── -->
+  <div class="view" id="view-email">
+    <div class="add-doc-view">
+      <div class="view-header">
+        <h2>Email</h2>
+        <p>Import unread email, draft replies with a selected persona and document scope, then review before sending.</p>
+      </div>
+
+      <div class="settings-card email-settings-card collapsed" id="email-settings-card" data-csp-style="max-width:980px;margin:0 auto 18px">
+        <button class="settings-card-header email-accordion-trigger" type="button" onclick="toggleEmailSettingsAccordion()" aria-expanded="false" aria-controls="email-settings-body">
+          <div><div class="settings-card-title">Email Settings</div><div class="settings-card-subtitle">DreamHost IMAP for incoming mail and SMTP2GO for outgoing mail.</div></div>
+          <span class="email-accordion-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+        </button>
+        <div class="email-form" id="email-settings-body">
+          <div class="email-grid">
+            <div class="email-field"><label>IMAP host</label><input class="council-input" id="email-imap-host" placeholder="imap.dreamhost.com"/></div>
+            <div class="email-field"><label>IMAP port</label><input class="council-input" id="email-imap-port" placeholder="993"/></div>
+            <div class="email-field"><label>IMAP folder</label><input class="council-input" id="email-imap-folder" placeholder="INBOX"/></div>
+          </div>
+          <div class="email-grid two">
+            <div class="email-field"><label>IMAP username</label><input class="council-input" id="email-imap-username" placeholder="name@example.com"/></div>
+            <div class="email-field"><label>IMAP password</label><input class="council-input" id="email-imap-password" type="password" placeholder="Password"/></div>
+          </div>
+          <div class="email-grid">
+            <div class="email-field"><label>SMTP2GO host</label><input class="council-input" id="email-smtp-host" placeholder="mail.smtp2go.com"/></div>
+            <div class="email-field"><label>SMTP2GO port</label><input class="council-input" id="email-smtp-port" placeholder="2525"/></div>
+            <div class="email-field"><label>From address</label><input class="council-input" id="email-from-address" placeholder="name@example.com"/></div>
+          </div>
+          <div class="email-grid two">
+            <div class="email-field"><label>SMTP2GO username</label><input class="council-input" id="email-smtp-username" placeholder="SMTP username"/></div>
+            <div class="email-field"><label>SMTP2GO password</label><input class="council-input" id="email-smtp-password" type="password" placeholder="SMTP password"/></div>
+          </div>
+          <div class="email-grid two">
+            <div class="email-field"><label>Verify SMTP TLS certificate</label><select class="council-select" id="email-smtp-verify-tls"><option value="true">Yes</option><option value="false">No</option></select></div>
+          </div>
+          <div class="email-grid two">
+            <div class="email-field"><label>Reply persona</label><select class="council-select" id="email-persona-select"></select></div>
+            <div class="email-field"><label>RAG scope</label><select class="council-select" id="email-doc-context"></select></div>
+          </div>
+          <div class="council-actions email-actions">
+            <button class="btn-primary" onclick="saveEmailSettings()">Save Settings</button>
+            <button class="btn-secondary" onclick="pollEmail()">Check Inbox</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-card" data-csp-style="max-width:980px;margin:0 auto">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">Review Queue</div><div class="settings-card-subtitle">AI drafts stay here until you approve and send them.</div></div>
+        </div>
+        <div class="council-list" id="email-list"></div>
+      </div>
+    </div>
+  </div>

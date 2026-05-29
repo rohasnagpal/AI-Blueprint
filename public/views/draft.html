@@ -1,0 +1,132 @@
+  <!-- ── DRAFT VIEW ── -->
+  <div class="view" id="view-draft">
+    <div class="add-doc-view translate-view draft-view">
+      <div class="view-header">
+        <h2>Draft</h2>
+        <p>Generate contracts, notices, letters, resolutions, and memos as printable HTML.</p>
+      </div>
+
+      <div class="upload-scope-panel" id="draft-scope-card">
+        <div class="council-field">
+          <label for="draft-workspace-select">Workspace</label>
+          <select class="council-select" id="draft-workspace-select" onchange="onDraftWorkspaceChange()"></select>
+        </div>
+        <div class="council-field">
+          <label for="draft-matter-select">Matter</label>
+          <select class="council-select" id="draft-matter-select" onchange="renderDraftSourceDocuments()"></select>
+        </div>
+      </div>
+
+      <div class="settings-card translate-setup-card draft-setup-card">
+        <div class="council-form">
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="draft-document-type">Document type</label>
+              <input class="council-input" id="draft-document-type" placeholder="e.g. Legal notice, SaaS agreement, board resolution, reply to show-cause notice"/>
+            </div>
+            <div class="council-field">
+              <label for="draft-tone">Tone</label>
+              <select class="council-select" id="draft-tone">
+                <option value="formal">Formal</option>
+                <option value="neutral">Neutral</option>
+                <option value="firm">Firm</option>
+                <option value="aggressive">Aggressive</option>
+                <option value="collaborative">Collaborative</option>
+                <option value="client-friendly">Client-friendly</option>
+                <option value="plain-language">Plain-language</option>
+              </select>
+            </div>
+            <div class="council-field">
+              <label for="draft-jurisdiction">Jurisdiction</label>
+              <input class="council-input" id="draft-jurisdiction" placeholder="e.g. India, Maharashtra"/>
+            </div>
+          </div>
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="draft-title">Title</label>
+              <input class="council-input" id="draft-title" placeholder="Optional title"/>
+            </div>
+            <div class="council-field">
+              <label for="draft-audience">Audience</label>
+              <input class="council-input" id="draft-audience" placeholder="Client, counterparty, court, board, regulator"/>
+            </div>
+          </div>
+          <div class="council-field">
+            <label for="draft-parties">Parties</label>
+            <textarea class="council-textarea" id="draft-parties" rows="3" placeholder="Names, roles, addresses, representatives, company details"></textarea>
+          </div>
+          <div class="council-field">
+            <label for="draft-facts">Facts and background</label>
+            <textarea class="council-textarea draft-main-textarea" id="draft-facts" placeholder="Describe the facts, dates, events, transaction, dispute, issue, or desired document"></textarea>
+          </div>
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="draft-key-terms">Key terms</label>
+              <textarea class="council-textarea" id="draft-key-terms" rows="5" placeholder="Commercial terms, clauses, relief sought, payment terms, deadlines, fallback positions"></textarea>
+            </div>
+            <div class="council-field">
+              <label for="draft-instructions">Drafting instructions</label>
+              <textarea class="council-textarea" id="draft-instructions" rows="5" placeholder="Formatting preferences, clauses to include/exclude, strategic notes, negotiation posture"></textarea>
+            </div>
+          </div>
+          <div class="council-field" id="draft-source-documents-field" data-csp-style="display:none">
+            <label for="draft-source-documents">Source documents</label>
+            <select class="council-select draft-source-select" id="draft-source-documents" multiple></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="translate-actions">
+        <button class="btn-primary" type="button" id="draft-run-btn" onclick="runDraft()">Generate Draft</button>
+        <button class="btn-secondary" type="button" onclick="resetDraft()">Clear</button>
+        <span class="translate-status" id="draft-status"></span>
+      </div>
+
+      <div class="settings-card draft-progress-card" id="draft-progress-card" data-csp-style="display:none">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">Progress</div><div class="settings-card-subtitle" id="draft-progress-meta">Waiting to start</div></div>
+        </div>
+        <div class="draft-progress-list" id="draft-progress-list"></div>
+      </div>
+
+      <div class="settings-card draft-history-card" id="draft-history-card" data-csp-style="display:none">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">Draft History</div><div class="settings-card-subtitle" id="draft-history-meta">Saved workspace drafts</div></div>
+          <div class="settings-card-actions">
+            <button class="btn-secondary" type="button" onclick="loadDraftHistory()">Refresh</button>
+          </div>
+        </div>
+        <div class="draft-history-list" id="draft-history-list"></div>
+      </div>
+
+      <div class="translate-result-grid draft-result-grid" id="draft-result-grid" data-csp-style="display:none">
+        <div class="settings-card translate-result-card draft-result-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Printable HTML</div><div class="settings-card-subtitle" id="draft-result-meta"></div></div>
+            <div class="settings-card-actions">
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Print" aria-label="Print" onclick="printDraftHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Copy HTML" aria-label="Copy HTML" onclick="copyDraftHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Copy text" aria-label="Copy text" onclick="copyDraftText()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download HTML" aria-label="Download HTML" onclick="downloadDraftHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="translate-html-preview draft-html-preview" id="draft-html-preview"></div>
+        </div>
+
+        <div class="settings-card translate-review-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Review</div><div class="settings-card-subtitle">Warnings, assumptions, and missing information.</div></div>
+          </div>
+          <div class="translate-review-list" id="draft-review-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>

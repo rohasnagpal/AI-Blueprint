@@ -1,0 +1,122 @@
+<div class="modal-backdrop" id="persona-detail-modal" onclick="closePersonaDetails(event)">
+  <div class="settings-card detail-modal" onclick="event.stopPropagation()">
+    <div class="settings-card-header">
+      <div data-csp-style="flex:1;min-width:0">
+        <div class="settings-card-title" id="persona-detail-name">Persona</div>
+        <div class="settings-card-subtitle" id="persona-detail-category"></div>
+      </div>
+      <button class="btn-secondary" type="button" onclick="closePersonaDetails()">Close</button>
+    </div>
+    <div class="detail-modal-body" id="persona-detail-body"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="persona-editor-modal" onclick="closePersonaEditor(event)">
+  <div class="settings-card detail-modal persona-editor-modal" onclick="event.stopPropagation()">
+    <div class="settings-card-header">
+      <div>
+        <div class="settings-card-title" id="persona-editor-title">Create Persona</div>
+        <div class="settings-card-subtitle" id="persona-editor-subtitle">Create a reusable role, style, and instruction set.</div>
+      </div>
+      <button class="btn-secondary" type="button" onclick="closePersonaEditor()">Close</button>
+    </div>
+    <div class="detail-modal-body">
+      <div class="council-form persona-editor-form">
+        <div class="council-form-row">
+          <div class="council-field">
+            <label for="persona-editor-name">Name</label>
+            <input class="council-input" id="persona-editor-name" autocomplete="off"/>
+          </div>
+          <div class="council-field">
+            <label for="persona-editor-category">Category</label>
+            <input class="council-input" id="persona-editor-category" autocomplete="off"/>
+          </div>
+        </div>
+        <div class="council-field">
+          <label for="persona-editor-description">Description</label>
+          <input class="council-input" id="persona-editor-description" autocomplete="off"/>
+        </div>
+        <div class="council-field">
+          <label for="persona-editor-system-prompt">System Prompt</label>
+          <textarea class="council-textarea persona-system-prompt" id="persona-editor-system-prompt"></textarea>
+        </div>
+        <div class="council-field">
+          <label for="persona-editor-constraints">Constraints</label>
+          <textarea class="council-textarea" id="persona-editor-constraints" placeholder="One per line"></textarea>
+        </div>
+        <div class="council-field">
+          <label for="persona-editor-tags">Tags</label>
+          <input class="council-input" id="persona-editor-tags" autocomplete="off" placeholder="Comma separated"/>
+        </div>
+        <div class="council-actions persona-editor-actions">
+          <button class="danger-btn" id="persona-editor-delete" type="button" onclick="deletePersonaFromEditor()" data-csp-style="display:none">Delete</button>
+          <button class="btn-primary" type="button" onclick="savePersona()">Save Persona</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="v2-auth-modal" onclick="closeV2AuthModal(event)">
+  <div class="settings-card detail-modal" onclick="event.stopPropagation()">
+    <div class="settings-card-header">
+      <div>
+        <div class="settings-card-title" id="v2-auth-title">Set up multi-user access</div>
+        <div class="settings-card-subtitle" id="v2-auth-subtitle">Create the local admin used by workspace and plugin features.</div>
+      </div>
+      <button class="btn-secondary" type="button" onclick="skipV2Auth()">Not now</button>
+    </div>
+    <div class="detail-modal-body">
+      <div class="council-form">
+        <div class="council-field" id="v2-auth-name-field">
+          <label for="v2-auth-name">Display name</label>
+          <input class="council-input" id="v2-auth-name" autocomplete="name"/>
+        </div>
+        <div class="council-field">
+          <label for="v2-auth-email">Username</label>
+          <input class="council-input" id="v2-auth-email" autocomplete="username"/>
+        </div>
+        <div class="council-field">
+          <label for="v2-auth-password">Password</label>
+          <input class="council-input" id="v2-auth-password" type="password" autocomplete="current-password"/>
+        </div>
+        <div class="council-card-desc" id="v2-auth-error" data-csp-style="display:none;color:var(--danger)"></div>
+        <div class="council-actions">
+          <button class="btn-primary" id="v2-auth-submit" type="button" onclick="submitV2Auth()">Continue</button>
+          <button class="btn-secondary" type="button" onclick="skipV2Auth()">Continue in local mode</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="v2-reset-modal">
+  <div class="settings-card detail-modal" onclick="event.stopPropagation()">
+    <div class="settings-card-header">
+      <div>
+        <div class="settings-card-title">Reset bootstrap credentials</div>
+        <div class="settings-card-subtitle">Choose permanent admin credentials before using workspace features.</div>
+      </div>
+    </div>
+    <div class="detail-modal-body">
+      <div class="council-form">
+        <div class="council-field">
+          <label for="v2-reset-username">New username</label>
+          <input class="council-input" id="v2-reset-username" autocomplete="username"/>
+        </div>
+        <div class="council-field">
+          <label for="v2-reset-name">Display name</label>
+          <input class="council-input" id="v2-reset-name" autocomplete="name"/>
+        </div>
+        <div class="council-form-row">
+          <div class="council-field"><label for="v2-reset-password">New password</label><input class="council-input" id="v2-reset-password" type="password" autocomplete="new-password"/></div>
+          <div class="council-field"><label for="v2-reset-confirm">Confirm password</label><input class="council-input" id="v2-reset-confirm" type="password" autocomplete="new-password"/></div>
+        </div>
+        <div class="council-card-desc" id="v2-reset-error" data-csp-style="display:none;color:var(--danger)"></div>
+        <div class="council-actions">
+          <button class="btn-primary" type="button" onclick="submitInitialCredentialReset()">Save Credentials</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,102 @@
+<div class="settings-section" id="stab-chat">
+          <div class="settings-section-title">Chat Preferences</div>
+          <div class="settings-section-desc">Customise how AI Blueprint behaves during conversations.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <div><div class="settings-card-title">Response Behaviour</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Response Length</div>
+                <div class="settings-row-desc">Controls how detailed answers are by default</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-response-length">
+                  <option value="concise">Concise</option>
+                  <option value="balanced" selected>Balanced</option>
+                  <option value="detailed">Detailed</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Always Show Sources</div>
+                <div class="settings-row-desc">Automatically expand source citations below every answer</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-toggle" id="tog-always-sources" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Stream Responses</div>
+                <div class="settings-row-desc">Show answers word by word as they are generated (typewriter effect)</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-toggle on" id="tog-stream" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <div><div class="settings-card-title">Language</div><div class="settings-card-subtitle">AI Blueprint will respond in the selected language regardless of document language</div></div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Response Language</div>
+                <div class="settings-row-desc">Language used for all AI-generated answers</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="s-select" id="sel-response-language" data-csp-style="min-width:200px;">
+                  <option value="English">English</option>
+                  <option>Hindi — हिन्दी</option>
+                  <option>Arabic — العربية</option>
+                  <option>Spanish — Español</option>
+                  <option>French — Français</option>
+                  <option>German — Deutsch</option>
+                  <option>Portuguese — Português</option>
+                  <option>Japanese — 日本語</option>
+                  <option>Chinese (Simplified) — 简体中文</option>
+                  <option>Chinese (Traditional) — 繁體中文</option>
+                  <option>Korean — 한국어</option>
+                  <option>Italian — Italiano</option>
+                  <option>Dutch — Nederlands</option>
+                  <option>Russian — Русский</option>
+                  <option>Turkish — Türkçe</option>
+                  <option>Polish — Polski</option>
+                  <option>Swedish — Svenska</option>
+                  <option>Indonesian — Bahasa Indonesia</option>
+                  <option>Malay — Bahasa Melayu</option>
+                  <option>Bengali — বাংলা</option>
+                  <option>Tamil — தமிழ்</option>
+                  <option>Urdu — اردو</option>
+                  <option>Vietnamese — Tiếng Việt</option>
+                  <option>Thai — ภาษาไทย</option>
+                  <option>Greek — Ελληνικά</option>
+                  <option>Hebrew — עברית</option>
+                  <option>Swahili — Kiswahili</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-row">
+              <div class="settings-row-info">
+                <div class="settings-row-label">Auto-detect Language</div>
+                <div class="settings-row-desc">Match response language to the language of each user message</div>
+              </div>
+              <div class="settings-row-control">
+                <div class="s-toggle" id="tog-auto-detect" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-save-bar">
+            <button class="btn-secondary" onclick="loadSettings()">Reset to defaults</button>
+            <button class="btn-primary" onclick="saveChatSettings()">Save changes</button>
+          </div>
+        </div>
+
+        <!-- DOCUMENTS -->
