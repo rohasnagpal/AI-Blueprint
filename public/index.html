@@ -62,6 +62,10 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
       Translate
     </button>
+    <button type="button" onclick="switchViewFromMore('contract-review')" id="more-contract-review">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Contract Review
+    </button>
     <button type="button" onclick="switchViewFromMore('draft')" id="more-draft">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/><path d="M15 5 19 9"/></svg>
       Draft
@@ -773,6 +777,88 @@
             <div><div class="settings-card-title">Review</div><div class="settings-card-subtitle">Warnings, notes, and quality checks.</div></div>
           </div>
           <div class="translate-review-list" id="translate-review-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONTRACT REVIEW VIEW ── -->
+  <div class="view" id="view-contract-review">
+    <div class="add-doc-view translate-view draft-view">
+      <div class="view-header">
+        <h2>Contract Review</h2>
+        <p>Review indexed contracts directly from a workspace without blueprints or plugins.</p>
+      </div>
+
+      <div class="upload-scope-panel" id="contract-review-scope-card">
+        <div class="council-field">
+          <label for="contract-review-workspace-select">Workspace</label>
+          <select class="council-select" id="contract-review-workspace-select" onchange="onContractReviewWorkspaceChange()"></select>
+        </div>
+        <div class="council-field">
+          <label for="contract-review-matter-select">Matter</label>
+          <select class="council-select" id="contract-review-matter-select" onchange="renderContractReviewSourceDocuments()"></select>
+        </div>
+      </div>
+
+      <div class="settings-card translate-setup-card draft-setup-card">
+        <div class="council-form">
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="contract-review-title">Review title</label>
+              <input class="council-input" id="contract-review-title" placeholder="Contract review"/>
+            </div>
+            <div class="council-field">
+              <label for="contract-review-depth">Review depth</label>
+              <select class="council-select" id="contract-review-depth">
+                <option value="standard">Standard</option>
+                <option value="detailed">Detailed</option>
+                <option value="red-flag">Red-flag only</option>
+              </select>
+            </div>
+            <div class="council-field">
+              <label for="contract-review-playbook">Playbook</label>
+              <select class="council-select" id="contract-review-playbook"></select>
+            </div>
+          </div>
+          <div class="council-field" id="contract-review-source-documents-field">
+            <label for="contract-review-source-documents">Source contracts</label>
+            <select class="council-select draft-source-select" id="contract-review-source-documents" multiple></select>
+          </div>
+          <div class="council-field">
+            <label for="contract-review-instructions">Review instructions</label>
+            <textarea class="council-textarea" id="contract-review-instructions" rows="4" placeholder="Optional focus areas, negotiation posture, jurisdiction, clause concerns, or client position"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="translate-actions">
+        <button class="btn-primary" type="button" id="contract-review-run-btn" onclick="runStandaloneContractReview()">Review Contract</button>
+        <button class="btn-secondary" type="button" onclick="resetStandaloneContractReview()">Clear</button>
+        <span class="translate-status" id="contract-review-status"></span>
+      </div>
+
+      <div class="translate-result-grid draft-result-grid" id="contract-review-result-grid" data-csp-style="display:none">
+        <div class="settings-card translate-result-card draft-result-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Review Result</div><div class="settings-card-subtitle" id="contract-review-result-meta"></div></div>
+            <div class="settings-card-actions">
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Copy review" aria-label="Copy review" onclick="copyStandaloneContractReview()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download Markdown" aria-label="Download Markdown" onclick="downloadStandaloneContractReview()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="translate-html-preview draft-html-preview" id="contract-review-preview"></div>
+        </div>
+
+        <div class="settings-card translate-review-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Sources & Warnings</div><div class="settings-card-subtitle">Review basis and required human checks.</div></div>
+          </div>
+          <div class="translate-review-list" id="contract-review-side-list"></div>
         </div>
       </div>
     </div>
@@ -2177,6 +2263,6 @@
 
 
 <script src="/js/csp-events.js?v=20260526-strict-csp-v2"></script>
-<script src="/js/app.js?v=20260529-agent-providers-v1"></script>
+<script src="/js/app.js?v=20260529-contract-review-standalone-v4"></script>
 </body>
 </html>

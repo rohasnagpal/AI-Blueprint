@@ -79,7 +79,7 @@ def _validate_workspace_role(role: str) -> str:
 
 
 def _validate_matter_status(status_value: str) -> str:
-    return validate_choice(status_value, {"active", "closed", "archived"}, "matter status")
+    return validate_choice(status_value, {"active", "paused", "closed"}, "matter status")
 
 
 def _format_workspace_member(membership: WorkspaceMember, member: User) -> dict:

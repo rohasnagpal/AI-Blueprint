@@ -156,6 +156,13 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(matter.status_code, 201, matter.text)
         matter_id = matter.json()["id"]
 
+        paused_matter = self.client.post(
+            f"/api/v2/workspaces/{workspace_id}/matters",
+            json={"name": "Paused Matter", "status": "paused"},
+        )
+        self.assertEqual(paused_matter.status_code, 201, paused_matter.text)
+        self.assertEqual(paused_matter.json()["status"], "paused")
+
         rejected_upload = self.client.post(
             f"/api/v2/workspaces/{workspace_id}/documents/upload",
             files={"file": ("malware.exe", b"not really malware", "application/octet-stream")},
