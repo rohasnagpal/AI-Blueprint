@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import Cookie, Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,11 +17,11 @@ def _as_aware(value: datetime) -> datetime:
 def get_current_user(
     request: Request,
     db: Session = Depends(get_db),
-    session_cookie: str | None = Cookie(default=None, alias=get_settings().session_cookie_name),
 ) -> User:
     public = getattr(request.scope.get("route"), "include_in_schema", True) is False
     if public:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    session_cookie = request.cookies.get(get_settings().session_cookie_name)
     if not session_cookie:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
 

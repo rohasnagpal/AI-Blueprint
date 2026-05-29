@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 import sys
 import uuid
@@ -25,6 +26,10 @@ from routes.councils import router as council_router
 from routes.email import router as email_router
 from routes.personas import router as persona_router
 from routes.settings import router as settings_router
+
+logger = logging.getLogger("ai_blueprint")
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+
 
 def _startup() -> None:
     settings = get_settings()
@@ -88,7 +93,23 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
 async def request_context(request: Request, call_next):
     request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
     started = time.perf_counter()
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        logger.exception(
+            json.dumps(
+                {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": 500,
+                    "duration_ms": duration_ms,
+                },
+                sort_keys=True,
+            )
+        )
+        raise
     response.headers["X-Request-Id"] = request_id
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
@@ -105,7 +126,7 @@ async def request_context(request: Request, call_next):
         "font-src 'self'; "
         "img-src 'self' data: blob: https:; "
         "object-src 'none'; "
-        "connect-src 'self' http: https: ws: wss:; "
+        "connect-src 'self'; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
         "form-action 'self'",
@@ -115,7 +136,7 @@ async def request_context(request: Request, call_next):
     elif request.url.path.endswith((".js", ".css")):
         response.headers["Cache-Control"] = "public, max-age=3600"
     duration_ms = round((time.perf_counter() - started) * 1000, 2)
-    print(
+    logger.info(
         json.dumps(
             {
                 "request_id": request_id,

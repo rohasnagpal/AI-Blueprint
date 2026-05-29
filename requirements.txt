@@ -6,7 +6,6 @@ alembic==1.18.4
 openai==2.34.0
 groq==1.2.0
 httpx==0.28.1
-playwright>=1.50.0
 cryptography==48.0.0
 aiofiles==25.1.0
 pypdf==6.10.2

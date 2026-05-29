@@ -1,20 +1,19 @@
 import uuid
-from collections import defaultdict, deque
 from time import monotonic
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
+from app.core.bootstrap import DEFAULT_ADMIN_USERNAME
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.models import SessionToken, User, WorkspaceMember
 from app.core.security import hash_password, hash_session_token, new_session_token, session_expiry, verify_password
 router = APIRouter(prefix="/auth", tags=["auth"])
-_auth_attempts: dict[str, deque[float]] = defaultdict(deque)
 
 
 class SetupIn(BaseModel):
@@ -33,7 +32,7 @@ class LoginIn(BaseModel):
 class InitialCredentialsIn(BaseModel):
     username: str = Field(min_length=3, max_length=100)
     display_name: str = Field(min_length=1)
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=12)
 
 
 def _format_user(user: User) -> dict:
@@ -86,33 +85,49 @@ def _client_key(request: Request, identifier: str = "") -> str:
     return f"{ip}:{identifier.strip().lower()}"
 
 
-def _prune_auth_attempts(now: float, window_start: float, max_keys: int) -> None:
-    for key in list(_auth_attempts.keys()):
-        attempts = _auth_attempts[key]
-        while attempts and attempts[0] < window_start:
-            attempts.popleft()
-        if not attempts:
-            _auth_attempts.pop(key, None)
-    if len(_auth_attempts) <= max_keys:
-        return
-    oldest_keys = sorted(_auth_attempts, key=lambda key: _auth_attempts[key][0] if _auth_attempts[key] else now)
-    for key in oldest_keys[: len(_auth_attempts) - max_keys]:
-        _auth_attempts.pop(key, None)
+def _ensure_auth_rate_limit_table(db: Session) -> None:
+    db.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS auth_rate_limit_attempts (
+                client_key TEXT NOT NULL,
+                attempted_at REAL NOT NULL
+            )
+            """
+        )
+    )
+    db.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_auth_rate_limit_attempts_key_time "
+            "ON auth_rate_limit_attempts (client_key, attempted_at)"
+        )
+    )
 
 
-def _check_auth_rate_limit(request: Request, identifier: str = "") -> None:
+def _check_auth_rate_limit(db: Session, request: Request, identifier: str = "") -> None:
     settings = get_settings()
     if settings.auth_rate_limit_attempts <= 0:
         return
     now = monotonic()
     window_start = now - settings.auth_rate_limit_window_seconds
-    _prune_auth_attempts(now, window_start, settings.auth_rate_limit_max_keys)
-    attempts = _auth_attempts[_client_key(request, identifier)]
-    while attempts and attempts[0] < window_start:
-        attempts.popleft()
-    if len(attempts) >= settings.auth_rate_limit_attempts:
+    client_key = _client_key(request, identifier)
+    _ensure_auth_rate_limit_table(db)
+    db.execute(text("DELETE FROM auth_rate_limit_attempts WHERE attempted_at < :window_start"), {"window_start": window_start})
+    attempt_count = db.execute(
+        text(
+            "SELECT COUNT(*) FROM auth_rate_limit_attempts "
+            "WHERE client_key = :client_key AND attempted_at >= :window_start"
+        ),
+        {"client_key": client_key, "window_start": window_start},
+    ).scalar_one()
+    if attempt_count >= settings.auth_rate_limit_attempts:
+        db.commit()
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many authentication attempts")
-    attempts.append(now)
+    db.execute(
+        text("INSERT INTO auth_rate_limit_attempts (client_key, attempted_at) VALUES (:client_key, :attempted_at)"),
+        {"client_key": client_key, "attempted_at": now},
+    )
+    db.commit()
 
 
 @router.get("/setup-state", include_in_schema=False)
@@ -125,7 +140,7 @@ async def setup_state(db: Session = Depends(get_db)):
 async def setup_admin(body: SetupIn, request: Request, response: Response, db: Session = Depends(get_db)):
     identifier = body.username or body.email or ""
     username = _normalize_username(identifier)
-    _check_auth_rate_limit(request, username)
+    _check_auth_rate_limit(db, request, username)
     user_count = db.execute(select(func.count(User.id))).scalar_one()
     if user_count:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Setup has already been completed")
@@ -150,7 +165,7 @@ async def login(body: LoginIn, request: Request, response: Response, db: Session
     identifier = (body.identifier or body.email or "").strip().lower()
     if not identifier:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username or email is required")
-    _check_auth_rate_limit(request, identifier)
+    _check_auth_rate_limit(db, request, identifier)
     user = db.execute(select(User).where(or_(User.username == identifier, User.email == identifier))).scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
@@ -168,7 +183,8 @@ async def change_initial_credentials(
     db: Session = Depends(get_db),
 ):
     username = body.username.strip().lower()
-    if username == "rohas" or body.password == "rohas":
+    bootstrap_username = (get_settings().bootstrap_admin_username or DEFAULT_ADMIN_USERNAME).strip().lower()
+    if username == bootstrap_username or body.password.strip().lower() == bootstrap_username:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose credentials different from the bootstrap defaults")
     existing = db.execute(select(User).where(User.username == username, User.id != user.id)).scalar_one_or_none()
     if existing:
@@ -177,7 +193,7 @@ async def change_initial_credentials(
     if email_existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username conflicts with an existing email")
     user.username = username
-    if user.email == "rohas":
+    if user.email == bootstrap_username:
         user.email = username
     user.display_name = body.display_name.strip()
     user.password_hash = hash_password(body.password)

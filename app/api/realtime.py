@@ -1,11 +1,13 @@
 import json
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 import database
+from app.core.deps import get_current_user
+from app.core.models import User
 
 router = APIRouter(prefix="/realtime", tags=["realtime"])
 
@@ -72,7 +74,7 @@ def _realtime_instructions(persona_id: str | None) -> str:
 
 
 @router.post("/session", response_class=PlainTextResponse)
-async def create_realtime_session(body: RealtimeSessionRequest):
+async def create_realtime_session(body: RealtimeSessionRequest, _user: User = Depends(get_current_user)):
     api_key = database.get_setting("openai_api_key")
     if not api_key:
         raise HTTPException(status_code=400, detail="OpenAI API key is not configured.")
@@ -118,7 +120,11 @@ async def create_realtime_session(body: RealtimeSessionRequest):
 
 
 @router.post("/search-documents")
-async def search_realtime_documents(body: RealtimeDocumentSearchRequest, request: Request):
+async def search_realtime_documents(
+    body: RealtimeDocumentSearchRequest,
+    request: Request,
+    _user: User = Depends(get_current_user),
+):
     query = body.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="Search query is required.")

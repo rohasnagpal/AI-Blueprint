@@ -1,4 +1,3 @@
-from functools import lru_cache
 import os
 from pathlib import Path
 
@@ -34,10 +33,10 @@ def _csv_env(name: str, default: list[str]) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
-@lru_cache
 def get_settings() -> Settings:
     environment = os.getenv("AI_BLUEPRINT_ENV", "development").strip().lower()
     run_migrations_default = "false" if environment in {"prod", "production"} else "true"
+    secure_cookies_default = "false" if environment in {"dev", "development", "local", "test"} else "true"
     return Settings(
         environment=environment,
         database_url=os.getenv("AI_BLUEPRINT_DATABASE_URL", "sqlite:///./ai_blueprint_v2.db"),
@@ -45,7 +44,7 @@ def get_settings() -> Settings:
         secret_key_file=Path(os.getenv("AI_BLUEPRINT_SECRET_KEY_FILE", ".secret_key_v2")),
         session_cookie_name=os.getenv("AI_BLUEPRINT_SESSION_COOKIE", "ai_blueprint_session"),
         session_days=int(os.getenv("AI_BLUEPRINT_SESSION_DAYS", "14")),
-        secure_cookies=os.getenv("AI_BLUEPRINT_SECURE_COOKIES", "false").lower() == "true",
+        secure_cookies=os.getenv("AI_BLUEPRINT_SECURE_COOKIES", secure_cookies_default).lower() == "true",
         bootstrap_default_admin=os.getenv("AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN", "false").lower() == "true",
         bootstrap_admin_username=os.getenv("AI_BLUEPRINT_BOOTSTRAP_ADMIN_USERNAME"),
         bootstrap_admin_password=os.getenv("AI_BLUEPRINT_BOOTSTRAP_ADMIN_PASSWORD"),
@@ -62,8 +61,8 @@ def get_settings() -> Settings:
 
 
 def validate_runtime_security(settings: Settings) -> None:
-    if settings.environment in {"prod", "production"} and not settings.secure_cookies:
-        raise RuntimeError("AI_BLUEPRINT_SECURE_COOKIES=true is required when AI_BLUEPRINT_ENV=production")
+    if settings.environment not in {"dev", "development", "local", "test"} and not settings.secure_cookies:
+        raise RuntimeError("AI_BLUEPRINT_SECURE_COOKIES=true is required outside local development")
     if not settings.bootstrap_default_admin:
         return
     if settings.bootstrap_admin_password:
@@ -72,3 +71,6 @@ def validate_runtime_security(settings: Settings) -> None:
         "AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN requires AI_BLUEPRINT_BOOTSTRAP_ADMIN_PASSWORD. "
         "Use /api/v2/auth/setup for interactive first-run setup when no bootstrap password is configured."
     )
+
+
+get_settings.cache_clear = lambda: None  # type: ignore[attr-defined]

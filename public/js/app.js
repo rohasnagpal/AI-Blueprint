@@ -30,6 +30,17 @@ function applyInlineStyles(element, styles) {
   });
 }
 
+async function jsonOrFallback(response, fallback) {
+  if (!response.ok) return fallback;
+  const data = await response.json().catch(() => fallback);
+  return data == null ? fallback : data;
+}
+
+async function arrayOrEmpty(response) {
+  const data = await jsonOrFallback(response, []);
+  return Array.isArray(data) ? data : [];
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────
 async function init() {
   await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadConnectedFolders(), loadPersonas()]);
@@ -2287,7 +2298,7 @@ async function checkFirstRun() {
 async function loadSettings() {
   try {
     const r = await fetch('/api/settings');
-    App.settings = await r.json();
+    App.settings = await jsonOrFallback(r, {});
     applySettings();
     populateSettingsUI();
   } catch(e) {}
@@ -2385,7 +2396,7 @@ async function saveSettings(obj) {
 async function loadModels() {
   try {
     const r = await fetch('/api/models');
-    App.models = await r.json();
+    App.models = await arrayOrEmpty(r);
     renderChatProviderOptions();
     renderChatModelOptions();
     renderModelRegistry();
@@ -2840,7 +2851,7 @@ async function resetAllSettings() {
 async function loadChats() {
   try {
     const r = await fetch(`/api/chats${App.chatArchiveFilter ? '?archived=true' : ''}`);
-    App.chats = await r.json();
+    App.chats = await arrayOrEmpty(r);
     renderChatHistory();
   } catch(e) {}
 }
@@ -3119,7 +3130,7 @@ async function loadDocuments() {
   try {
     if (App.v2.enabled) await loadV2Documents();
     const r = await fetch('/api/documents');
-    App.documents = await r.json();
+    App.documents = await arrayOrEmpty(r);
     if (!App.documents.length && App.chatMode === 'documents') App.chatMode = 'general';
     renderDocuments();
     updateDocsBadge();
@@ -3132,8 +3143,7 @@ async function loadDocuments() {
 async function loadConnectedFolders() {
   try {
     const r = await fetch('/api/connected-folders');
-    if (!r.ok) throw new Error(await apiError(r));
-    App.connectedFolders = await r.json();
+    App.connectedFolders = await arrayOrEmpty(r);
     renderConnectedFolders();
   } catch(e) {
     App.connectedFolders = [];
@@ -3309,7 +3319,7 @@ async function removeConnectedFolder(folderId) {
 async function loadPersonas() {
   try {
     const r = await fetch('/api/personas');
-    App.personas = await r.json();
+    App.personas = await arrayOrEmpty(r);
     renderPersonaSelect();
     renderPersonas();
     renderEmailControls();
@@ -3554,7 +3564,7 @@ function toggleEmailSettingsAccordion(forceOpen) {
 async function loadEmailMessages() {
   try {
     const r = await fetch('/api/email/messages');
-    App.emailMessages = await r.json();
+    App.emailMessages = await arrayOrEmpty(r);
     renderEmailList();
   } catch(e) {}
 }
@@ -3954,8 +3964,8 @@ async function loadCouncils() {
       fetch('/api/council/templates'),
       fetch('/api/council/runs')
     ]);
-    App.councilTemplates = await templatesRes.json();
-    App.councilRuns = await runsRes.json();
+    App.councilTemplates = await arrayOrEmpty(templatesRes);
+    App.councilRuns = await arrayOrEmpty(runsRes);
     renderCouncilTemplates();
     renderCouncilRuns();
     renderCouncilTemplateOptions();

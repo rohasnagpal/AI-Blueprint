@@ -54,6 +54,8 @@ jobs:
           rm -f /tmp/ai_blueprint_v2_secret.key
           rm -rf /tmp/ai_blueprint_v2_uploads
           python - <<'PY'
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
           from fastapi.testclient import TestClient
 
           from app.core.database import run_migrations
@@ -65,7 +67,8 @@ jobs:
               health = client.get("/api/v2/health")
               assert health.status_code == 200, health.text
               assert health.headers["x-request-id"]
-              assert health.json()["database"]["migration_revision"] == "0022_contract_review_commercial_playbooks"
+              expected_head = ScriptDirectory.from_config(Config("alembic.ini")).get_current_head()
+              assert health.json()["database"]["migration_revision"] == expected_head
               assert client.get("/api/v2/auth/setup-state").json()["setup_required"] is True
               setup = client.post(
                   "/api/v2/auth/setup",

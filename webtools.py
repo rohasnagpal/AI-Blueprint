@@ -1,5 +1,7 @@
 from html import unescape
 from html.parser import HTMLParser
+import ipaddress
+import socket
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
@@ -99,14 +101,45 @@ def validate_http_url(url: str) -> str:
     return parsed.geturl()
 
 
-async def fetch_page_text(url: str) -> dict:
+def _ensure_public_http_url(url: str) -> str:
     url = validate_http_url(url)
+    parsed = urlparse(url)
+    host = parsed.hostname
+    if not host:
+        raise ValueError("Use a valid http or https URL.")
+    if host.lower() in {"localhost", "localhost.localdomain"}:
+        raise ValueError("Local URLs are not allowed.")
+    try:
+        addresses = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        raise ValueError(f"Could not resolve URL host: {host}") from exc
+    for address in addresses:
+        ip = ipaddress.ip_address(address[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+            raise ValueError("Private, local, or reserved network URLs are not allowed.")
+    return url
+
+
+async def _get_public_url(client: httpx.AsyncClient, url: str) -> httpx.Response:
+    current = _ensure_public_http_url(url)
+    for _ in range(5):
+        response = await client.get(current, follow_redirects=False)
+        if response.status_code not in {301, 302, 303, 307, 308}:
+            return response
+        location = response.headers.get("location")
+        if not location:
+            return response
+        current = _ensure_public_http_url(str(response.url.join(location)))
+    raise ValueError("Too many redirects.")
+
+
+async def fetch_page_text(url: str) -> dict:
+    url = _ensure_public_http_url(url)
     async with httpx.AsyncClient(
-        follow_redirects=True,
         timeout=httpx.Timeout(20.0, connect=8.0),
         headers={"User-Agent": USER_AGENT, "Accept": "text/html, text/plain;q=0.9,*/*;q=0.5"},
     ) as client:
-        response = await client.get(url)
+        response = await _get_public_url(client, url)
         response.raise_for_status()
         content = response.content[:MAX_WEB_BYTES]
         content_type = response.headers.get("content-type", "")
@@ -133,7 +166,7 @@ async def fetch_page_text(url: str) -> dict:
 
 
 async def fetch_page_text_browser(url: str, timeout_ms: int = 15_000) -> dict:
-    url = validate_http_url(url)
+    url = _ensure_public_http_url(url)
     try:
         from playwright.async_api import async_playwright
     except Exception as exc:
@@ -151,6 +184,11 @@ async def fetch_page_text_browser(url: str, timeout_ms: int = 15_000) -> dict:
 
             async def block_heavy_assets(route):
                 request = route.request
+                try:
+                    _ensure_public_http_url(request.url)
+                except ValueError:
+                    await route.abort()
+                    return
                 if request.resource_type in {"image", "media", "font", "stylesheet"}:
                     await route.abort()
                 else:

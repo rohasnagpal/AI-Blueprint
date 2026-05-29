@@ -102,8 +102,8 @@ def main() -> None:
         assert all(chat["id"] != extra_chat["id"] for chat in assert_ok(owner.get("/api/chats")))
 
         with TestClient(app) as anonymous:
-            hidden = assert_ok(anonymous.get("/api/chats"))
-            assert all(chat["id"] != scoped_chat["id"] for chat in hidden)
+            hidden = anonymous.get("/api/chats")
+            assert hidden.status_code == 401, hidden.text
             denied = anonymous.get(f"/api/chats/{scoped_chat['id']}/messages")
             assert denied.status_code == 401, denied.text
 

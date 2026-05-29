@@ -2,8 +2,10 @@ import html
 import json
 import re
 import uuid
+import zipfile
 from html.parser import HTMLParser
 from pathlib import Path
+from xml.etree import ElementTree
 
 from app.core.database import SessionLocal
 from app.core.embeddings import dumps_vector, embed_texts
@@ -142,27 +144,19 @@ def _extract_chunks(path: Path, filename: str) -> list[dict]:
         pages = _extract_pdf_pages(path)
         if pages:
             return _chunk_pages(pages, extraction_method="pdf_text")
-        content = "Document stored but text extraction is not available for PDF files yet. Install pypdf to enable page-level PDF extraction."
-        return [
-            {
-                "content": content,
-                "page": None,
-                "start_offset": 0,
-                "end_offset": len(content),
-                "extraction_method": "unsupported_placeholder",
-            }
-        ]
+        raise RuntimeError("No extractable PDF text found")
+    if suffix == ".docx":
+        text = _extract_docx_text(path)
+        if not text:
+            raise RuntimeError("No extractable DOCX text found")
+        return _chunk_text(text, extraction_method="docx_text")
+    if suffix == ".xlsx":
+        text = _extract_xlsx_text(path)
+        if not text:
+            raise RuntimeError("No extractable XLSX text found")
+        return _chunk_text(text, extraction_method="xlsx_text")
     if suffix not in {".txt", ".md", ".csv", ".json", ".html", ".htm"}:
-        content = f"Document stored but text extraction is not available for {suffix or 'this file type'} yet."
-        return [
-            {
-                "content": content,
-                "page": None,
-                "start_offset": 0,
-                "end_offset": len(content),
-                "extraction_method": "unsupported_placeholder",
-            }
-        ]
+        raise RuntimeError(f"Text extraction is not available for {suffix or 'this file type'}")
     raw = path.read_bytes()
     text = raw.decode("utf-8", errors="replace")
     if suffix in {".html", ".htm"}:
@@ -188,6 +182,73 @@ def _extract_pdf_pages(path: Path) -> list[str]:
         from pypdf import PdfReader  # type: ignore
     except Exception:
         return []
+
+
+def _extract_docx_text(path: Path) -> str:
+    try:
+        with zipfile.ZipFile(path) as archive:
+            xml = archive.read("word/document.xml")
+    except Exception:
+        return ""
+    try:
+        root = ElementTree.fromstring(xml)
+    except ElementTree.ParseError:
+        return ""
+    namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+    paragraphs = []
+    for paragraph in root.findall(".//w:p", namespace):
+        parts = [node.text or "" for node in paragraph.findall(".//w:t", namespace)]
+        text = "".join(parts).strip()
+        if text:
+            paragraphs.append(text)
+    return _clean_text("\n\n".join(paragraphs))
+
+
+def _extract_xlsx_text(path: Path) -> str:
+    try:
+        with zipfile.ZipFile(path) as archive:
+            shared_strings = _xlsx_shared_strings(archive)
+            sheet_names = sorted(name for name in archive.namelist() if re.match(r"xl/worksheets/sheet\d+\.xml$", name))
+            rows = []
+            namespace = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+            for sheet_name in sheet_names:
+                root = ElementTree.fromstring(archive.read(sheet_name))
+                for row in root.findall(".//s:row", namespace):
+                    values = []
+                    for cell in row.findall("s:c", namespace):
+                        values.append(_xlsx_cell_text(cell, shared_strings, namespace))
+                    line = "\t".join(value for value in values if value).strip()
+                    if line:
+                        rows.append(line)
+    except Exception:
+        return ""
+    return _clean_text("\n".join(rows))
+
+
+def _xlsx_shared_strings(archive: zipfile.ZipFile) -> list[str]:
+    try:
+        root = ElementTree.fromstring(archive.read("xl/sharedStrings.xml"))
+    except Exception:
+        return []
+    namespace = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    strings = []
+    for item in root.findall(".//s:si", namespace):
+        strings.append("".join(node.text or "" for node in item.findall(".//s:t", namespace)))
+    return strings
+
+
+def _xlsx_cell_text(cell: ElementTree.Element, shared_strings: list[str], namespace: dict[str, str]) -> str:
+    value = cell.find("s:v", namespace)
+    if value is None or value.text is None:
+        inline = cell.find(".//s:t", namespace)
+        return (inline.text or "").strip() if inline is not None else ""
+    raw = value.text.strip()
+    if cell.attrib.get("t") == "s":
+        try:
+            return shared_strings[int(raw)].strip()
+        except (ValueError, IndexError):
+            return ""
+    return raw
     try:
         reader = PdfReader(str(path))
         pages = []

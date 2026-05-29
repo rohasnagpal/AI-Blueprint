@@ -5,6 +5,8 @@ import unittest
 import uuid
 from pathlib import Path
 
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 ROOT = Path("/tmp/ai_blueprint_launch_tests")
 DB_PATH = ROOT / "v2.db"
@@ -81,7 +83,8 @@ class LaunchReadinessTest(unittest.TestCase):
     def test_public_launch_flow_and_guardrails(self) -> None:
         health = self.client.get("/api/v2/health")
         self.assertEqual(health.status_code, 200, health.text)
-        self.assertEqual(health.json()["database"]["migration_revision"], "0024_draft_runs")
+        expected_head = ScriptDirectory.from_config(Config("alembic.ini")).get_current_head()
+        self.assertEqual(health.json()["database"]["migration_revision"], expected_head)
         self.assertTrue(health.json()["secrets"]["key_configured"])
         self.assertEqual(health.headers["x-content-type-options"], "nosniff")
         self.assertEqual(health.headers["x-frame-options"], "DENY")
@@ -91,6 +94,16 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertIn("style-src-attr 'none'", csp)
         self.assertIn("object-src 'none'", csp)
         self.assertNotIn("'unsafe-inline'", csp)
+
+        setup_state = self.client.get("/api/v2/auth/setup-state")
+        self.assertEqual(setup_state.json(), {"setup_required": True})
+
+        setup = self.client.post(
+            "/api/v2/auth/setup",
+            json={"email": "admin@example.com", "display_name": "Admin", "password": "0123456789ab"},
+        )
+        self.assertEqual(setup.status_code, 200, setup.text)
+        self.assertFalse(setup.json()["user"]["must_change_credentials"])
 
         public_translation = self.client.post(
             "/api/v2/translations/public/text",
@@ -122,16 +135,6 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(index.status_code, 200, index.text)
         self.assertIn("/js/csp-styles.js", index.text)
         self.assertIn("/js/csp-events.js", index.text)
-
-        setup_state = self.client.get("/api/v2/auth/setup-state")
-        self.assertEqual(setup_state.json(), {"setup_required": True})
-
-        setup = self.client.post(
-            "/api/v2/auth/setup",
-            json={"email": "admin@example.com", "display_name": "Admin", "password": "0123456789ab"},
-        )
-        self.assertEqual(setup.status_code, 200, setup.text)
-        self.assertFalse(setup.json()["user"]["must_change_credentials"])
 
         duplicate_setup = self.client.post(
             "/api/v2/auth/setup",

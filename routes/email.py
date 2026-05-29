@@ -10,13 +10,14 @@ from email.message import EmailMessage
 from email.utils import getaddresses, parsedate_to_datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import database
+from app.core.deps import get_current_user
 from routes.chats import _get_persona, _parse_sse, _stream_general, _stream_local, _stream_openai
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 class DraftIn(BaseModel):

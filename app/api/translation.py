@@ -406,7 +406,7 @@ def _run_translation(*, text: str, source_type: str, source_filename: str | None
 
 
 @router.post("/translations/public/text")
-async def public_translate_text(body: TranslationTextIn):
+async def public_translate_text(body: TranslationTextIn, _user: User = Depends(get_current_user)):
     mode = _validate_mode(body.mode)
     target_language = _validate_target_language(body.target_language)
     return _run_translation(
@@ -427,6 +427,7 @@ async def public_translate_upload(
     target_language: str = Form(...),
     mode: str = Form(default="legal"),
     context: str | None = Form(default=None),
+    _user: User = Depends(get_current_user),
 ):
     mode = _validate_mode(mode)
     target_language = _validate_target_language(target_language)

@@ -5,13 +5,14 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Depends
 
 import database
 from pydantic import BaseModel
+from app.core.deps import get_current_user
 from webtools import fetch_page_text
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 UPLOADS_DIR = Path("uploads")
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".csv", ".xlsx", ".md", ".json", ".html", ".htm"}

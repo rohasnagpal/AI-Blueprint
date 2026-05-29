@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 from app.api import admin, audit, auth, blueprints, contract_review, council, documents, drafting, escalations, jobs, legal_research, navigation, personas, plugins, realtime, secrets, settings, skills, translation, workspaces
 from app.core.config import get_settings
-from app.core.database import engine
+from app.core.database import get_engine
 
 router = APIRouter(prefix="/api/v2")
 
@@ -17,7 +17,7 @@ async def health():
     db_ok = False
     migration_revision = None
     try:
-        with engine.connect() as connection:
+        with get_engine().connect() as connection:
             connection.execute(text("SELECT 1"))
             migration_revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
             db_ok = True

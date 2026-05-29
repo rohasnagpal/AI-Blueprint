@@ -652,7 +652,7 @@ def _run_workspace_draft_job(job_id: str, workspace_id: str, user_id: str, body_
 
 
 @router.post("/drafts/public")
-async def public_create_draft(body: DraftRequest):
+async def public_create_draft(body: DraftRequest, _user: User = Depends(get_current_user)):
     document_type = _validate_document_type(body.document_type)
     tone = _validate_tone(body.tone)
     return _result_payload(body, document_type=document_type, tone=tone, source_context="", sources=[])

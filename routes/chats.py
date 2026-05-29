@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -27,8 +28,9 @@ from app.core.models import (
 )
 from app.core.security import hash_session_token
 from webtools import enrich_search_results, format_search_context, web_search
+from app.core.deps import get_current_user
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 class CreateChat(BaseModel):
