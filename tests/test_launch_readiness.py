@@ -40,7 +40,7 @@ from app.core.contract_agents.schemas import RiskFindingResult
 from app.core.config import Settings, get_settings, validate_runtime_security
 from app.core.database import SessionLocal
 from app.core.document_indexer import _extract_chunks
-from app.core.contract_review_workflow_runner import _select_playbook
+from app.api.contract_review_standalone import _select_playbook
 from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, KnowledgeChunk, KnowledgeEmbedding, User, Workspace
 from app.core.secrets import decrypt_secret
 
@@ -156,12 +156,12 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(matter.status_code, 201, matter.text)
         matter_id = matter.json()["id"]
 
-        paused_matter = self.client.post(
+        closed_matter = self.client.post(
             f"/api/v2/workspaces/{workspace_id}/matters",
-            json={"name": "Paused Matter", "status": "paused"},
+            json={"name": "Closed Matter", "status": "closed"},
         )
-        self.assertEqual(paused_matter.status_code, 201, paused_matter.text)
-        self.assertEqual(paused_matter.json()["status"], "paused")
+        self.assertEqual(closed_matter.status_code, 201, closed_matter.text)
+        self.assertEqual(closed_matter.json()["status"], "closed")
 
         rejected_upload = self.client.post(
             f"/api/v2/workspaces/{workspace_id}/documents/upload",
@@ -247,39 +247,12 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(chat.status_code, 200, chat.text)
         self.assertEqual(chat.json()["v2_document_ids"], [upload.json()["id"]])
 
-        enable_contract_review = self.client.put(f"/api/v2/workspaces/{workspace_id}/plugins/contract_review", json={"enabled": True})
-        self.assertEqual(enable_contract_review.status_code, 200, enable_contract_review.text)
-        invalid_blueprint = self.client.post(
-            f"/api/v2/workspaces/{workspace_id}/blueprints",
-            json={"name": "Invalid Blueprint", "plugin_id": "contract_review", "status": "surprise"},
-        )
-        self.assertEqual(invalid_blueprint.status_code, 400, invalid_blueprint.text)
-        blueprint = self.client.post(
-            f"/api/v2/workspaces/{workspace_id}/blueprints",
-            json={"name": "Contract Review", "plugin_id": "contract_review", "matter_id": matter_id},
-        )
-        self.assertEqual(blueprint.status_code, 201, blueprint.text)
-        blueprint_id = blueprint.json()["id"]
-        link = self.client.post(
-            f"/api/v2/workspaces/{workspace_id}/documents/{upload.json()['id']}/links",
-            json={"blueprint_id": blueprint_id},
-        )
-        self.assertEqual(link.status_code, 201, link.text)
-        contract_run = self.client.post(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs",
-            json={"title": "Launch Contract Review"},
-        )
-        self.assertEqual(contract_run.status_code, 201, contract_run.text)
-        contract_job = self.wait_for_job(workspace_id, contract_run.json()["job"]["id"])
-        self.assertEqual(contract_job["job"]["status"], "completed", contract_job)
-        self.assertGreaterEqual(len(contract_job["events"]), 5)
-        export = self.client.get(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{contract_run.json()['id']}/export"
-        )
-        self.assertEqual(export.status_code, 200, export.text)
-        self.assertIn("# Launch Contract Review", export.text)
+        removed_plugins = self.client.get(f"/api/v2/workspaces/{workspace_id}/plugins")
+        self.assertEqual(removed_plugins.status_code, 404, removed_plugins.text)
+        removed_blueprints = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints")
+        self.assertEqual(removed_blueprints.status_code, 404, removed_blueprints.text)
 
-        playbooks = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/playbooks")
+        playbooks = self.client.get(f"/api/v2/workspaces/{workspace_id}/contract-review/playbooks")
         self.assertEqual(playbooks.status_code, 200, playbooks.text)
         self.assertGreaterEqual(len(playbooks.json()), 7)
         self.assertTrue(any(item["contract_category"] == "dpa" for item in playbooks.json()))
@@ -287,124 +260,25 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertTrue(any(item["contract_category"] == "saas" for item in playbooks.json()))
         self.assertTrue(any(item["contract_category"] == "consulting" for item in playbooks.json()))
         self.assertTrue(any(item["contract_category"] == "reseller" for item in playbooks.json()))
-        builtin_msa = next(item for item in playbooks.json() if item["id"] == "builtin-msa-v1")
-        builtin_msa_detail = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/playbooks/{builtin_msa['id']}")
-        self.assertEqual(builtin_msa_detail.status_code, 200, builtin_msa_detail.text)
-        liability_standard = next(item for item in builtin_msa_detail.json()["clauses"] if item["clause_type"] == "limitation_of_liability")
-        self.assertIn("Liability cap", liability_standard["approved_text"])
-        self.assertIn("aggregate liability", liability_standard["fallback_text"])
-        custom_playbook_payload = {
-            "name": "Workspace Test MSA",
-            "contract_category": "msa",
-            "rules": {"review_posture": "balanced"},
-            "clauses": [
-                {
-                    "clause_type": "limitation_of_liability",
-                    "title": "Limitation of Liability",
-                    "required": True,
-                    "severity_default": "critical",
-                    "prohibited_patterns": ["unlimited liability"],
-                },
-                {
-                    "clause_type": "data_security",
-                    "title": "Data Security",
-                    "required": True,
-                    "severity_default": "high",
-                    "prohibited_patterns": [],
-                },
-            ],
-        }
-        custom_playbook = self.client.post(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/playbooks",
-            json=custom_playbook_payload,
+        review = self.client.post(
+            f"/api/v2/workspaces/{workspace_id}/contract-review",
+            json={
+                "title": "Standalone Contract Review",
+                "matter_id": matter_id,
+                "document_ids": [upload.json()["id"]],
+                "playbook_id": "builtin-msa-v1",
+                "review_depth": "detailed",
+            },
         )
-        self.assertEqual(custom_playbook.status_code, 201, custom_playbook.text)
-        self.assertFalse(custom_playbook.json()["is_builtin"])
-        self.assertEqual(len(custom_playbook.json()["clauses"]), 2)
-        custom_playbook_payload["name"] = "Workspace Test MSA v2"
-        custom_playbook_payload["version"] = "1.1"
-        updated_playbook = self.client.put(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/playbooks/{custom_playbook.json()['id']}",
-            json=custom_playbook_payload,
-        )
-        self.assertEqual(updated_playbook.status_code, 200, updated_playbook.text)
-        self.assertEqual(updated_playbook.json()["version"], "1.1")
-        workflow_modules = self.client.get(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/workflow-modules"
-        )
-        self.assertEqual(workflow_modules.status_code, 200, workflow_modules.text)
-        module_ids = [item["id"] for item in workflow_modules.json()["items"]]
-        self.assertIn("clause_extraction", module_ids)
-        self.assertIn("escalation_detection", module_ids)
-        self.assertEqual(workflow_modules.json()["extension_contract"]["status"], "reserved")
-        workflow_run = self.client.post(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs",
-            json={"title": "Workflow Contract Review", "mode": "workflow", "config": {"playbook_id": custom_playbook.json()["id"]}},
-        )
-        self.assertEqual(workflow_run.status_code, 201, workflow_run.text)
-        workflow_job = self.wait_for_job(workspace_id, workflow_run.json()["job"]["id"])
-        self.assertEqual(workflow_job["job"]["status"], "completed", workflow_job)
-        workflow_run_id = workflow_run.json()["id"]
-        workflow_detail = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}")
-        self.assertEqual(workflow_detail.status_code, 200, workflow_detail.text)
-        self.assertEqual(workflow_detail.json()["run"]["mode"], "workflow")
-        self.assertGreaterEqual(len(workflow_detail.json()["summaries"]), 1)
-        trace = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/trace")
-        self.assertEqual(trace.status_code, 200, trace.text)
-        self.assertGreaterEqual(len(trace.json()), 5)
-        clauses = self.client.get(f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/clauses")
-        self.assertEqual(clauses.status_code, 200, clauses.text)
-        self.assertGreaterEqual(len(clauses.json()), 1)
-        self.assertTrue(clauses.json()[0]["clause"]["source"].get("excerpt"))
-        escalations = self.client.get(f"/api/v2/workspaces/{workspace_id}/escalations/blueprints/{blueprint_id}")
-        self.assertEqual(escalations.status_code, 200, escalations.text)
-        workflow_escalations = [item for item in escalations.json()["items"] if item["source_id"] == workflow_run_id]
-        self.assertGreaterEqual(len(workflow_escalations), 1)
-        blocked_completion = self.client.put(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/complete"
-        )
-        self.assertEqual(blocked_completion.status_code, 409, blocked_completion.text)
-        for escalation in workflow_escalations:
-            dismissed = self.client.put(f"/api/v2/workspaces/{workspace_id}/escalations/{escalation['id']}/dismiss")
-            self.assertEqual(dismissed.status_code, 200, dismissed.text)
-            self.assertEqual(dismissed.json()["status"], "dismissed")
-        clause_id = clauses.json()[0]["clause"]["id"]
-        decision = self.client.post(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/clauses/{clause_id}/decisions",
-            json={"decision": "approve", "note": "Reviewed in launch test."},
-        )
-        self.assertEqual(decision.status_code, 201, decision.text)
-        clause_detail = self.client.get(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/clauses/{clause_id}"
-        )
-        self.assertEqual(clause_detail.status_code, 200, clause_detail.text)
-        self.assertEqual(clause_detail.json()["decisions"][0]["decision"], "approve")
-        self.assertIn("playbook_clauses", clause_detail.json())
-        completed_review = self.client.put(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/complete"
-        )
-        self.assertEqual(completed_review.status_code, 200, completed_review.text)
-        self.assertTrue(completed_review.json()["run"]["review_complete"])
-        self.assertEqual(completed_review.json()["run"]["status_detail"], "Review complete")
-        audit_package = self.client.get(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/audit-package"
-        )
-        self.assertEqual(audit_package.status_code, 200, audit_package.text)
-        self.assertEqual(audit_package.json()["package_type"], "contract_review_workflow_audit")
-        self.assertGreaterEqual(len(audit_package.json()["clauses"]), 1)
-        self.assertGreaterEqual(len(audit_package.json()["step_trace"]), 5)
-        self.assertGreaterEqual(len(audit_package.json()["escalations"]), 1)
-        self.assertEqual(audit_package.json()["clauses"][0]["decisions"][0]["decision"], "approve")
-        self.assertIn("not autonomous legal advice", audit_package.json()["human_oversight_notice"])
-        workflow_export = self.client.get(
-            f"/api/v2/workspaces/{workspace_id}/blueprints/{blueprint_id}/contract-review/runs/{workflow_run_id}/export"
-        )
-        self.assertEqual(workflow_export.status_code, 200, workflow_export.text)
-        self.assertIn("## Clause Review", workflow_export.text)
-        self.assertIn("AI-assisted workflow draft", workflow_export.text)
-        self.assertIn("Completion: Human review complete", workflow_export.text)
-        self.assertIn("Open escalations: 0", workflow_export.text)
-        self.assertIn("Human decisions recorded: 1", workflow_export.text)
+        self.assertEqual(review.status_code, 200, review.text)
+        review_json = review.json()
+        self.assertEqual(review_json["mode"], "standalone")
+        self.assertEqual(review_json["playbook"]["id"], "builtin-msa-v1")
+        self.assertIn("workflow", review_json)
+        self.assertGreaterEqual(review_json["workflow"]["stats"]["clauses"], 1)
+        self.assertGreaterEqual(len(review_json["workflow"]["summaries"]), 1)
+        self.assertGreaterEqual(len(review_json["workflow"]["trace"]), 5)
+        self.assertTrue(review_json["workflow"]["clauses"][0]["clause"]["source"].get("excerpt"))
 
         stored_file = UPLOADS_PATH / upload.json()["storage_key"]
         self.assertTrue(stored_file.exists())
@@ -566,7 +440,7 @@ class LaunchReadinessTest(unittest.TestCase):
             db.add(foreign_playbook)
             db.commit()
 
-            selected = _select_playbook(db, {"playbook_id": foreign_playbook.id}, "nda", workspace_b.id)
+            selected = _select_playbook(db, workspace_b.id, None, "nda")
             self.assertIsNotNone(selected)
             self.assertNotEqual(selected.id, foreign_playbook.id)
             self.assertIsNone(selected.workspace_id)

@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
 from app.core.database import get_db
-from app.core.deps import get_current_user, require_blueprint_member, require_workspace_admin, require_workspace_member
+from app.core.deps import get_current_user, require_workspace_admin, require_workspace_member
 from app.core.json_utils import json_loads
-from app.core.models import BlueprintPersona, Persona, User, utcnow
+from app.core.models import Persona, User, utcnow
 from app.core.pagination import page_query_response
 
 router = APIRouter(tags=["personas"])
@@ -25,11 +25,6 @@ class PersonaIn(BaseModel):
     output_format: dict = {}
     tags: list[str] = []
     is_enabled: bool = True
-
-
-class BlueprintPersonaIn(BaseModel):
-    persona_id: str
-    role: str = "participant"
 
 
 def _format_persona(persona: Persona) -> dict:
@@ -51,38 +46,11 @@ def _format_persona(persona: Persona) -> dict:
     }
 
 
-def _format_blueprint_persona(link: BlueprintPersona, persona: Persona) -> dict:
-    return {
-        "id": link.id,
-        "workspace_id": link.workspace_id,
-        "blueprint_id": link.blueprint_id,
-        "persona_id": link.persona_id,
-        "role": link.role,
-        "created_by_user_id": link.created_by_user_id,
-        "created_at": link.created_at.isoformat(),
-        "persona": _format_persona(persona),
-    }
-
-
 def _persona_visible_query(workspace_id: str):
     return select(Persona).where(
         Persona.is_enabled == True,
         or_(Persona.workspace_id == workspace_id, Persona.workspace_id.is_(None)),
     )
-
-
-def _get_visible_persona(db: Session, workspace_id: str, persona_id: str) -> Persona:
-    persona = db.execute(_persona_visible_query(workspace_id).where(Persona.id == persona_id)).scalar_one_or_none()
-    if not persona:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found")
-    return persona
-
-
-def _require_blueprint_editor(workspace_id: str, blueprint_id: str, user: User, db: Session):
-    blueprint, membership = require_blueprint_member(workspace_id, blueprint_id, user, db)
-    if membership.role not in {"owner", "editor"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Blueprint edit access required")
-    return blueprint, membership
 
 
 @router.get("/workspaces/{workspace_id}/personas")
@@ -148,9 +116,6 @@ async def delete_persona(workspace_id: str, persona_id: str, user: User = Depend
     persona = db.execute(select(Persona).where(Persona.workspace_id == workspace_id, Persona.id == persona_id)).scalar_one_or_none()
     if not persona:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found")
-    links = db.execute(select(BlueprintPersona).where(BlueprintPersona.workspace_id == workspace_id, BlueprintPersona.persona_id == persona_id)).scalars().all()
-    for link in links:
-        db.delete(link)
     db.delete(persona)
     record_audit_event(
         db,
@@ -159,80 +124,7 @@ async def delete_persona(workspace_id: str, persona_id: str, user: User = Depend
         resource_id=persona_id,
         user_id=user.id,
         workspace_id=workspace_id,
-        metadata={"link_count": len(links)},
+        metadata={},
     )
-    db.commit()
-    return {"ok": True}
-
-
-@router.get("/workspaces/{workspace_id}/blueprints/{blueprint_id}/personas")
-async def list_blueprint_personas(workspace_id: str, blueprint_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    require_blueprint_member(workspace_id, blueprint_id, user, db)
-    rows = (
-        select(BlueprintPersona, Persona)
-        .join(Persona, Persona.id == BlueprintPersona.persona_id)
-        .where(BlueprintPersona.workspace_id == workspace_id, BlueprintPersona.blueprint_id == blueprint_id)
-        .order_by(BlueprintPersona.role, Persona.name)
-    )
-    return page_query_response(db, rows, lambda row: _format_blueprint_persona(row[0], row[1]), page=page, page_size=page_size)
-
-
-@router.post("/workspaces/{workspace_id}/blueprints/{blueprint_id}/personas", status_code=status.HTTP_201_CREATED)
-async def link_blueprint_persona(
-    workspace_id: str,
-    blueprint_id: str,
-    body: BlueprintPersonaIn,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    _require_blueprint_editor(workspace_id, blueprint_id, user, db)
-    persona = _get_visible_persona(db, workspace_id, body.persona_id)
-    role = body.role.strip() or "participant"
-    existing = db.execute(
-        select(BlueprintPersona).where(
-            BlueprintPersona.workspace_id == workspace_id,
-            BlueprintPersona.blueprint_id == blueprint_id,
-            BlueprintPersona.persona_id == body.persona_id,
-            BlueprintPersona.role == role,
-        )
-    ).scalar_one_or_none()
-    if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Persona is already linked to this blueprint role")
-    link = BlueprintPersona(
-        id=str(uuid.uuid4()),
-        workspace_id=workspace_id,
-        blueprint_id=blueprint_id,
-        persona_id=persona.id,
-        role=role,
-        created_by_user_id=user.id,
-    )
-    db.add(link)
-    db.flush()
-    record_audit_event(db, action="blueprint.persona.link", resource_type="blueprint_persona", resource_id=link.id, user_id=user.id, workspace_id=workspace_id, metadata={"blueprint_id": blueprint_id, "persona_id": persona.id, "role": role})
-    db.commit()
-    db.refresh(link)
-    return _format_blueprint_persona(link, persona)
-
-
-@router.delete("/workspaces/{workspace_id}/blueprints/{blueprint_id}/personas/{link_id}")
-async def unlink_blueprint_persona(
-    workspace_id: str,
-    blueprint_id: str,
-    link_id: str,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    _require_blueprint_editor(workspace_id, blueprint_id, user, db)
-    link = db.execute(
-        select(BlueprintPersona).where(
-            BlueprintPersona.workspace_id == workspace_id,
-            BlueprintPersona.blueprint_id == blueprint_id,
-            BlueprintPersona.id == link_id,
-        )
-    ).scalar_one_or_none()
-    if not link:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blueprint persona link not found")
-    db.delete(link)
-    record_audit_event(db, action="blueprint.persona.unlink", resource_type="blueprint_persona", resource_id=link_id, user_id=user.id, workspace_id=workspace_id, metadata={"blueprint_id": blueprint_id, "persona_id": link.persona_id})
     db.commit()
     return {"ok": True}

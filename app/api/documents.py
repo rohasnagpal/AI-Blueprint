@@ -3,16 +3,15 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.core.deps import get_current_user, require_blueprint_member, require_workspace_admin, require_workspace_member
+from app.core.deps import get_current_user, require_workspace_admin, require_workspace_member
 from app.core.document_indexer import index_document
 from app.core.jobs import create_job, format_job
-from app.core.models import BlueprintInstance, DocumentLink, KnowledgeDocument, Matter, User
+from app.core.models import DocumentLink, KnowledgeDocument, Matter, User
 from app.core.pagination import page_query_response
 from app.core.storage import delete_stored_file, store_upload
 from app.core.task_control import run_background_job
@@ -30,11 +29,6 @@ class DocumentRegisterIn(BaseModel):
     size_bytes: int | None = None
     scope: str = "workspace"
     status: str = "registered"
-
-
-class DocumentLinkIn(BaseModel):
-    blueprint_id: str
-    link_type: str = "source"
 
 
 def _format_document(document: KnowledgeDocument) -> dict:
@@ -55,18 +49,6 @@ def _format_document(document: KnowledgeDocument) -> dict:
     }
 
 
-def _format_link(link: DocumentLink) -> dict:
-    return {
-        "id": link.id,
-        "workspace_id": link.workspace_id,
-        "document_id": link.document_id,
-        "blueprint_id": link.blueprint_id,
-        "link_type": link.link_type,
-        "created_by_user_id": link.created_by_user_id,
-        "created_at": link.created_at.isoformat(),
-    }
-
-
 def _get_document_or_404(db: Session, workspace_id: str, document_id: str) -> KnowledgeDocument:
     document = db.execute(
         select(KnowledgeDocument).where(
@@ -80,7 +62,7 @@ def _get_document_or_404(db: Session, workspace_id: str, document_id: str) -> Kn
 
 
 def _validate_document_scope(scope: str) -> None:
-    if scope not in {"workspace", "matter", "blueprint"}:
+    if scope not in {"workspace", "matter"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid document scope")
 
 
@@ -266,31 +248,6 @@ async def enqueue_document_index(
     return {"document": _format_document(document), "job": format_job(job)}
 
 
-@router.get("/blueprints/{blueprint_id}/links")
-async def list_blueprint_documents(
-    workspace_id: str,
-    blueprint_id: str,
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=50, ge=1, le=200),
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    require_blueprint_member(workspace_id, blueprint_id, user, db)
-    rows = (
-        select(DocumentLink, KnowledgeDocument)
-        .join(KnowledgeDocument, KnowledgeDocument.id == DocumentLink.document_id)
-        .where(DocumentLink.workspace_id == workspace_id, DocumentLink.blueprint_id == blueprint_id)
-        .order_by(DocumentLink.created_at.desc())
-    )
-    return page_query_response(
-        db,
-        rows,
-        lambda row: {"link": _format_link(row[0]), "document": _format_document(row[1])},
-        page=page,
-        page_size=page_size,
-    )
-
-
 @router.get("/{document_id}")
 async def get_document(
     workspace_id: str,
@@ -359,44 +316,3 @@ async def delete_all_documents(
         delete_stored_file(storage_key)
     return {"ok": True, "deleted": len(documents)}
 
-
-@router.post("/{document_id}/links", status_code=status.HTTP_201_CREATED)
-async def link_document_to_blueprint(
-    workspace_id: str,
-    document_id: str,
-    body: DocumentLinkIn,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    document = _get_document_or_404(db, workspace_id, document_id)
-    blueprint, membership = require_blueprint_member(workspace_id, body.blueprint_id, user, db)
-    if membership.role not in {"owner", "editor"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Blueprint edit access required")
-    if document.matter_id and blueprint.matter_id and document.matter_id != blueprint.matter_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document and blueprint belong to different matters")
-    link = DocumentLink(
-        id=str(uuid.uuid4()),
-        workspace_id=workspace_id,
-        document_id=document_id,
-        blueprint_id=body.blueprint_id,
-        link_type=body.link_type,
-        created_by_user_id=user.id,
-    )
-    db.add(link)
-    try:
-        db.flush()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document is already linked to this blueprint")
-    record_audit_event(
-        db,
-        action="document.link",
-        resource_type="document_link",
-        resource_id=link.id,
-        user_id=user.id,
-        workspace_id=workspace_id,
-        metadata={"document_id": document_id, "blueprint_id": body.blueprint_id, "link_type": body.link_type},
-    )
-    db.commit()
-    db.refresh(link)
-    return _format_link(link)

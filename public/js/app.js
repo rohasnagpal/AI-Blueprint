@@ -52,13 +52,11 @@ async function init() {
   checkFirstRun();
   runAfterFirstPaint(async () => {
     await initV2();
-    await openBlueprintDeepLink();
     updateV2AuthSidebar();
     updateChatModeUI();
     renderEmailControls();
   });
   runAfterFirstPaint(() => {
-    loadCouncils();
     loadEmailMessages();
   });
 }
@@ -133,7 +131,7 @@ async function refreshV2Workspace(autoCreate = true) {
 function showV2AuthModal(mode) {
   App.v2.setupRequired = mode === 'setup';
   el('v2-auth-title', mode === 'setup' ? 'Set up multi-user access' : 'Sign in to multi-user access');
-  el('v2-auth-subtitle', mode === 'setup' ? 'Create the local admin username used by workspace and plugin features.' : 'Sign in with your username to enable workspace and plugin features.');
+  el('v2-auth-subtitle', mode === 'setup' ? 'Create the local admin username used by workspace features.' : 'Sign in with your username to enable workspace features.');
   el('v2-auth-submit', mode === 'setup' ? 'Create admin' : 'Sign in');
   const nameField = document.getElementById('v2-auth-name-field');
   if (nameField) nameField.style.display = mode === 'setup' ? 'block' : 'none';
@@ -169,8 +167,6 @@ async function logoutV2() {
       workspaceId: null,
       workspaces: [],
       matters: [],
-      blueprints: [],
-      plugins: [],
       documents: [],
       personas: [],
       secrets: [],
@@ -265,9 +261,11 @@ function updateAdminNav() {
   const show = App.v2.user?.is_system_admin ? 'flex' : 'none';
   const workspaceShow = App.v2.user ? 'flex' : 'none';
   const workspaceNav = document.getElementById('settings-nav-workspaces');
+  const mattersNav = document.getElementById('settings-nav-matters');
   const settingsNav = document.getElementById('settings-nav-users');
   const mainNav = document.getElementById('nav-admin-users');
   if (workspaceNav) workspaceNav.style.display = workspaceShow;
+  if (mattersNav) mattersNav.style.display = workspaceShow;
   if (settingsNav) settingsNav.style.display = show;
   if (mainNav) mainNav.style.display = show;
 }
@@ -317,10 +315,12 @@ async function loadWorkspaceManager() {
 
 function renderWorkspaceManagerSignedOut() {
   const empty = '<div class="council-row"><div class="council-card-desc">Sign in to manage workspaces and matters.</div></div>';
-  const list = document.getElementById('workspace-manager-list');
+  const workspaceSelect = document.getElementById('workspace-manager-select');
+  const matterWorkspaceSelect = document.getElementById('matter-manager-workspace-select');
   const detail = document.getElementById('workspace-manager-detail');
   const matters = document.getElementById('workspace-manager-matters');
-  if (list) list.innerHTML = empty;
+  if (workspaceSelect) workspaceSelect.innerHTML = '<option value="">Sign in first</option>';
+  if (matterWorkspaceSelect) matterWorkspaceSelect.innerHTML = '<option value="">Sign in first</option>';
   if (detail) detail.innerHTML = empty;
   if (matters) matters.innerHTML = empty;
 }
@@ -332,36 +332,31 @@ function renderWorkspaceManager() {
 }
 
 function renderWorkspaceManagerList() {
-  const list = document.getElementById('workspace-manager-list');
-  if (!list) return;
+  const selects = [
+    document.getElementById('workspace-manager-select'),
+    document.getElementById('matter-manager-workspace-select')
+  ].filter(Boolean);
+  if (!selects.length) return;
   if (!App.workspaceManager.workspaces.length) {
-    list.innerHTML = '<div class="council-row"><div class="council-card-desc">No workspaces yet.</div></div>';
+    selects.forEach(select => {
+      select.innerHTML = '<option value="">Create a workspace first</option>';
+      select.value = '';
+    });
     return;
   }
-  list.innerHTML = App.workspaceManager.workspaces.map(w => {
-    const selected = w.id === App.workspaceManager.selectedId;
-    const canAdmin = w.role === 'admin' || App.v2.user?.is_system_admin;
-    return `<div class="council-row">
-      <div class="council-row-head">
-        <div>
-          <div class="council-card-title">${selected ? '✓ ' : ''}${esc(w.name)}</div>
-          <div class="council-card-meta">${esc(w.slug || '')} · ${esc(w.role || 'member')}</div>
-        </div>
-        <span class="council-status ${canAdmin ? 'running' : 'completed'}">${esc(w.role || 'member')}</span>
-      </div>
-      <div class="council-actions">
-        <button class="btn-secondary" type="button" onclick="selectWorkspaceManagerWorkspace('${esc(w.id)}')">${selected ? 'Selected' : 'Open'}</button>
-        ${canAdmin ? `<button class="danger-btn" type="button" onclick="deleteWorkspaceManagerWorkspace('${esc(w.id)}')">Delete</button>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+  const options = App.workspaceManager.workspaces.map(w => `<option value="${esc(w.id)}">${esc(w.name)}</option>`).join('');
+  const value = App.workspaceManager.selectedId || App.workspaceManager.workspaces[0]?.id || '';
+  selects.forEach(select => {
+    select.innerHTML = options;
+    select.value = value;
+  });
 }
 
 function renderWorkspaceManagerDetail() {
   const selected = workspaceManagerSelected();
   const detail = document.getElementById('workspace-manager-detail');
-  el('workspace-manager-selected-title', selected ? selected.name : 'Selected Workspace');
-  el('workspace-manager-selected-subtitle', selected ? `${selected.slug || 'no-slug'} · ${selected.role || 'member'}` : 'Select a workspace to manage its details and matters.');
+  el('workspace-manager-selected-title', selected ? selected.name : 'Workspace');
+  el('workspace-manager-selected-subtitle', selected ? `${selected.role || 'member'}` : 'Select a workspace to manage its details and matters.');
   if (!detail) return;
   if (!selected) {
     detail.innerHTML = '<div class="council-row"><div class="council-card-desc">Select a workspace first.</div></div>';
@@ -370,11 +365,9 @@ function renderWorkspaceManagerDetail() {
   const canAdmin = selected.role === 'admin' || App.v2.user?.is_system_admin;
   detail.innerHTML = `<div class="council-form-row">
       <div class="council-field"><label for="workspace-edit-name">Name</label><input class="council-input" id="workspace-edit-name" value="${esc(selected.name)}" ${canAdmin ? '' : 'disabled'}/></div>
-      <div class="council-field"><label for="workspace-edit-slug">Slug</label><input class="council-input" id="workspace-edit-slug" value="${esc(selected.slug || '')}" ${canAdmin ? '' : 'disabled'}/></div>
     </div>
     <div class="council-actions">
-      <button class="btn-secondary" type="button" onclick="setV2Workspace('${esc(selected.id)}')">Use in Blueprints</button>
-      ${canAdmin ? '<button class="btn-primary" type="button" onclick="updateWorkspaceManagerWorkspace()">Save Workspace</button>' : '<span class="council-card-desc">Only workspace admins can edit workspace details.</span>'}
+      ${canAdmin ? `<button class="btn-primary" type="button" onclick="updateWorkspaceManagerWorkspace()">Save Workspace</button><button class="danger-btn" type="button" onclick="deleteWorkspaceManagerWorkspace('${esc(selected.id)}')">Delete Workspace</button>` : '<span class="council-card-desc">Only workspace admins can edit workspace details.</span>'}
     </div>`;
 }
 
@@ -413,12 +406,11 @@ function renderWorkspaceManagerMatters() {
         <div class="council-field"><label>Client</label><input class="council-input matter-edit-client" data-id="${esc(m.id)}" value="${esc(m.client_name || '')}"/></div>
       </div>
       <div class="council-form-row">
-        <div class="council-field"><label>Status</label><select class="council-select matter-edit-status" data-id="${esc(m.id)}"><option value="active" ${m.status === 'active' ? 'selected' : ''}>Active</option><option value="paused" ${m.status === 'paused' ? 'selected' : ''}>Paused</option><option value="closed" ${m.status === 'closed' ? 'selected' : ''}>Closed</option></select></div>
+        <div class="council-field"><label>Status</label><select class="council-select matter-edit-status" data-id="${esc(m.id)}"><option value="active" ${m.status === 'active' ? 'selected' : ''}>Active</option><option value="closed" ${m.status === 'closed' ? 'selected' : ''}>Closed</option></select></div>
         <div class="council-field"><label>Description</label><input class="council-input matter-edit-description" data-id="${esc(m.id)}" value="${esc(m.description || '')}"/></div>
       </div>
       <div class="council-actions">
         <button class="btn-primary" type="button" onclick="updateWorkspaceManagerMatter('${esc(m.id)}')">Save Matter</button>
-        <button class="btn-secondary" type="button" onclick="focusWorkspaceManagerMatter('${esc(m.id)}')">Use Filter</button>
         <button class="danger-btn" type="button" onclick="deleteWorkspaceManagerMatter('${esc(m.id)}')">Delete</button>
       </div>
     </div>`).join('');
@@ -432,17 +424,16 @@ async function selectWorkspaceManagerWorkspace(workspaceId) {
 
 async function createWorkspaceManagerWorkspace() {
   const name = document.getElementById('workspace-name')?.value.trim();
-  const slug = document.getElementById('workspace-slug')?.value.trim();
   if (!name) {
     showToast('Workspace name is required.', 'error');
     return;
   }
   try {
-    const r = await fetch('/api/v2/workspaces', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, slug: slug || null})});
+    const r = await fetch('/api/v2/workspaces', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})});
     if (!r.ok) throw new Error(await apiError(r));
     const workspace = await r.json();
     App.workspaceManager.selectedId = workspace.id;
-    ['workspace-name','workspace-slug'].forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
+    ['workspace-name'].forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
     await refreshV2Workspace(false);
     await loadWorkspaceManager();
     showToast('Workspace created.');
@@ -455,13 +446,12 @@ async function updateWorkspaceManagerWorkspace() {
   const selected = workspaceManagerSelected();
   if (!selected) return;
   const name = document.getElementById('workspace-edit-name')?.value.trim();
-  const slug = document.getElementById('workspace-edit-slug')?.value.trim();
   if (!name) {
     showToast('Workspace name is required.', 'error');
     return;
   }
   try {
-    const r = await fetch(workspaceApi(selected.id), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, slug: slug || null})});
+    const r = await fetch(workspaceApi(selected.id), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, slug: selected.slug || null})});
     if (!r.ok) throw new Error(await apiError(r));
     await refreshV2Workspace();
     await loadWorkspaceManager();
@@ -489,8 +479,11 @@ async function deleteWorkspaceManagerWorkspace(workspaceId) {
 async function createWorkspaceManagerMatter() {
   const workspaceId = App.workspaceManager.selectedId;
   if (!workspaceId) {
-    showToast('Select a workspace first.', 'error');
+    showToast('Choose a workspace first.', 'error');
     return;
+  }
+  if (App.workspaceManager.selectedId !== workspaceId) {
+    App.workspaceManager.selectedId = workspaceId;
   }
   const payload = {
     name: document.getElementById('matter-name')?.value.trim(),
@@ -547,7 +540,7 @@ async function updateWorkspaceManagerMatter(matterId) {
 async function deleteWorkspaceManagerMatter(matterId) {
   const workspaceId = App.workspaceManager.selectedId;
   const matter = App.workspaceManager.matters.find(m => m.id === matterId);
-  if (!workspaceId || !matter || !confirm(`Delete matter "${matter.name}"? Linked blueprints and documents will be unassigned from this matter.`)) return;
+  if (!workspaceId || !matter || !confirm(`Delete matter "${matter.name}"? Linked documents will be unassigned from this matter.`)) return;
   try {
     const r = await fetch(workspaceApi(workspaceId, `/matters/${encodeURIComponent(matterId)}`), {method:'DELETE'});
     if (!r.ok) throw new Error(await apiError(r));
@@ -558,18 +551,6 @@ async function deleteWorkspaceManagerMatter(matterId) {
   } catch(e) {
     showToast('Failed to delete matter: ' + e.message, 'error');
   }
-}
-
-async function focusWorkspaceManagerMatter(matterId) {
-  const workspaceId = App.workspaceManager.selectedId;
-  if (!workspaceId) return;
-  if (workspaceId !== App.v2.workspaceId) {
-    await setV2Workspace(workspaceId);
-  }
-  App.v2.activeMatterId = matterId;
-  renderV2MatterOptions();
-  renderV2Blueprints();
-  showToast('Matter filter updated.');
 }
 
 function showInitialCredentialReset() {
@@ -841,22 +822,8 @@ async function loadV2Matters() {
   App.v2.matters = data.items || [];
 }
 
-async function loadV2Blueprints() {
-  const r = await v2Fetch('/blueprints?page_size=200');
-  if (!r || !r.ok) return;
-  const data = await r.json();
-  App.v2.blueprints = data.items || [];
-}
-
-async function loadV2Plugins() {
-  const r = await v2Fetch('/plugins?page_size=200');
-  if (!r || !r.ok) return;
-  const data = await r.json();
-  App.v2.plugins = data.items || [];
-}
-
 async function loadV2ShellData() {
-  await Promise.all([loadV2Matters(), loadV2Blueprints(), loadV2Plugins(), loadV2Documents(), loadV2Personas(), loadV2Secrets()]);
+  await Promise.all([loadV2Matters(), loadV2Documents(), loadV2Personas(), loadV2Secrets()]);
   renderV2Shell();
   renderUploadMatterSelector();
   updateChatScopeControls();
@@ -1046,60 +1013,31 @@ function v2PluginLabel(pluginId) {
 
 function renderV2Shell() {
   const workspaceSelect = document.getElementById('v2-workspace-select');
-  if (!workspaceSelect) return;
-  applyBlueprintFocusMode();
   if (!App.v2.enabled) {
-    workspaceSelect.innerHTML = '<option>Sign in to multi-user access</option>';
+    if (workspaceSelect) workspaceSelect.innerHTML = '<option>Sign in to multi-user access</option>';
     el('v2-stat-matters', '0');
-    el('v2-stat-blueprints', '0');
     el('v2-stat-documents', '0');
-    const empty = '<div class="council-row"><div class="council-card-desc">Sign in to use v2 workspaces, matters, and blueprints.</div></div>';
+    const empty = '<div class="council-row"><div class="council-card-desc">Sign in to use workspaces and matters.</div></div>';
     const matters = document.getElementById('v2-matters-list');
-    const blueprints = document.getElementById('v2-blueprints-list');
-    const plugins = document.getElementById('v2-plugins-grid');
     if (matters) matters.innerHTML = empty;
-    if (blueprints) blueprints.innerHTML = empty;
-    if (plugins) plugins.innerHTML = empty;
     return;
   }
-  workspaceSelect.innerHTML = App.v2.workspaces.map(w => `<option value="${esc(w.workspace_id)}">${esc(w.workspace_name || w.name || 'Workspace')}</option>`).join('');
-  workspaceSelect.value = App.v2.workspaceId || '';
+  if (workspaceSelect) {
+    workspaceSelect.innerHTML = App.v2.workspaces.map(w => `<option value="${esc(w.workspace_id)}">${esc(w.workspace_name || w.name || 'Workspace')}</option>`).join('');
+    workspaceSelect.value = App.v2.workspaceId || '';
+  }
   el('v2-stat-matters', App.v2.matters.length);
-  el('v2-stat-blueprints', App.v2.blueprints.length);
   el('v2-stat-documents', App.v2.documents.length);
   renderV2MatterOptions();
   renderV2Matters();
-  renderV2Blueprints();
-  renderV2Plugins();
-}
-
-function isBlueprintFocusMode() {
-  return new URLSearchParams(window.location.search).has('blueprint');
-}
-
-function applyBlueprintFocusMode() {
-  document.getElementById('view-blueprints')?.classList.toggle('blueprint-focused', isBlueprintFocusMode());
 }
 
 function renderV2MatterOptions() {
   const filter = document.getElementById('v2-matter-filter');
-  const blueprintMatter = document.getElementById('v2-blueprint-matter');
   const options = App.v2.matters.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
   if (filter) {
     filter.innerHTML = `<option value="all">All matters</option>${options}`;
     filter.value = App.v2.activeMatterId && App.v2.activeMatterId !== '' ? App.v2.activeMatterId : 'all';
-  }
-  if (blueprintMatter) {
-    blueprintMatter.innerHTML = options;
-    const active = App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : '';
-    blueprintMatter.value = active;
-  }
-  const pluginSelect = document.getElementById('v2-blueprint-plugin');
-  if (pluginSelect) {
-    const plugins = App.v2.plugins.filter(p => p.workspace_enabled);
-    pluginSelect.innerHTML = plugins.length
-      ? plugins.map(p => `<option value="${esc(p.id)}">${esc(v2PluginLabel(p.id))}</option>`).join('')
-      : '<option value="">Enable a plugin first</option>';
   }
 }
 
@@ -1111,13 +1049,12 @@ function renderV2Matters() {
     return;
   }
   list.innerHTML = App.v2.matters.map(m => {
-    const count = App.v2.blueprints.filter(b => b.matter_id === m.id).length;
     const client = m.client_name ? ` · ${esc(m.client_name)}` : '';
     return `<div class="council-row">
       <div class="council-row-head">
         <div>
           <div class="council-card-title">${esc(m.name)}</div>
-          <div class="council-card-meta">${esc(m.status || 'active')}${client} · ${count} blueprint${count === 1 ? '' : 's'}</div>
+          <div class="council-card-meta">${esc(m.status || 'active')}${client}</div>
         </div>
         <span class="council-status ${esc(m.status || 'active')}">${esc(m.status || 'active')}</span>
       </div>
@@ -6202,9 +6139,9 @@ function closeMobileSidebar() {
 }
 
 // ── VIEW SWITCHING ────────────────────────────────────────────────────────
-const VIEWS = {chat:'view-chat',blueprints:'view-blueprints',matters:'view-matters',plugins:'view-plugins',councils:'view-councils',personas:'view-personas',email:'view-email','add-doc':'view-add-doc',translate:'view-translate','contract-review':'view-contract-review',draft:'view-draft','view-docs':'view-view-docs',workspaces:'view-settings',settings:'view-settings','admin-users':'view-settings'};
-const NAVS = {chat:'nav-chat',blueprints:'more-blueprints',matters:'more-matters',plugins:'more-plugins',councils:'nav-councils',personas:'nav-personas',email:'more-email','add-doc':'more-add-doc',translate:'more-translate','contract-review':'more-contract-review',draft:'more-draft','view-docs':'more-view-docs',workspaces:'more-workspaces',settings:'more-settings','admin-users':'nav-admin-users'};
-const TITLES = {chat:'Chat',blueprints:'Blueprints',matters:'Matters',plugins:'Plugins',councils:'Councils',personas:'Personas',email:'Email','add-doc':'Add Document',translate:'Translate','contract-review':'Contract Review',draft:'Draft','view-docs':'View Documents',workspaces:'Workspaces',settings:'Settings','admin-users':'Admin Users'};
+const VIEWS = {chat:'view-chat',personas:'view-personas',email:'view-email','add-doc':'view-add-doc',translate:'view-translate','contract-review':'view-contract-review',draft:'view-draft','view-docs':'view-view-docs',workspaces:'view-settings',settings:'view-settings','admin-users':'view-settings'};
+const NAVS = {chat:'nav-chat',personas:'nav-personas',email:'more-email','add-doc':'more-add-doc',translate:'more-translate','contract-review':'more-contract-review',draft:'more-draft','view-docs':'more-view-docs',workspaces:'nav-settings',settings:'nav-settings','admin-users':'nav-admin-users'};
+const TITLES = {chat:'Chat',personas:'Personas',email:'Email','add-doc':'Add Document',translate:'Translate','contract-review':'Contract Review',draft:'Draft','view-docs':'View Documents',workspaces:'Workspaces',settings:'Settings','admin-users':'Admin Users'};
 const LAST_VIEW_KEY = 'aibp_last_view';
 
 function switchView(name) {
@@ -6217,7 +6154,7 @@ function switchView(name) {
   document.getElementById(VIEWS[name])?.classList.add('active');
   document.getElementById(NAVS[name])?.classList.add('active');
   document.getElementById('view-settings')?.classList.toggle('workspace-standalone', name === 'workspaces');
-  const moreViews = ['blueprints', 'matters', 'add-doc', 'translate', 'contract-review', 'draft', 'view-docs', 'email', 'plugins', 'workspaces', 'settings', 'admin-users'];
+  const moreViews = ['add-doc', 'translate', 'contract-review', 'draft', 'view-docs', 'email', 'admin-users'];
   document.getElementById('nav-more')?.classList.toggle('active', moreViews.includes(name));
   document.querySelectorAll('.sidebar-more-menu button').forEach(b => b.classList.remove('active'));
   const moreActive = document.getElementById('more-' + name) || (name === 'admin-users' ? document.getElementById('nav-admin-users') : null);
@@ -6225,8 +6162,6 @@ function switchView(name) {
   document.getElementById('topbar-title').textContent = TITLES[name] || name;
   document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
   if (name === 'view-docs') { renderDocuments(); renderConnectedFolders(); }
-  if (['blueprints', 'matters', 'plugins'].includes(name)) loadV2Shell();
-  if (name === 'councils') loadCouncils();
   if (name === 'personas') renderPersonas();
   if (name === 'add-doc') { renderConnectedFolders(); renderUploadMatterSelector(); }
   if (name === 'translate') { renderTranslateScopeSelector(); setTranslateSourceType(App.translation.sourceType); renderTranslationFile(); }
@@ -6260,7 +6195,7 @@ function switchSettingsTab(tab, el) {
   document.querySelectorAll('.settings-nav-item').forEach(s => s.classList.remove('active'));
   document.getElementById('stab-' + tab)?.classList.add('active');
   el.classList.add('active');
-  if (tab === 'workspaces') loadWorkspaceManager();
+  if (tab === 'workspaces' || tab === 'matters') loadWorkspaceManager();
   if (tab === 'users') loadAdminUsers();
 }
 

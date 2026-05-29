@@ -13,7 +13,6 @@ router = APIRouter(prefix="/me", tags=["navigation"])
 def _workspace_nav(workspace: Workspace, role: str) -> dict:
     items = [
         {"id": "matters", "label": "Matters", "href": f"/workspaces/{workspace.id}/matters"},
-        {"id": "blueprints", "label": "Blueprints", "href": f"/workspaces/{workspace.id}/blueprints"},
         {"id": "knowledge", "label": "Knowledge", "href": f"/workspaces/{workspace.id}/documents"},
         {"id": "skills", "label": "Skills", "href": f"/workspaces/{workspace.id}/skills"},
     ]

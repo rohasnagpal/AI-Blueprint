@@ -2331,6 +2331,8 @@
   #view-email .settings-card > .council-list,
   #stab-workspaces .settings-card > .council-form,
   #stab-workspaces .settings-card > .council-list,
+  #stab-matters .settings-card > .council-form,
+  #stab-matters .settings-card > .council-list,
   #stab-users .settings-card > .council-form,
   #stab-users .settings-card > .council-list {
     padding: 16px 20px 20px;
@@ -2345,6 +2347,8 @@
   #view-email .settings-card-header + .council-list,
   #stab-workspaces .settings-card-header + .council-form,
   #stab-workspaces .settings-card-header + .council-list,
+  #stab-matters .settings-card-header + .council-form,
+  #stab-matters .settings-card-header + .council-list,
   #stab-users .settings-card-header + .council-form,
   #stab-users .settings-card-header + .council-list {
     padding-top: 16px;
@@ -3808,12 +3812,14 @@
     }
 
     #stab-users .settings-card > .council-form,
-    #stab-workspaces .settings-card > .council-form {
+    #stab-workspaces .settings-card > .council-form,
+    #stab-matters .settings-card > .council-form {
       padding: 14px;
     }
 
     #stab-users .council-actions,
-    #stab-workspaces .council-actions {
+    #stab-workspaces .council-actions,
+    #stab-matters .council-actions {
       align-items: stretch;
       flex-direction: column;
     }

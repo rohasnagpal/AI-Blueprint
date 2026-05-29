@@ -16,7 +16,7 @@ from app.core.contract_agents.risk_scorer import score_risks
 from app.core.contract_agents.summarizer import build_summaries
 from app.core.contract_agents.intake import run_intake
 from app.core.audit import record_audit_event
-from app.core.contract_review_runner import _ai_contract_review, _client_summary, _extract_fields, _negotiation_memo, _risk_matrix
+from app.core.contract_review_utils import ai_contract_review, client_summary, extract_fields, negotiation_memo, risk_matrix
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_member
 from app.core.json_utils import json_loads
@@ -308,16 +308,16 @@ async def run_standalone_contract_review(
         "playbook_name": selected_playbook.name if selected_playbook else None,
         "mode": "standalone",
     }
-    extraction = _extract_fields(full_text, config)
-    risks = _risk_matrix(full_text)
+    extraction = extract_fields(full_text, config)
+    risks = risk_matrix(full_text)
     sources = _sources(chunks)
     settings = get_legacy_settings_with_secrets()
-    ai_review = _ai_contract_review(full_text, extraction, risks, sources=sources, config=config, settings=settings)
+    ai_review = ai_contract_review(full_text, extraction, risks, sources=sources, config=config, settings=settings)
     if ai_review:
         extraction = ai_review.get("extraction", extraction)
         risks = ai_review.get("risk_matrix", risks)
-    negotiation_memo = (ai_review or {}).get("negotiation_memo") or _negotiation_memo(extraction, risks)
-    client_summary = (ai_review or {}).get("client_summary") or _client_summary(extraction, risks)
+    negotiation_memo_text = (ai_review or {}).get("negotiation_memo") or negotiation_memo(extraction, risks)
+    client_summary_text = (ai_review or {}).get("client_summary") or client_summary(extraction, risks)
     provider = configured_llm_provider(settings)
     payload = {
         "id": run_id,
@@ -327,8 +327,8 @@ async def run_standalone_contract_review(
         "playbook": _format_playbook(selected_playbook) if selected_playbook else None,
         "extraction": extraction,
         "risk_matrix": risks,
-        "negotiation_memo": negotiation_memo,
-        "client_summary": client_summary,
+        "negotiation_memo": negotiation_memo_text,
+        "client_summary": client_summary_text,
         "sources": sources,
         "workflow": workflow,
         "provider": provider,

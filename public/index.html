@@ -26,13 +26,13 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       New Chat
     </div>
-    <div class="nav-item" onclick="switchView('councils')" id="nav-councils">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Councils
-    </div>
     <div class="nav-item" onclick="switchView('personas')" id="nav-personas">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
       Personas
+    </div>
+    <div class="nav-item" onclick="switchView('settings')" id="nav-settings">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Settings
     </div>
     <div class="nav-item" onclick="toggleSidebarMore(event)" id="nav-more">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
@@ -41,14 +41,6 @@
   </div>
 
   <div class="sidebar-more-menu" id="sidebar-more-menu">
-    <button type="button" onclick="switchViewFromMore('blueprints')" id="more-blueprints">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-      Blueprints
-    </button>
-    <button type="button" onclick="switchViewFromMore('matters')" id="more-matters">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 3h11v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 4"/></svg>
-      Matters
-    </button>
     <button type="button" onclick="switchViewFromMore('add-doc')" id="more-add-doc">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Add Document
@@ -73,18 +65,6 @@
     <button type="button" onclick="switchViewFromMore('email')" id="more-email">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
       Email
-    </button>
-    <button type="button" onclick="switchViewFromMore('plugins')" id="more-plugins">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"/><path d="M5.2 5.2l4.2 4.2"/><path d="M2 12h6"/><path d="M5.2 18.8l4.2-4.2"/><path d="M12 16v6"/><path d="M18.8 18.8l-4.2-4.2"/><path d="M16 12h6"/><path d="M18.8 5.2l-4.2 4.2"/></svg>
-      Plugins
-    </button>
-    <button type="button" onclick="switchViewFromMore('workspaces')" id="more-workspaces">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-      Workspaces
-    </button>
-    <button type="button" onclick="switchViewFromMore('settings')" id="more-settings">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-      Settings
     </button>
     <button type="button" onclick="switchViewFromMore('admin-users')" id="nav-admin-users" data-csp-style="display:none">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -221,238 +201,6 @@
         </div>
       </div>
       <div class="input-hint">Built in India 🇮🇳 for the world by Rohas Nagpal.<br/>AI Blueprint may make mistakes. Always verify important information from the original documents.</div>
-    </div>
-  </div>
-
-  <!-- ── BLUEPRINTS VIEW ── -->
-  <div class="view" id="view-blueprints">
-    <div class="councils-area">
-      <div class="view-header">
-        <h2>Blueprints</h2>
-        <p>Open workspace matters and create plugin-backed legal blueprints.</p>
-      </div>
-
-      <div class="settings-card blueprint-context-card" data-csp-style="margin-bottom:16px">
-        <div class="council-form">
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="v2-workspace-select">Workspace</label>
-              <select class="council-select" id="v2-workspace-select" onchange="setV2Workspace(this.value)"></select>
-            </div>
-            <div class="council-field">
-              <label for="v2-matter-filter">Matter filter</label>
-              <select class="council-select" id="v2-matter-filter" onchange="setV2MatterFilter(this.value)"></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="docs-stats">
-        <div class="stat-pill"><strong id="v2-stat-matters">0</strong> matters</div>
-        <div class="stat-pill"><strong id="v2-stat-blueprints">0</strong> blueprints</div>
-        <div class="stat-pill"><strong id="v2-stat-documents">0</strong> v2 documents</div>
-      </div>
-
-      <div class="council-panel active" id="blueprint-panel-blueprints">
-        <div class="settings-card" data-csp-style="margin-bottom:16px">
-          <div class="settings-card-header">
-            <div><div class="settings-card-title">New Blueprint</div></div>
-          </div>
-          <div class="council-form">
-            <div class="council-form-row">
-              <div class="council-field"><label for="v2-blueprint-name">Name</label><input class="council-input" id="v2-blueprint-name" placeholder="Blueprint name"/></div>
-              <div class="council-field"><label for="v2-blueprint-plugin">Plugin</label><select class="council-select" id="v2-blueprint-plugin"></select></div>
-            </div>
-            <div class="council-form-row">
-              <div class="council-field"><label for="v2-blueprint-matter">Matter</label><select class="council-select" id="v2-blueprint-matter"></select></div>
-              <div class="council-field"><label for="v2-blueprint-status">Status</label><select class="council-select" id="v2-blueprint-status"><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></div>
-            </div>
-            <div class="council-field"><label for="v2-blueprint-description">Description</label><textarea class="council-textarea" id="v2-blueprint-description" placeholder="Optional blueprint notes"></textarea></div>
-            <div class="council-actions"><button class="btn-primary" type="button" onclick="createV2Blueprint()">Create Blueprint</button></div>
-          </div>
-        </div>
-        <div class="council-list" id="v2-blueprints-list"></div>
-        <div class="settings-card" id="v2-plugin-workspace" data-csp-style="margin-top:12px;display:none"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="view" id="view-matters">
-    <div class="councils-area">
-      <div class="view-header">
-        <h2>Matters</h2>
-        <p>Create, open, and remove matter records for the current workspace.</p>
-      </div>
-      <div class="council-panel active" id="blueprint-panel-matters">
-            <div class="settings-card" data-csp-style="margin-bottom:16px">
-              <div class="settings-card-header">
-                <div><div class="settings-card-title">New Matter</div></div>
-              </div>
-              <div class="council-form">
-                <div class="council-form-row">
-                  <div class="council-field"><label for="v2-matter-name">Name</label><input class="council-input" id="v2-matter-name" placeholder="Client or matter name"/></div>
-                  <div class="council-field"><label for="v2-matter-client">Client</label><input class="council-input" id="v2-matter-client" placeholder="Optional client name"/></div>
-                </div>
-                <div class="council-field"><label for="v2-matter-description">Description</label><textarea class="council-textarea" id="v2-matter-description" placeholder="Optional matter notes"></textarea></div>
-                <div class="council-actions"><button class="btn-primary" type="button" onclick="createV2Matter()">Create Matter</button></div>
-              </div>
-            </div>
-            <div class="council-list" id="v2-matters-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="view" id="view-plugins">
-    <div class="councils-area">
-      <div class="view-header">
-        <h2>Plugins</h2>
-        <p>Enable blueprint types for the current workspace.</p>
-      </div>
-      <div class="council-panel active" id="blueprint-panel-plugins">
-            <div class="council-grid" id="v2-plugins-grid"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── COUNCILS VIEW ── -->
-  <div class="view" id="view-councils">
-    <div class="councils-area">
-      <!-- <div class="view-header">
-        <h2>Councils</h2>
-        <p>Configure multiple AI participants, run them in ordered phases, and save document-grounded council outputs.</p>
-      </div> -->
-
-      <div class="councils-shell">
-        <div class="council-nav">
-          <button class="council-tab active" type="button" onclick="switchCouncilTab('runs', this)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 13l3 3 7-7"/></svg>
-            Runs
-          </button>
-          <button class="council-tab" type="button" onclick="switchCouncilTab('templates', this)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            Templates
-          </button>
-          <button class="council-tab" type="button" onclick="switchCouncilTab('builder', this)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-            Builder
-          </button>
-        </div>
-
-        <div>
-          <div class="council-panel active" id="council-panel-runs">
-            <div class="council-toolbar">
-              <div>
-                <div class="settings-section-title">AI Council Runs</div>
-                <div class="settings-section-desc">Run a preset or custom council against selected documents.</div>
-              </div>
-              <button class="btn-primary" type="button" onclick="startCouncilFromForm()">Run Council</button>
-            </div>
-
-            <div class="settings-card" data-csp-style="margin-bottom:16px">
-              <div class="settings-card-header">
-                <div><div class="settings-card-title">New Run</div><div class="settings-card-subtitle">Choose a template, objective, and document scope.</div></div>
-              </div>
-              <div class="council-form">
-                <div class="council-form-row">
-                  <div class="council-field">
-                    <label for="council-run-template">Template</label>
-                    <select class="council-select" id="council-run-template"></select>
-                  </div>
-                  <div class="council-field">
-                    <label for="council-run-docs">Documents</label>
-                    <select class="council-select" id="council-run-docs">
-                      <option value="all">All documents</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="council-field">
-                  <label for="council-run-title">Title</label>
-                  <input class="council-input" id="council-run-title" placeholder="Optional run title"/>
-                </div>
-                <div class="council-field">
-                  <label for="council-run-objective">Objective or submission</label>
-                  <textarea class="council-textarea" id="council-run-objective" placeholder="Describe the dispute, question, or student argument to evaluate."></textarea>
-                </div>
-              </div>
-            </div>
-
-            <div class="council-list" id="council-runs-list"></div>
-            <div class="council-result" id="council-run-result" data-csp-style="margin-top:16px"></div>
-          </div>
-
-          <div class="council-panel" id="council-panel-templates">
-            <div class="council-toolbar">
-              <div>
-                <div class="settings-section-title">AI Council Templates</div>
-                <div class="settings-section-desc">Use presets or duplicate them into editable custom councils.</div>
-              </div>
-              <button class="btn-secondary" type="button" onclick="loadCouncils()">Refresh</button>
-            </div>
-            <div class="council-grid" id="council-templates-grid"></div>
-          </div>
-
-          <div class="council-panel" id="council-panel-builder">
-            <div class="council-toolbar">
-              <div>
-                <div class="settings-section-title">AI Council Builder</div>
-                <div class="settings-section-desc">Create a council by defining AI participants and execution phases.</div>
-              </div>
-              <div class="council-actions">
-                <button class="btn-secondary" type="button" onclick="resetCouncilBuilder()">Reset</button>
-                <button class="btn-primary" type="button" onclick="saveCouncilTemplate()">Save Template</button>
-              </div>
-            </div>
-
-            <div class="settings-card">
-              <div class="settings-card-header">
-                <div><div class="settings-card-title">Template Details</div></div>
-              </div>
-              <div class="council-form">
-                <div class="council-form-row">
-                  <div class="council-field">
-                    <label for="builder-name">Name</label>
-                    <input class="council-input" id="builder-name" placeholder="Custom Council"/>
-                  </div>
-                  <div class="council-field">
-                    <label for="builder-output">Output format</label>
-                    <select class="council-select" id="builder-output">
-                      <option value="memo">Memo</option>
-                      <option value="reasoned_award">Reasoned award</option>
-                      <option value="scorecard">Scorecard</option>
-                      <option value="transcript">Transcript</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="council-field">
-                  <label for="builder-description">Description</label>
-                  <input class="council-input" id="builder-description" placeholder="What this council is for"/>
-                </div>
-                <div class="council-field">
-                  <label for="builder-objective">Default objective prompt</label>
-                  <textarea class="council-textarea" id="builder-objective" placeholder="Default task for this council. Users can override it when running."></textarea>
-                </div>
-              </div>
-            </div>
-
-            <div class="settings-card" data-csp-style="margin-top:14px">
-              <div class="settings-card-header">
-                <div><div class="settings-card-title">AI Participants</div><div class="settings-card-subtitle">Each participant can have its own role, instructions, and model defaults.</div></div>
-                <button class="btn-secondary" type="button" onclick="addCouncilAgent()">Add AI</button>
-              </div>
-              <div class="council-list" id="builder-agents"></div>
-            </div>
-
-            <div class="settings-card" data-csp-style="margin-top:14px">
-              <div class="settings-card-header">
-                <div><div class="settings-card-title">Phases</div><div class="settings-card-subtitle">Control order, parallelism, and which AIs speak in each phase.</div></div>
-                <button class="btn-secondary" type="button" onclick="addCouncilPhase()">Add Phase</button>
-              </div>
-              <div class="council-list" id="builder-phases"></div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -787,7 +535,7 @@
     <div class="add-doc-view translate-view draft-view">
       <div class="view-header">
         <h2>Contract Review</h2>
-        <p>Review indexed contracts directly from a workspace without blueprints or plugins.</p>
+        <p>Review indexed contracts directly from a workspace.</p>
       </div>
 
       <div class="upload-scope-panel" id="contract-review-scope-card">
@@ -1074,6 +822,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
           Workspaces
         </div>
+        <div class="settings-nav-item" id="settings-nav-matters" data-csp-style="display:none" onclick="switchSettingsTab('matters', this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 3h11v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 4"/></svg>
+          Matters
+        </div>
         <div class="settings-nav-item" onclick="switchSettingsTab('appearance', this)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 1 7 7c0 4-7 13-7 13S5 13 5 9a7 7 0 0 1 7-7z"/></svg>
           Appearance
@@ -1096,7 +848,7 @@
             <div class="api-key-category-header">
               <div>
                 <div class="api-key-category-title">AI Providers</div>
-                <div class="api-key-category-desc">Model, embedding, and inference services used by chat, documents, and councils.</div>
+                <div class="api-key-category-desc">Model, embedding, and inference services used by chat, documents, review, draft, and translate.</div>
               </div>
               <span class="api-key-category-count">12 providers</span>
             </div>
@@ -1903,7 +1655,20 @@
         <!-- WORKSPACES -->
         <div class="settings-section" id="stab-workspaces">
           <div class="settings-section-title">Workspaces</div>
-          <div class="settings-section-desc">Create workspaces, edit workspace details, and manage matters in the selected workspace.</div>
+          <div class="settings-section-desc">Create workspaces and edit workspace details.</div>
+
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div><div class="settings-card-title">Workspace</div><div class="settings-card-subtitle">Choose the workspace to manage.</div></div>
+              <button class="btn-secondary" type="button" onclick="loadWorkspaceManager()">Refresh</button>
+            </div>
+            <div class="council-form">
+              <div class="council-form-row">
+                <div class="council-field"><label for="workspace-manager-select">Workspace</label><select class="council-select" id="workspace-manager-select" onchange="selectWorkspaceManagerWorkspace(this.value)"></select></div>
+              </div>
+            </div>
+            <div class="council-form" id="workspace-manager-detail"></div>
+          </div>
 
           <div class="settings-card">
             <div class="settings-card-header">
@@ -1912,32 +1677,34 @@
             <div class="council-form">
               <div class="council-form-row">
                 <div class="council-field"><label for="workspace-name">Name</label><input class="council-input" id="workspace-name" autocomplete="off"/></div>
-                <div class="council-field"><label for="workspace-slug">Slug</label><input class="council-input" id="workspace-slug" autocomplete="off" placeholder="Optional"/></div>
               </div>
               <div class="council-actions">
                 <button class="btn-primary" type="button" onclick="createWorkspaceManagerWorkspace()">Create Workspace</button>
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- MATTERS -->
+        <div class="settings-section" id="stab-matters">
+          <div class="settings-section-title">Matters</div>
+          <div class="settings-section-desc">Create, edit, and remove matters in a workspace.</div>
 
           <div class="settings-card">
             <div class="settings-card-header">
-              <div><div class="settings-card-title">Workspace List</div><div class="settings-card-subtitle">Workspace admins can edit names, slugs, and delete workspaces.</div></div>
+              <div><div class="settings-card-title">Workspace</div><div class="settings-card-subtitle">Choose the workspace whose matters you want to manage.</div></div>
               <button class="btn-secondary" type="button" onclick="loadWorkspaceManager()">Refresh</button>
             </div>
-            <div class="council-list" id="workspace-manager-list"></div>
-          </div>
-
-          <div class="settings-card">
-            <div class="settings-card-header">
-              <div><div class="settings-card-title" id="workspace-manager-selected-title">Selected Workspace</div><div class="settings-card-subtitle" id="workspace-manager-selected-subtitle">Select a workspace to manage its details and matters.</div></div>
+            <div class="council-form">
+              <div class="council-form-row">
+                <div class="council-field"><label for="matter-manager-workspace-select">Workspace</label><select class="council-select" id="matter-manager-workspace-select" onchange="selectWorkspaceManagerWorkspace(this.value)"></select></div>
+              </div>
             </div>
-            <div class="council-form" id="workspace-manager-detail"></div>
           </div>
 
           <div class="settings-card">
             <div class="settings-card-header">
-              <div><div class="settings-card-title">New Matter</div><div class="settings-card-subtitle">Matters are scoped to the selected workspace.</div></div>
+              <div><div class="settings-card-title">New Matter</div><div class="settings-card-subtitle">Create a matter in the selected workspace.</div></div>
             </div>
             <div class="council-form">
               <div class="council-form-row">
@@ -1945,7 +1712,7 @@
                 <div class="council-field"><label for="matter-client">Client</label><input class="council-input" id="matter-client" autocomplete="off" placeholder="Optional"/></div>
               </div>
               <div class="council-form-row">
-                <div class="council-field"><label for="matter-status">Status</label><select class="council-select" id="matter-status"><option value="active">Active</option><option value="paused">Paused</option><option value="closed">Closed</option></select></div>
+                <div class="council-field"><label for="matter-status">Status</label><select class="council-select" id="matter-status"><option value="active">Active</option><option value="closed">Closed</option></select></div>
                 <div class="council-field"><label for="matter-description">Description</label><input class="council-input" id="matter-description" autocomplete="off" placeholder="Optional"/></div>
               </div>
               <div class="council-actions">

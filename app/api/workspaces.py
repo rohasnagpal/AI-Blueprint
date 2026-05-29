@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_admin, require_workspace_member
-from app.core.models import BlueprintInstance, KnowledgeDocument, Matter, User, Workspace, WorkspaceMember, utcnow
+from app.core.models import KnowledgeDocument, Matter, User, Workspace, WorkspaceMember, utcnow
 from app.core.pagination import page_query_response
 from app.core.security import hash_password
 from app.core.validation import normalize_email, validate_choice
@@ -79,7 +79,7 @@ def _validate_workspace_role(role: str) -> str:
 
 
 def _validate_matter_status(status_value: str) -> str:
-    return validate_choice(status_value, {"active", "paused", "closed"}, "matter status")
+    return validate_choice(status_value, {"active", "closed"}, "matter status")
 
 
 def _format_workspace_member(membership: WorkspaceMember, member: User) -> dict:
@@ -364,11 +364,6 @@ async def delete_matter(
     matter = db.execute(select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)).scalar_one_or_none()
     if not matter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
-    db.execute(
-        update(BlueprintInstance)
-        .where(BlueprintInstance.workspace_id == workspace_id, BlueprintInstance.matter_id == matter_id)
-        .values(matter_id=None, updated_at=utcnow())
-    )
     db.execute(
         update(KnowledgeDocument)
         .where(KnowledgeDocument.workspace_id == workspace_id, KnowledgeDocument.matter_id == matter_id)

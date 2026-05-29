@@ -3,7 +3,7 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
@@ -12,7 +12,7 @@ from app.core.database import SessionLocal, get_db
 from app.core.deps import get_current_user, require_workspace_member
 from app.core.json_utils import json_loads
 from app.core.jobs import format_job, format_job_event, update_job_status
-from app.core.models import BlueprintMember, Job, JobEvent, User
+from app.core.models import Job, JobEvent, User
 from app.core.pagination import page_query_response
 from app.core.task_control import is_job_running, request_job_cancel
 
@@ -24,14 +24,6 @@ def _require_job_access(workspace_id: str, job_id: str, user: User, db: Session)
     job = db.execute(select(Job).where(Job.workspace_id == workspace_id, Job.id == job_id)).scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    metadata = json_loads(job.metadata_json, {})
-    blueprint_id = metadata.get("blueprint_id")
-    if blueprint_id:
-        membership = db.execute(
-            select(BlueprintMember).where(BlueprintMember.blueprint_id == blueprint_id, BlueprintMember.user_id == user.id)
-        ).scalar_one_or_none()
-        if not membership:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Job access denied")
     return job
 
 
@@ -42,14 +34,9 @@ def _sse_event(payload: dict) -> str:
 @router.get("")
 async def list_jobs(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_member(workspace_id, user, db)
-    permitted_blueprint_ids = db.execute(
-        select(BlueprintMember.blueprint_id).where(BlueprintMember.user_id == user.id)
-    ).scalars().all()
-    visibility_filters = [Job.metadata_json.not_like('%"blueprint_id"%')]
-    visibility_filters.extend(Job.metadata_json.like(f'%"blueprint_id": "{blueprint_id}"%') for blueprint_id in permitted_blueprint_ids)
     jobs = (
         select(Job)
-        .where(Job.workspace_id == workspace_id, or_(*visibility_filters))
+        .where(Job.workspace_id == workspace_id)
         .order_by(Job.created_at.desc())
     )
     return page_query_response(db, jobs, format_job, page=page, page_size=page_size, scalars=True)

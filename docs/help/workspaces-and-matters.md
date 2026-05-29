@@ -49,7 +49,7 @@ Open a matter to focus blueprint lists and document context. When a matter is ac
 
 ## Matter Status
 
-Matters can have statuses such as active, paused, or closed. Status helps users understand whether the matter is ongoing.
+Matters can be active or closed. Status helps users understand whether the matter is ongoing.
 
 ## Deleting a Matter
 
