@@ -15,6 +15,7 @@ DEFAULTS = {
     "anthropic_api_key": "",
     "groq_api_key": "",
     "gemini_api_key": "",
+    "perplexity_api_key": "",
     "mistral_api_key": "",
     "cohere_api_key": "",
     "xai_api_key": "",
@@ -74,7 +75,7 @@ OLD_DEFAULT_SUGGESTED_QUESTIONS = (
 
 API_KEY_FIELDS = {
     "openai_api_key", "openrouter_api_key", "anthropic_api_key", "groq_api_key", "gemini_api_key",
-    "mistral_api_key", "cohere_api_key", "xai_api_key", "cloudflare_api_key", "together_api_key",
+    "perplexity_api_key", "mistral_api_key", "cohere_api_key", "xai_api_key", "cloudflare_api_key", "together_api_key",
     "ollama_api_key",
     "brave_search_api_key",
     "email_imap_password", "email_smtp_password",
@@ -1501,6 +1502,10 @@ def _builtin_ai_models() -> list[tuple[str, str, str, str]]:
         ("gemini-25-pro", "gemini", "Gemini 2.5 Pro", "gemini-2.5-pro"),
         ("gemini-25-flash", "gemini", "Gemini 2.5 Flash", "gemini-2.5-flash"),
         ("gemini-25-flash-lite", "gemini", "Gemini 2.5 Flash-Lite", "gemini-2.5-flash-lite"),
+        ("perplexity-fast-search", "perplexity", "Perplexity Fast Search", "fast-search"),
+        ("perplexity-pro-search", "perplexity", "Perplexity Pro Search", "pro-search"),
+        ("perplexity-deep-research", "perplexity", "Perplexity Deep Research", "deep-research"),
+        ("perplexity-advanced-deep-research", "perplexity", "Perplexity Advanced Deep Research", "advanced-deep-research"),
         ("mistral-large-3", "mistral", "Mistral Large 3", "mistral-large-2512"),
         ("mistral-medium-35", "mistral", "Mistral Medium 3.5", "mistral-medium-3-5"),
         ("mistral-small-4", "mistral", "Mistral Small 4", "mistral-small-2603"),

@@ -24,6 +24,10 @@ def configured_llm_provider(settings: dict) -> str | None:
         return provider
     if provider == "gemini" and settings.get("gemini_api_key"):
         return provider
+    if provider == "perplexity" and settings.get("perplexity_api_key"):
+        return provider
+    if provider == "mistral" and settings.get("mistral_api_key"):
+        return provider
     if provider == "xai" and settings.get("xai_api_key"):
         return provider
     if provider == "ollama":
@@ -46,6 +50,10 @@ def complete_with_configured_llm(settings: dict, system: str, user: str, *, mode
         return run_async(legacy_councils._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "gemini":
         return run_async(legacy_councils._complete_gemini(settings.get("gemini_api_key", ""), system, user, model_id, temperature, max_tokens))
+    if provider == "perplexity":
+        return run_async(legacy_councils._complete_perplexity(settings.get("perplexity_api_key", ""), system, user, model_id, temperature, max_tokens))
+    if provider == "mistral":
+        return run_async(legacy_councils._complete_mistral(settings.get("mistral_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "xai":
         return run_async(legacy_councils._complete_xai(settings.get("xai_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "ollama":
@@ -73,6 +81,10 @@ async def complete_async(
         return await legacy_councils._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "gemini":
         return await legacy_councils._complete_gemini(settings.get("gemini_api_key", ""), system, user, model, temperature, max_tokens)
+    if provider == "perplexity":
+        return await legacy_councils._complete_perplexity(settings.get("perplexity_api_key", ""), system, user, model, temperature, max_tokens)
+    if provider == "mistral":
+        return await legacy_councils._complete_mistral(settings.get("mistral_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "xai":
         return await legacy_councils._complete_xai(settings.get("xai_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "openai_file_search":

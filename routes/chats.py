@@ -802,6 +802,20 @@ async def _stream_help(message: str, settings: dict, persona: dict | None) -> As
             return
         async for token in _stream_gemini(gemini_key, system_prompt, full_message, model, temperature, max_tokens):
             yield token
+    elif llm_provider == "perplexity":
+        perplexity_key = settings.get("perplexity_api_key", "")
+        if not perplexity_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Perplexity API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_perplexity(perplexity_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "mistral":
+        mistral_key = settings.get("mistral_api_key", "")
+        if not mistral_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Mistral API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_mistral(mistral_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
     elif llm_provider == "xai":
         xai_key = settings.get("xai_api_key", "")
         if not xai_key:
@@ -859,6 +873,20 @@ async def _stream_general(message: str, settings: dict, persona: dict | None, we
             yield f'data: {json.dumps({"type": "error", "content": "Google Gemini API key not configured. Go to Settings -> API Keys."})}\n\n'
             return
         async for token in _stream_gemini(gemini_key, system_prompt, message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "perplexity":
+        perplexity_key = settings.get("perplexity_api_key", "")
+        if not perplexity_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Perplexity API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_perplexity(perplexity_key, system_prompt, message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "mistral":
+        mistral_key = settings.get("mistral_api_key", "")
+        if not mistral_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Mistral API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_mistral(mistral_key, system_prompt, message, model, temperature, max_tokens):
             yield token
     elif llm_provider == "xai":
         xai_key = settings.get("xai_api_key", "")
@@ -995,6 +1023,20 @@ async def _stream_v2_documents(message: str, settings: dict, scope: dict, person
             yield f'data: {json.dumps({"type": "error", "content": "Google Gemini API key not configured. Go to Settings -> API Keys."})}\n\n'
             return
         async for token in _stream_gemini(gemini_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "perplexity":
+        perplexity_key = settings.get("perplexity_api_key", "")
+        if not perplexity_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Perplexity API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_perplexity(perplexity_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "mistral":
+        mistral_key = settings.get("mistral_api_key", "")
+        if not mistral_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Mistral API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_mistral(mistral_key, system_prompt, full_message, model, temperature, max_tokens):
             yield token
     elif llm_provider == "xai":
         xai_key = settings.get("xai_api_key", "")
@@ -1301,6 +1343,20 @@ async def _stream_local(message: str, settings: dict, doc_ids: list[str] | None,
             return
         async for token in _stream_gemini(gemini_key, system_prompt, full_message, model, temperature, max_tokens):
             yield token
+    elif llm_provider == "perplexity":
+        perplexity_key = settings.get("perplexity_api_key", "")
+        if not perplexity_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Perplexity API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_perplexity(perplexity_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
+    elif llm_provider == "mistral":
+        mistral_key = settings.get("mistral_api_key", "")
+        if not mistral_key:
+            yield f'data: {json.dumps({"type": "error", "content": "Mistral API key not configured. Go to Settings -> API Keys."})}\n\n'
+            return
+        async for token in _stream_mistral(mistral_key, system_prompt, full_message, model, temperature, max_tokens):
+            yield token
     elif llm_provider == "xai":
         xai_key = settings.get("xai_api_key", "")
         if not xai_key:
@@ -1387,6 +1443,129 @@ async def _stream_xai_chat(
         base_url="https://api.x.ai/v1",
     ):
         yield token
+
+
+PERPLEXITY_PRESETS = {"fast-search", "pro-search", "deep-research", "advanced-deep-research"}
+
+
+def _extract_provider_response_text(data: dict) -> str:
+    parts = []
+    for output in data.get("output") or []:
+        for content in output.get("content") or []:
+            if content.get("type") in {"output_text", "text"} and content.get("text"):
+                parts.append(content["text"])
+    if parts:
+        return "".join(parts)
+    for choice in data.get("choices") or []:
+        message = choice.get("message") or {}
+        content = message.get("content")
+        if isinstance(content, str):
+            parts.append(content)
+        elif isinstance(content, list):
+            parts.extend(item.get("text", "") for item in content if isinstance(item, dict))
+    return "".join(parts)
+
+
+async def _stream_perplexity(
+    key: str, system: str, user: str, model: str, temperature: float, max_tokens: int
+) -> AsyncGenerator[str, None]:
+    import httpx
+
+    model_id = model or "pro-search"
+    payload = {
+        "input": user,
+        "instructions": system,
+        "temperature": temperature,
+        "max_output_tokens": max_tokens,
+    }
+    if model_id in PERPLEXITY_PRESETS:
+        payload["preset"] = model_id
+    else:
+        payload["model"] = model_id
+    try:
+        async with httpx.AsyncClient(timeout=240) as client:
+            response = await client.post(
+                "https://api.perplexity.ai/v1/agent",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json=payload,
+            )
+            response.raise_for_status()
+            content = _extract_provider_response_text(response.json())
+        if content:
+            yield f'data: {json.dumps({"type": "token", "content": content})}\n\n'
+    except Exception as e:
+        yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
+
+
+async def _stream_mistral(
+    key: str, system: str, user: str, model: str, temperature: float, max_tokens: int
+) -> AsyncGenerator[str, None]:
+    model_id = model or "mistral-medium-latest"
+    if model_id.startswith("agent:"):
+        async for token in _stream_mistral_agent(key, model_id.removeprefix("agent:"), system, user, temperature, max_tokens):
+            yield token
+        return
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST",
+                "https://api.mistral.ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={
+                    "model": model_id,
+                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "stream": True,
+                },
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    payload = line[6:]
+                    if payload == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(payload)
+                    except Exception:
+                        continue
+                    delta = data.get("choices", [{}])[0].get("delta", {}).get("content")
+                    if delta:
+                        yield f'data: {json.dumps({"type": "token", "content": delta})}\n\n'
+    except Exception as e:
+        yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
+
+
+async def _stream_mistral_agent(
+    key: str, agent_id: str, system: str, user: str, temperature: float, max_tokens: int
+) -> AsyncGenerator[str, None]:
+    import httpx
+
+    if not agent_id:
+        yield f'data: {json.dumps({"type": "error", "content": "Mistral agent model IDs must use agent:<agent_id>."})}\n\n'
+        return
+    try:
+        async with httpx.AsyncClient(timeout=240) as client:
+            response = await client.post(
+                "https://api.mistral.ai/v1/agents/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={
+                    "agent_id": agent_id,
+                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "stream": False,
+                },
+            )
+            response.raise_for_status()
+            content = _extract_provider_response_text(response.json())
+        if content:
+            yield f'data: {json.dumps({"type": "token", "content": content})}\n\n'
+    except Exception as e:
+        yield f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
 
 
 async def _stream_gemini(

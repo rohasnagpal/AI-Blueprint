@@ -2393,8 +2393,8 @@ function populateSettingsUI() {
   renderEmailControls();
   // Show connected status for API keys
   document.querySelectorAll('.provider-card').forEach(card => {
-    const name = card.querySelector('.provider-name')?.textContent?.trim();
-    const keyMap = { 'OpenAI':'openai_api_key','OpenRouter':'openrouter_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
+    const name = providerCardName(card);
+    const keyMap = { 'OpenAI':'openai_api_key','OpenRouter':'openrouter_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Perplexity':'perplexity_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
     const k = keyMap[name];
     const status = card.querySelector('.provider-status');
     const input = card.querySelector('.key-input');
@@ -2412,6 +2412,7 @@ const PROVIDER_KEY_URLS = {
   'OpenRouter': 'https://openrouter.ai/settings/keys',
   'Anthropic': 'https://console.anthropic.com/settings/keys',
   'Google Gemini': 'https://aistudio.google.com/app/apikey',
+  'Perplexity': 'https://www.perplexity.ai/settings/api',
   'Mistral AI': 'https://console.mistral.ai/api-keys',
   'Cohere': 'https://dashboard.cohere.com/api-keys',
   'Groq': 'https://console.groq.com/keys',
@@ -2423,10 +2424,15 @@ const PROVIDER_KEY_URLS = {
   'SearXNG': 'https://docs.searxng.org/admin/installation.html'
 };
 
+function providerCardName(card) {
+  const nameEl = card?.querySelector('.provider-name');
+  return nameEl?.childNodes?.[0]?.textContent?.trim() || nameEl?.textContent?.trim() || '';
+}
+
 function hydrateProviderKeyLinks() {
   document.querySelectorAll('.provider-card').forEach(card => {
     const nameEl = card.querySelector('.provider-name');
-    const name = nameEl?.childNodes?.[0]?.textContent?.trim() || nameEl?.textContent?.trim();
+    const name = providerCardName(card);
     const url = PROVIDER_KEY_URLS[name];
     if (!nameEl || !url || nameEl.querySelector('.provider-key-link')) return;
     const link = document.createElement('a');
@@ -2478,6 +2484,7 @@ function providerLabel(provider) {
     groq:'Groq',
     ollama:'Ollama',
     gemini:'Google Gemini',
+    perplexity:'Perplexity',
     mistral:'Mistral AI',
     cohere:'Cohere',
     xai:'xAI',
@@ -2494,6 +2501,7 @@ function providerKeyField(provider) {
     anthropic: 'anthropic_api_key',
     groq: 'groq_api_key',
     gemini: 'gemini_api_key',
+    perplexity: 'perplexity_api_key',
     mistral: 'mistral_api_key',
     cohere: 'cohere_api_key',
     xai: 'xai_api_key',
@@ -2519,7 +2527,7 @@ function providerHasApiKey(provider) {
 }
 
 function runnableModelProviders() {
-  const supported = ['openai', 'openrouter', 'anthropic', 'groq', 'ollama', 'gemini', 'xai'];
+  const supported = ['openai', 'openrouter', 'anthropic', 'groq', 'ollama', 'gemini', 'perplexity', 'mistral', 'xai'];
   const providers = modelProviders().filter(p => supported.includes(p));
   return providers;
 }
@@ -2538,7 +2546,7 @@ function liveModels(provider) {
 }
 
 function supportsLiveModels(provider) {
-  return ['openai', 'openrouter', 'anthropic', 'groq', 'ollama', 'gemini', 'xai'].includes(provider);
+  return ['openai', 'openrouter', 'anthropic', 'groq', 'ollama', 'gemini', 'mistral', 'xai'].includes(provider);
 }
 
 function localModelOptionsHtml(provider, selected) {
@@ -2720,8 +2728,8 @@ function saveApiKey(btn) {
   const input = card.querySelector('.key-input');
   const val = input.value.trim();
   if (!val || val === '••••••••') return;
-  const name = card.querySelector('.provider-name')?.textContent?.trim();
-  const keyMap = { 'OpenAI':'openai_api_key','OpenRouter':'openrouter_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
+  const name = providerCardName(card);
+  const keyMap = { 'OpenAI':'openai_api_key','OpenRouter':'openrouter_api_key','Anthropic':'anthropic_api_key','Google Gemini':'gemini_api_key','Perplexity':'perplexity_api_key','Mistral AI':'mistral_api_key','Cohere':'cohere_api_key','Groq':'groq_api_key','Ollama':'ollama_api_key','xAI (Grok)':'xai_api_key','Cloudflare Workers AI':'cloudflare_api_key','Together AI':'together_api_key','Brave Search':'brave_search_api_key','SearXNG':'searxng_base_url' };
   const k = keyMap[name];
   if (!k) { showToast('Unknown provider', 'error'); return; }
   saveSettings({[k]: val}).then(() => {
@@ -2908,7 +2916,7 @@ function saveRagProviderSettings() {
 async function resetAllSettings() {
   if (!confirm('Reset all settings to defaults? API keys will be cleared.')) return;
   try {
-    const defaults = { rag_provider:'openai', chat_model:'gpt-5.2', openai_assistants_model:'gpt-4.1', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', openrouter_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint by Rohas Nagpal', app_intro:'Open source AI-native infrastructure for Lawyers', suggested_questions:'[]' };
+    const defaults = { rag_provider:'openai', chat_model:'gpt-5.2', openai_assistants_model:'gpt-4.1', temperature:'0.2', max_tokens:'2048', top_k:'5', similarity_threshold:'0.72', chunk_size:'512', chunk_overlap:'64', retrieval_strategy:'semantic', response_language:'English', auto_detect_language:'false', response_length:'balanced', always_show_sources:'false', stream_responses:'true', max_file_size_mb:'25', auto_delete_days:'0', dark_mode:'false', font_size:'14', openai_api_key:'', openrouter_api_key:'', anthropic_api_key:'', groq_api_key:'', gemini_api_key:'', perplexity_api_key:'', mistral_api_key:'', cohere_api_key:'', xai_api_key:'', cloudflare_api_key:'', together_api_key:'', ollama_api_key:'', ollama_base_url:'http://localhost:11434', brave_search_api_key:'', searxng_base_url:'', app_name:'AI Blueprint by Rohas Nagpal', app_intro:'Open source AI-native infrastructure for Lawyers', suggested_questions:'[]' };
     await saveSettings(defaults);
   } catch(e) { showToast('Reset failed.', 'error'); }
 }

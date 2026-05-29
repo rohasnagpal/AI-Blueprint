@@ -199,6 +199,27 @@ async def _live_xai_models() -> list[dict]:
     return sorted(rows, key=lambda row: row["display_name"].lower())
 
 
+async def _live_mistral_models() -> list[dict]:
+    key = database.get_setting("mistral_api_key")
+    if not key:
+        raise HTTPException(400, detail="Mistral API key is not configured.")
+    import httpx
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get(
+            "https://api.mistral.ai/v1/models",
+            headers={"Authorization": f"Bearer {key}"},
+        )
+        response.raise_for_status()
+        data = response.json()
+    rows = []
+    for item in data.get("data", []):
+        model_id = item.get("id")
+        if model_id:
+            rows.append(_format_live_model("mistral", model_id, item.get("name") or model_id))
+    return sorted(rows, key=lambda row: row["display_name"].lower())
+
+
 async def _live_ollama_models() -> list[dict]:
     import httpx
 
@@ -283,6 +304,7 @@ async def list_live_models(provider: str):
         "groq": _live_groq_models,
         "ollama": _live_ollama_models,
         "gemini": _live_gemini_models,
+        "mistral": _live_mistral_models,
         "xai": _live_xai_models,
     }
     if provider not in loaders:

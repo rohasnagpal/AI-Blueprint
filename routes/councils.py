@@ -450,6 +450,10 @@ async def _run_agent(
         content = await _complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model, temperature, max_tokens)
     elif provider == "gemini":
         content = await _complete_gemini(settings.get("gemini_api_key", ""), system, user, model, temperature, max_tokens)
+    elif provider == "perplexity":
+        content = await _complete_perplexity(settings.get("perplexity_api_key", ""), system, user, model, temperature, max_tokens)
+    elif provider == "mistral":
+        content = await _complete_mistral(settings.get("mistral_api_key", ""), system, user, model, temperature, max_tokens)
     elif provider == "xai":
         content = await _complete_xai(settings.get("xai_api_key", ""), system, user, model, temperature, max_tokens)
     elif provider == "openai" and settings.get("rag_provider") == "openai" and settings.get("vector_store_id"):
@@ -632,6 +636,103 @@ async def _complete_gemini(key: str, system: str, user: str, model: str, tempera
             if part.get("text"):
                 parts.append(part["text"])
     return "".join(parts)
+
+
+PERPLEXITY_PRESETS = {"fast-search", "pro-search", "deep-research", "advanced-deep-research"}
+
+
+def _extract_response_text(data: dict) -> str:
+    parts = []
+    for output in data.get("output") or []:
+        for content in output.get("content") or []:
+            if content.get("type") in {"output_text", "text"} and content.get("text"):
+                parts.append(content["text"])
+    if parts:
+        return "".join(parts)
+    for choice in data.get("choices") or []:
+        message = choice.get("message") or {}
+        content = message.get("content")
+        if isinstance(content, str):
+            parts.append(content)
+        elif isinstance(content, list):
+            parts.extend(item.get("text", "") for item in content if isinstance(item, dict))
+    return "".join(parts)
+
+
+async def _complete_perplexity(key: str, system: str, user: str, model: str, temperature: float, max_tokens: int) -> str:
+    if not key:
+        raise RuntimeError("Perplexity API key not configured. Go to Settings -> API Keys.")
+    import httpx
+
+    model_id = model or "pro-search"
+    payload = {
+        "input": user,
+        "instructions": system,
+        "temperature": temperature,
+        "max_output_tokens": max_tokens,
+    }
+    if model_id in PERPLEXITY_PRESETS:
+        payload["preset"] = model_id
+    else:
+        payload["model"] = model_id
+
+    async with httpx.AsyncClient(timeout=240) as client:
+        response = await client.post(
+            "https://api.perplexity.ai/v1/agent",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
+    return _extract_response_text(data)
+
+
+async def _complete_mistral(key: str, system: str, user: str, model: str, temperature: float, max_tokens: int) -> str:
+    if not key:
+        raise RuntimeError("Mistral API key not configured. Go to Settings -> API Keys.")
+    import httpx
+
+    model_id = model or "mistral-medium-latest"
+    if model_id.startswith("agent:"):
+        response = await _complete_mistral_agent(key, model_id.removeprefix("agent:"), system, user, temperature, max_tokens)
+        return response
+
+    async with httpx.AsyncClient(timeout=180) as client:
+        response = await client.post(
+            "https://api.mistral.ai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "model": model_id,
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+    return _extract_response_text(data)
+
+
+async def _complete_mistral_agent(key: str, agent_id: str, system: str, user: str, temperature: float, max_tokens: int) -> str:
+    if not agent_id:
+        raise RuntimeError("Mistral agent model IDs must use agent:<agent_id>.")
+    import httpx
+
+    async with httpx.AsyncClient(timeout=240) as client:
+        response = await client.post(
+            "https://api.mistral.ai/v1/agents/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "agent_id": agent_id,
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": False,
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+    return _extract_response_text(data)
 
 
 def _uses_reasoning_chat_params(model: str) -> bool:

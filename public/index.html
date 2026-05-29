@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AI Blueprint by Rohas Nagpal</title>
 <link rel="stylesheet" href="/css/fonts.css?v=20260526-self-host-fonts-v1"/>
-<link rel="stylesheet" href="/css/app.css?v=20260529-api-key-links-v1"/>
+<link rel="stylesheet" href="/css/app.css?v=20260529-agent-providers-v1"/>
 <script src="/js/csp-styles.js?v=20260526-strict-style-csp-v1"></script>
 
 </head>
@@ -1012,7 +1012,7 @@
                 <div class="api-key-category-title">AI Providers</div>
                 <div class="api-key-category-desc">Model, embedding, and inference services used by chat, documents, and councils.</div>
               </div>
-              <span class="api-key-category-count">11 providers</span>
+              <span class="api-key-category-count">12 providers</span>
             </div>
 
           <!-- OpenAI -->
@@ -1091,6 +1091,27 @@
             <div class="provider-key-row">
               <div class="key-input-wrap">
                 <input class="key-input" type="password" placeholder="AIza…"/>
+                <button class="key-toggle" onclick="toggleKey(this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button class="key-save-btn" onclick="saveApiKey(this)">Save</button>
+            </div>
+          </div>
+
+          <!-- Perplexity -->
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-logo" data-csp-style="background:#ccfbf1;color:#0f766e;">PPLX</div>
+              <div>
+                <div class="provider-name">Perplexity</div>
+                <div class="provider-desc">Agent API presets for fast search, pro search, and deep research — perplexity.ai</div>
+              </div>
+              <span class="provider-status not-connected">Not connected</span>
+            </div>
+            <div class="provider-key-row">
+              <div class="key-input-wrap">
+                <input class="key-input" type="password" placeholder="pplx-…"/>
                 <button class="key-toggle" onclick="toggleKey(this)">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
@@ -1418,7 +1439,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Provider</div>
-                <div class="settings-row-desc">Use lowercase ids such as openai, anthropic, groq, ollama, gemini, mistral, cohere, xai, cloudflare, or together</div>
+                <div class="settings-row-desc">Use lowercase ids such as openai, anthropic, groq, ollama, gemini, perplexity, mistral, cohere, xai, cloudflare, or together</div>
               </div>
               <div class="settings-row-control"><input class="s-input" id="model-provider-input" placeholder="openai" data-csp-style="width:140px"/></div>
             </div>
@@ -2156,6 +2177,6 @@
 
 
 <script src="/js/csp-events.js?v=20260526-strict-csp-v2"></script>
-<script src="/js/app.js?v=20260529-api-key-links-v1"></script>
+<script src="/js/app.js?v=20260529-agent-providers-v1"></script>
 </body>
 </html>
