@@ -5,8 +5,8 @@ import sqlite3
 from datetime import datetime, timezone
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-DB_PATH = os.getenv("AI_BLUEPRINT_LEGACY_DATABASE_PATH", "ai_blueprint.db")
-SECRET_KEY_FILE = os.getenv("AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE", ".secret_key")
+DB_PATH = os.getenv("AI_BLUEPRINT_APP_DATABASE_PATH", "ai_blueprint.db")
+SECRET_KEY_FILE = os.getenv("AI_BLUEPRINT_APP_SECRET_KEY_FILE", ".secret_key")
 
 DEFAULTS = {
     "rag_provider": "openai",
@@ -125,36 +125,6 @@ def get_connection() -> sqlite3.Connection:
 def init_db():
     conn = get_connection()
     conn.executescript("""
-        CREATE TABLE IF NOT EXISTS documents (
-            id            TEXT PRIMARY KEY,
-            filename      TEXT NOT NULL,
-            original_name TEXT NOT NULL,
-            size_bytes    INTEGER,
-            page_count    INTEGER,
-            file_type     TEXT,
-            openai_file_id TEXT,
-            uploaded_at   TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS connected_folders (
-            id             TEXT PRIMARY KEY,
-            path           TEXT NOT NULL UNIQUE,
-            enabled        INTEGER DEFAULT 1,
-            last_synced_at TEXT,
-            created_at     TEXT,
-            updated_at     TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS connected_folder_files (
-            id             TEXT PRIMARY KEY,
-            folder_id      TEXT NOT NULL REFERENCES connected_folders(id) ON DELETE CASCADE,
-            source_path    TEXT NOT NULL UNIQUE,
-            doc_id         TEXT REFERENCES documents(id) ON DELETE SET NULL,
-            size_bytes     INTEGER,
-            mtime          REAL,
-            synced_at      TEXT
-        );
-
         CREATE TABLE IF NOT EXISTS chats (
             id           TEXT PRIMARY KEY,
             title        TEXT,

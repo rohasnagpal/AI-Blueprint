@@ -32,14 +32,7 @@ Make sure the source documents are indexed.
 
 ## Review Modes
 
-The UI exposes:
-
-- Structured workflow
-- Legacy memo
-
 Structured workflow is better when users want extracted clauses, risk findings, redline suggestions, playbook comparison, escalation review, summaries, and a human review screen.
-
-Legacy memo is simpler and produces a memo-style output.
 
 ## Playbooks
 

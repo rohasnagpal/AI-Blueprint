@@ -1,5 +1,5 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], connectedFolders: [], importedFolders: JSON.parse(localStorage.getItem('aibp_imported_folders') || '[]'), chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, voice: { active: false, connecting: false, pc: null, dc: null, stream: null, audioEl: null, statusEl: null, assistantText: '', assistantEl: null, toolCalls: {} }, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), models: [], liveModels: {}, liveModelRequestId: 0, editingModelId: null, adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, translation: { sourceType: 'text', file: null, result: null, isRunning: false }, drafting: { result: null, isRunning: false, job: null, events: [], stream: null, startedAt: null, history: [], historyLoading: false }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, contractReviewPlaybooks: [], contractReviewModules: [], editingContractPlaybookId: null, activeContractRun: null, activeContractClauses: [], activeContractTrace: [], activeContractEscalations: [], contractReviewFilters: { risk: 'all', status: 'all', type: 'all', sort: 'risk' }, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, voice: { active: false, connecting: false, pc: null, dc: null, stream: null, audioEl: null, statusEl: null, assistantText: '', assistantEl: null, toolCalls: {} }, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), models: [], liveModels: {}, liveModelRequestId: 0, editingModelId: null, adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, translation: { sourceType: 'text', file: null, result: null, isRunning: false }, drafting: { result: null, isRunning: false, job: null, events: [], stream: null, startedAt: null, history: [], historyLoading: false }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: 'all', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, contractReviewPlaybooks: [], contractReviewModules: [], editingContractPlaybookId: null, activeContractRun: null, activeContractClauses: [], activeContractTrace: [], activeContractEscalations: [], contractReviewFilters: { risk: 'all', status: 'all', type: 'all', sort: 'risk' }, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
 App.contractReview = { result: null, isRunning: false, playbooks: [] };
 const NAV_CONFIG = window.AIBP_NAVIGATION || {};
 const PRIMARY_NAV_ITEMS = NAV_CONFIG.primaryNavItems || [];
@@ -59,7 +59,7 @@ async function init() {
   await window.loadSettingsFragments?.();
   hydrateProviderKeyLinks();
   hydrateKeyToggles();
-  await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadConnectedFolders(), loadPersonas()]);
+  await Promise.all([loadSettings(), loadModels(), loadChats(), loadDocuments(), loadPersonas()]);
   restoreSavedView();
   updateV2AuthSidebar();
   updateChatModeUI();
@@ -205,9 +205,9 @@ function switchView(name, options = {}) {
   moreActive?.classList.add('active');
   document.getElementById('topbar-title').textContent = TITLES[name] || name;
   document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
-  if (name === 'view-docs') { renderDocuments(); renderConnectedFolders(); }
+  if (name === 'view-docs') renderDocuments();
   if (name === 'personas') renderPersonas();
-  if (name === 'add-doc') { renderConnectedFolders(); renderUploadMatterSelector(); }
+  if (name === 'add-doc') renderUploadMatterSelector();
   if (name === 'translate') { renderTranslateScopeSelector(); setTranslateSourceType(App.translation.sourceType); renderTranslationFile(); }
   if (name === 'contract-review') loadV2ShellData().then(renderStandaloneContractReview).catch(() => renderStandaloneContractReview());
   if (name === 'draft') { renderDraftScopeSelector(); loadDraftHistory(); }

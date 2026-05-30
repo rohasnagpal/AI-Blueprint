@@ -8,10 +8,10 @@ Use absolute paths outside the repository:
 
 ```bash
 export AI_BLUEPRINT_DATABASE_URL=sqlite:////srv/ai-blueprint/data/ai_blueprint_v2.db
-export AI_BLUEPRINT_LEGACY_DATABASE_PATH=/srv/ai-blueprint/data/ai_blueprint.db
+export AI_BLUEPRINT_APP_DATABASE_PATH=/srv/ai-blueprint/data/ai_blueprint.db
 export AI_BLUEPRINT_UPLOADS_DIR=/srv/ai-blueprint/uploads_v2
 export AI_BLUEPRINT_SECRET_KEY_FILE=/srv/ai-blueprint/keys/ai_blueprint_v2.key
-export AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE=/srv/ai-blueprint/keys/ai_blueprint_legacy.key
+export AI_BLUEPRINT_APP_SECRET_KEY_FILE=/srv/ai-blueprint/keys/ai_blueprint_application.key
 ```
 
 The database, uploads, Chroma index, and key files are confidential runtime data. Do not commit them or serve them as static files.

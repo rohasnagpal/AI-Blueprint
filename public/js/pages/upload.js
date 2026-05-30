@@ -2,48 +2,17 @@
 function initUpload() {
   const zone = document.getElementById('upload-zone');
   const input = document.getElementById('file-input');
-  const folderInput = document.getElementById('folder-input');
   if (!zone || !input) return;
   zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='var(--accent)'; });
   zone.addEventListener('dragleave', () => { zone.style.borderColor=''; });
   zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor=''; handleFiles(e.dataTransfer.files); });
   input.addEventListener('change', () => { handleFiles(input.files); input.value=''; });
-  if (folderInput) {
-    folderInput.addEventListener('change', async () => {
-      await removeStaleImportedFolderDocuments(folderInput.files);
-      rememberImportedFolder(folderInput.files);
-      handleFiles(folderInput.files);
-      folderInput.value = '';
-    });
-  }
 }
 
 function updateUploadQueueVisibility() {
   const title = document.getElementById('upload-queue-title');
   const list = document.getElementById('upload-queue-list');
   if (title) title.style.display = list && list.children.length ? 'block' : 'none';
-}
-
-function folderImportRoot(files) {
-  const selected = Array.from(files || []);
-  const firstRelativePath = selected.find(f => f.webkitRelativePath)?.webkitRelativePath || '';
-  return firstRelativePath.split('/')[0] || '';
-}
-
-async function removeStaleImportedFolderDocuments(files) {
-  const rootName = folderImportRoot(files);
-  if (!rootName) return;
-  const docs = App.documents.filter(doc => (doc.original_name || '').startsWith(rootName + '/'));
-  if (!docs.length) return;
-  for (const doc of docs) {
-    try {
-      const r = await v2Fetch(`/documents/${encodeURIComponent(doc.id)}`, {method:'DELETE'});
-      if (!r.ok) throw new Error(await apiError(r));
-    } catch(e) {
-      showToast(`Could not remove stale folder file: ${doc.original_name || doc.id}`, 'error');
-    }
-  }
-  await loadDocuments();
 }
 
 function handleFiles(files) {

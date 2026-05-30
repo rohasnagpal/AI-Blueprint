@@ -5,7 +5,7 @@ import database
 from app.core import llm_providers
 
 
-def get_legacy_settings_with_secrets() -> dict:
+def get_runtime_settings_with_secrets() -> dict:
     settings = database.get_all_settings()
     for key in database.API_KEY_FIELDS:
         settings[key] = database.get_setting(key)

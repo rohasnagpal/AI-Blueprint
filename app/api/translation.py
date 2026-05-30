@@ -18,7 +18,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_member
 from app.core.document_indexer import _extract_chunks
 from app.core.json_utils import json_loads
-from app.core.llm import complete_with_configured_llm, configured_llm_provider, get_legacy_settings_with_secrets
+from app.core.llm import complete_with_configured_llm, configured_llm_provider, get_runtime_settings_with_secrets
 from app.core.models import Matter, TranslationRun, User, utcnow
 from app.core.pagination import page_query_response
 from app.core.storage import ALLOWED_EXTENSIONS
@@ -251,7 +251,7 @@ def _fallback_html(text: str, *, target_language: str, mode: str) -> dict:
 
 
 def _translate(text: str, *, source_language: str, target_language: str, mode: str, context: str | None) -> dict:
-    settings = get_legacy_settings_with_secrets()
+    settings = get_runtime_settings_with_secrets()
     provider = configured_llm_provider(settings)
     model = settings.get("chat_model", "gpt-4o")
     if not provider:

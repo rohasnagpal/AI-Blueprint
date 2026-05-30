@@ -27,10 +27,10 @@ Before tagging a release, run:
 python -m compileall main.py database.py routes rag app migrations
 python -m unittest discover -s tests
 AI_BLUEPRINT_DATABASE_URL=sqlite:////tmp/ai_blueprint_v2_hardening.db \
-AI_BLUEPRINT_LEGACY_DATABASE_PATH=/tmp/ai_blueprint_legacy_hardening.db \
+AI_BLUEPRINT_APP_DATABASE_PATH=/tmp/ai_blueprint_application_hardening.db \
 AI_BLUEPRINT_UPLOADS_DIR=/tmp/ai_blueprint_v2_hardening_uploads \
 AI_BLUEPRINT_SECRET_KEY_FILE=/tmp/ai_blueprint_v2_hardening_secret.key \
-AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE=/tmp/ai_blueprint_legacy_hardening_secret.key \
+AI_BLUEPRINT_APP_SECRET_KEY_FILE=/tmp/ai_blueprint_application_hardening_secret.key \
 python scripts/v2_hardening_smoke.py
 ```
 
@@ -42,10 +42,10 @@ Set these explicitly for any public deployment:
 
 ```bash
 AI_BLUEPRINT_DATABASE_URL=sqlite:////secure/path/ai_blueprint_v2.db
-AI_BLUEPRINT_LEGACY_DATABASE_PATH=/secure/path/ai_blueprint.db
+AI_BLUEPRINT_APP_DATABASE_PATH=/secure/path/ai_blueprint.db
 AI_BLUEPRINT_UPLOADS_DIR=/secure/path/uploads_v2
 AI_BLUEPRINT_SECRET_KEY_FILE=/secure/path/keys/ai_blueprint_v2.key
-AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE=/secure/path/keys/ai_blueprint_legacy.key
+AI_BLUEPRINT_APP_SECRET_KEY_FILE=/secure/path/keys/ai_blueprint_application.key
 AI_BLUEPRINT_SECURE_COOKIES=true
 AI_BLUEPRINT_CORS_ORIGINS=https://your-domain.example
 AI_BLUEPRINT_AUTH_RATE_LIMIT_ATTEMPTS=10

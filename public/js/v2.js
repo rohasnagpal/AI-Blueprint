@@ -570,7 +570,7 @@ function defaultV2PluginConfig(pluginId) {
     };
   }
   if (pluginId === 'legal_research') return {jurisdiction:'', memo_format:'IRAC', authorities_required:true};
-  if (pluginId === 'contract_review') return {review_standard:'balanced', jurisdiction:'', risk_tolerance:'medium', mode:'legacy'};
+  if (pluginId === 'contract_review') return {review_standard:'balanced', jurisdiction:'', risk_tolerance:'medium', mode:'workflow'};
   return {review_standard:'balanced', jurisdiction:'', risk_tolerance:'medium'};
 }
 
@@ -594,7 +594,7 @@ function v2PluginRunFields(blueprint) {
     return `
       <div class="council-field"><label for="v2-plugin-run-title">Run title</label><input class="council-input" id="v2-plugin-run-title" placeholder="Contract review"/></div>
       <div class="council-form-row">
-        <div class="council-field"><label for="v2-contract-review-mode">Review mode</label><select class="council-select" id="v2-contract-review-mode"><option value="workflow">Structured workflow</option><option value="legacy">Legacy memo</option></select></div>
+        <div class="council-field"><label for="v2-contract-review-mode">Review mode</label><select class="council-select" id="v2-contract-review-mode"><option value="workflow">Structured workflow</option></select></div>
         <div class="council-field"><label for="v2-contract-playbook">Playbook</label><select class="council-select" id="v2-contract-playbook">${playbookOptions}</select></div>
       </div>
       <div class="council-field">
@@ -964,7 +964,7 @@ async function runV2Plugin() {
     body.objective = objective;
   }
   if (blueprint.plugin_id === 'contract_review') {
-    const mode = document.getElementById('v2-contract-review-mode')?.value || 'legacy';
+    const mode = document.getElementById('v2-contract-review-mode')?.value || 'workflow';
     const playbookId = document.getElementById('v2-contract-playbook')?.value || '';
     const documentIds = Array.from(document.querySelectorAll('.contract-source-doc:checked')).map(input => input.value).filter(Boolean);
     if (!documentIds.length) { showToast('Select at least one source document.', 'error'); return; }

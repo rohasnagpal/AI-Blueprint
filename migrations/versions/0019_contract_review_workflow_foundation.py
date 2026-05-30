@@ -19,7 +19,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("contract_review_runs", sa.Column("mode", sa.String(length=64), nullable=False, server_default="legacy"))
+    op.add_column("contract_review_runs", sa.Column("mode", sa.String(length=64), nullable=False, server_default="workflow"))
     op.add_column("contract_review_runs", sa.Column("workflow_version", sa.String(length=50), nullable=True))
     op.add_column("contract_review_runs", sa.Column("status_detail", sa.Text(), nullable=True))
     op.add_column("contract_review_runs", sa.Column("selected_playbook_id", sa.String(length=36), nullable=True))

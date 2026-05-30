@@ -15,7 +15,7 @@ from app.core.audit import record_audit_event
 from app.core.database import SessionLocal, get_db
 from app.core.deps import get_current_user, require_workspace_member
 from app.core.json_utils import json_loads
-from app.core.llm import complete_with_configured_llm, configured_llm_provider, get_legacy_settings_with_secrets
+from app.core.llm import complete_with_configured_llm, configured_llm_provider, get_runtime_settings_with_secrets
 from app.core.jobs import add_job_event, create_job, format_job, update_job_status
 from app.core.models import DraftRun, Job, KnowledgeChunk, KnowledgeDocument, Matter, User, utcnow
 from app.core.pagination import page_query_response
@@ -471,7 +471,7 @@ def _fallback_draft(body: DraftRequest, *, document_type: str, tone: str) -> dic
 
 
 def _draft(body: DraftRequest, *, document_type: str, tone: str, source_context: str, progress_callback: Callable[[str, int, dict[str, Any] | None], None] | None = None) -> dict:
-    settings = get_legacy_settings_with_secrets()
+    settings = get_runtime_settings_with_secrets()
     provider = configured_llm_provider(settings)
     model = settings.get("chat_model", "gpt-4o")
     estimated_tokens = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "exact": False}

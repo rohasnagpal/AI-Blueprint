@@ -10,7 +10,7 @@ from xml.etree import ElementTree
 from app.core.database import SessionLocal
 from app.core.embeddings import dumps_vector, embed_texts
 from app.core.jobs import JobCancelled, add_job_event, ensure_job_not_cancelled, update_job_status
-from app.core.llm import get_legacy_settings_with_secrets
+from app.core.llm import get_runtime_settings_with_secrets
 from app.core.models import Job, KnowledgeChunk, KnowledgeDocument, KnowledgeEmbedding, utcnow
 from app.core.storage import stored_path
 
@@ -92,7 +92,7 @@ def index_document(job_id: str, document_id: str) -> None:
                 db.add(row)
             db.flush()
             ensure_job_not_cancelled(db, job)
-            provider, model, vectors = embed_texts([chunk.content for chunk in chunk_rows], get_legacy_settings_with_secrets())
+            provider, model, vectors = embed_texts([chunk.content for chunk in chunk_rows], get_runtime_settings_with_secrets())
             for chunk, vector in zip(chunk_rows, vectors, strict=False):
                 ensure_job_not_cancelled(db, job)
                 db.add(

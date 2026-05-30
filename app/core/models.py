@@ -352,7 +352,7 @@ class ContractReviewRun(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
     config_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False)
-    mode: Mapped[str] = mapped_column(String(64), nullable=False, default="legacy")
+    mode: Mapped[str] = mapped_column(String(64), nullable=False, default="workflow")
     workflow_version: Mapped[str | None] = mapped_column(String(50))
     status_detail: Mapped[str | None] = mapped_column(Text)
     selected_playbook_id: Mapped[str | None] = mapped_column(String(36), index=True)

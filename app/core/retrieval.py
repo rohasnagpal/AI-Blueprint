@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.embeddings import LOCAL_EMBEDDING_MODEL, LOCAL_EMBEDDING_PROVIDER, cosine_similarity, embed_texts, loads_vector
-from app.core.llm import get_legacy_settings_with_secrets
+from app.core.llm import get_runtime_settings_with_secrets
 from app.core.models import DocumentLink, KnowledgeChunk, KnowledgeDocument, KnowledgeEmbedding
 
 
@@ -42,7 +42,7 @@ def _retrieve_embedded_evidence(
     query: str,
     top_k: int,
 ) -> list[dict[str, Any]]:
-    settings = get_legacy_settings_with_secrets()
+    settings = get_runtime_settings_with_secrets()
     provider, model, query_vectors = embed_texts([query], settings)
     query_vector = query_vectors[0] if query_vectors else []
     evidence = _retrieve_stored_embedding_rows(

@@ -20,7 +20,7 @@ from app.core.contract_review_utils import ai_contract_review, client_summary, e
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_member
 from app.core.json_utils import json_loads
-from app.core.llm import configured_llm_provider, get_legacy_settings_with_secrets
+from app.core.llm import configured_llm_provider, get_runtime_settings_with_secrets
 from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, KnowledgeChunk, KnowledgeDocument, Matter, User
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/contract-review", tags=["contract-review-standalone"])
@@ -311,7 +311,7 @@ async def run_standalone_contract_review(
     extraction = extract_fields(full_text, config)
     risks = risk_matrix(full_text)
     sources = _sources(chunks)
-    settings = get_legacy_settings_with_secrets()
+    settings = get_runtime_settings_with_secrets()
     ai_review = ai_contract_review(full_text, extraction, risks, sources=sources, config=config, settings=settings)
     if ai_review:
         extraction = ai_review.get("extraction", extraction)

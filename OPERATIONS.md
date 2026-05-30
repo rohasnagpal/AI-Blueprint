@@ -4,12 +4,12 @@
 
 Backups must include these items together because they are not independently useful:
 
-- `ai_blueprint.db`: legacy application database.
+- `ai_blueprint.db`: application database.
 - `ai_blueprint_v2.db`: v2 platform database, plus any active SQLite sidecars during a live backup.
-- `uploads/`: legacy uploaded files.
+- `uploads/`: application uploaded files.
 - `uploads_v2/`: v2 content-addressed uploaded files.
 - `chroma_db/`: local vector index data.
-- `.secret_key`: legacy API-key encryption key.
+- `.secret_key`: application API-key encryption key.
 - `.secret_key_v2` or the path configured by `AI_BLUEPRINT_SECRET_KEY_FILE`: v2 secret encryption key.
 
 Do not store backup archives inside the repository. Treat backup archives as confidential client data.

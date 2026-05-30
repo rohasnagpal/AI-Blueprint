@@ -10,22 +10,22 @@ from alembic.script import ScriptDirectory
 
 ROOT = Path("/tmp/ai_blueprint_launch_tests")
 DB_PATH = ROOT / "v2.db"
-LEGACY_DB_PATH = ROOT / "legacy.db"
+APP_DB_PATH = ROOT / "application.db"
 UPLOADS_PATH = ROOT / "uploads"
 SECRET_PATH = ROOT / "secret.key"
-LEGACY_SECRET_PATH = ROOT / "legacy_secret.key"
+APP_SECRET_PATH = ROOT / "application_secret.key"
 
 os.environ["AI_BLUEPRINT_DATABASE_URL"] = f"sqlite:///{DB_PATH}"
-os.environ["AI_BLUEPRINT_LEGACY_DATABASE_PATH"] = str(LEGACY_DB_PATH)
+os.environ["AI_BLUEPRINT_APP_DATABASE_PATH"] = str(APP_DB_PATH)
 os.environ["AI_BLUEPRINT_UPLOADS_DIR"] = str(UPLOADS_PATH)
 os.environ["AI_BLUEPRINT_SECRET_KEY_FILE"] = str(SECRET_PATH)
-os.environ["AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE"] = str(LEGACY_SECRET_PATH)
+os.environ["AI_BLUEPRINT_APP_SECRET_KEY_FILE"] = str(APP_SECRET_PATH)
 os.environ["AI_BLUEPRINT_AUTH_RATE_LIMIT_ATTEMPTS"] = "100"
 
 import database
 
-database.DB_PATH = str(LEGACY_DB_PATH)
-database.SECRET_KEY_FILE = str(LEGACY_SECRET_PATH)
+database.DB_PATH = str(APP_DB_PATH)
+database.SECRET_KEY_FILE = str(APP_SECRET_PATH)
 
 from fastapi.testclient import TestClient
 
