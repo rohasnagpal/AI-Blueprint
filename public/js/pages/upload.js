@@ -37,9 +37,8 @@ async function removeStaleImportedFolderDocuments(files) {
   if (!docs.length) return;
   for (const doc of docs) {
     try {
-      const r = await fetch(`/api/documents/${doc.id}`, {method:'DELETE'});
+      const r = await v2Fetch(`/documents/${encodeURIComponent(doc.id)}`, {method:'DELETE'});
       if (!r.ok) throw new Error(await apiError(r));
-      await deleteV2DocumentForLegacyDoc(doc);
     } catch(e) {
       showToast(`Could not remove stale folder file: ${doc.original_name || doc.id}`, 'error');
     }
@@ -72,7 +71,12 @@ function openChatUpload() {
 }
 
 async function uploadFile(file) {
+  if (!App.v2.enabled || !uploadWorkspaceId()) {
+    showToast('Choose or sign in to a workspace before uploading documents.', 'error');
+    return;
+  }
   const queueEl = document.getElementById('upload-queue-list');
+  if (!queueEl) return;
   const displayName = file.webkitRelativePath || file.name;
   const ext = file.name.split('.').pop().toUpperCase();
   const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt',JSON:'icon-txt',HTML:'icon-html',HTM:'icon-html'}[ext]||'icon-txt';
@@ -88,8 +92,11 @@ async function uploadFile(file) {
   try {
     const fd = new FormData();
     fd.append('file', file);
-    fd.append('original_path', displayName);
-    const r = await fetch('/api/documents/upload', {method:'POST', body:fd});
+    fd.append('original_name', displayName);
+    const matterId = selectedUploadMatterId();
+    fd.append('scope', matterId ? 'matter' : 'workspace');
+    if (matterId) fd.append('matter_id', matterId);
+    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(uploadWorkspaceId())}/documents/upload`, {method:'POST', body:fd});
     clearInterval(iv);
     if (!r.ok) {
       const err = await r.json();
@@ -102,7 +109,6 @@ async function uploadFile(file) {
       status.className='upload-item-status status-done';
       status.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
       showToast(`${displayName} uploaded.`);
-      await mirrorUploadToV2(file, uploadWorkspaceId(), selectedUploadMatterId());
       await loadDocuments();
       if (!App.currentChatId && !App.isStreaming && uploaded.id) {
         App.chatMode = 'documents';
@@ -118,6 +124,10 @@ async function uploadFile(file) {
 }
 
 async function ingestUrl() {
+  if (!App.v2.enabled || !uploadWorkspaceId()) {
+    showToast('Choose or sign in to a workspace before adding a URL.', 'error');
+    return;
+  }
   const input = document.getElementById('url-ingest-input');
   const url = input?.value.trim();
   if (!url) return;
@@ -130,7 +140,10 @@ async function ingestUrl() {
   const fill = item.querySelector('.progress-fill');
   const status = item.querySelector('.upload-item-status');
   try {
-    const r = await fetch('/api/web/ingest-url', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url})});
+    const matterId = selectedUploadMatterId();
+    const params = new URLSearchParams({scope: matterId ? 'matter' : 'workspace'});
+    if (matterId) params.set('matter_id', matterId);
+    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(uploadWorkspaceId())}/documents/ingest-url?${params.toString()}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url})});
     if (!r.ok) throw new Error(await apiError(r));
     fill.style.width='100%';
     status.className='upload-item-status status-done';
@@ -148,4 +161,3 @@ async function ingestUrl() {
     updateUploadQueueVisibility();
   }, 5000);
 }
-

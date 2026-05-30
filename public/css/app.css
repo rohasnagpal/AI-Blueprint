@@ -1347,6 +1347,7 @@
 
   /* ── ADD DOCUMENT VIEW ── */
   .add-doc-view {
+    --add-doc-content-width: min(100%, var(--content-max));
     flex: 1;
     overflow-y: auto;
     padding: 36px 40px;
@@ -1379,11 +1380,11 @@
   }
 
   #view-add-doc .view-header {
-    max-width: var(--content-narrow);
+    max-width: var(--add-doc-content-width);
   }
 
   .upload-scope-panel {
-    max-width: var(--content-narrow);
+    max-width: var(--add-doc-content-width);
     margin: 0 auto 18px;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1405,7 +1406,7 @@
   }
 
   .upload-zone {
-    max-width: var(--content-narrow);
+    max-width: var(--add-doc-content-width);
     margin: 0 auto 24px;
     background: var(--upload-zone);
     border: 2px dashed var(--upload-zone-border);
@@ -1901,7 +1902,7 @@
   .upload-btn svg { width: 15px; height: 15px; }
 
   .url-ingest {
-    max-width: var(--content-narrow);
+    max-width: var(--add-doc-content-width);
     margin: -8px auto 24px;
     display: flex;
     gap: 8px;
@@ -1935,7 +1936,7 @@
   .url-ingest button:hover { border-color: var(--accent); color: var(--accent); }
 
   .connected-folders-panel {
-    max-width: var(--content-narrow);
+    max-width: var(--add-doc-content-width);
     margin: 0 auto 24px;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1993,9 +1994,9 @@
   }
 
   .connected-folder-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -2030,7 +2031,7 @@
 
   /* Upload progress */
   .upload-queue {
-    max-width: var(--content-narrow);
+    max-width: var(--add-doc-content-width);
     margin: 0 auto;
   }
 
@@ -2194,9 +2195,14 @@
 
   /* ── VIEW DOCUMENTS ── */
   .view-docs-area {
+    --add-doc-content-width: min(100%, var(--content-max));
     flex: 1;
     overflow-y: auto;
     padding: 36px 40px;
+  }
+
+  .docs-scope-panel {
+    max-width: var(--content-max);
   }
 
   .docs-toolbar {

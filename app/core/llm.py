@@ -2,7 +2,7 @@ import asyncio
 import threading
 
 import database
-from routes import councils as legacy_councils
+from app.core import llm_providers
 
 
 def get_legacy_settings_with_secrets() -> dict:
@@ -41,23 +41,23 @@ def complete_with_configured_llm(settings: dict, system: str, user: str, *, mode
         return None
     model_id = model or settings.get("chat_model", "gpt-4o")
     if provider == "openai":
-        return run_async(legacy_councils._complete_openai(settings.get("openai_api_key", ""), system, user, model_id, temperature, max_tokens))
+        return run_async(llm_providers._complete_openai(settings.get("openai_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "anthropic":
-        return run_async(legacy_councils._complete_anthropic(settings.get("anthropic_api_key", ""), system, user, model_id, temperature, max_tokens))
+        return run_async(llm_providers._complete_anthropic(settings.get("anthropic_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "groq":
-        return run_async(legacy_councils._complete_groq(settings.get("groq_api_key", ""), system, user, model_id, temperature, max_tokens))
+        return run_async(llm_providers._complete_groq(settings.get("groq_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "openrouter":
-        return run_async(legacy_councils._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model_id, temperature, max_tokens))
+        return run_async(llm_providers._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "gemini":
-        return run_async(legacy_councils._complete_gemini(settings.get("gemini_api_key", ""), system, user, model_id, temperature, max_tokens))
+        return run_async(llm_providers._complete_gemini(settings.get("gemini_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "perplexity":
-        return run_async(legacy_councils._complete_perplexity(settings.get("perplexity_api_key", ""), system, user, model_id, temperature, max_tokens))
+        return run_async(llm_providers._complete_perplexity(settings.get("perplexity_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "mistral":
-        return run_async(legacy_councils._complete_mistral(settings.get("mistral_api_key", ""), system, user, model_id, temperature, max_tokens))
+        return run_async(llm_providers._complete_mistral(settings.get("mistral_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "xai":
-        return run_async(legacy_councils._complete_xai(settings.get("xai_api_key", ""), system, user, model_id, temperature, max_tokens))
+        return run_async(llm_providers._complete_xai(settings.get("xai_api_key", ""), system, user, model_id, temperature, max_tokens))
     if provider == "ollama":
-        return run_async(legacy_councils._complete_ollama(system, user, model_id, temperature, max_tokens, settings))
+        return run_async(llm_providers._complete_ollama(system, user, model_id, temperature, max_tokens, settings))
     return None
 
 
@@ -72,23 +72,23 @@ async def complete_async(
     max_tokens: int = 2048,
 ) -> str:
     if provider == "anthropic":
-        return await legacy_councils._complete_anthropic(settings.get("anthropic_api_key", ""), system, user, model, temperature, max_tokens)
+        return await llm_providers._complete_anthropic(settings.get("anthropic_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "groq":
-        return await legacy_councils._complete_groq(settings.get("groq_api_key", ""), system, user, model, temperature, max_tokens)
+        return await llm_providers._complete_groq(settings.get("groq_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "ollama":
-        return await legacy_councils._complete_ollama(system, user, model, temperature, max_tokens, settings)
+        return await llm_providers._complete_ollama(system, user, model, temperature, max_tokens, settings)
     if provider == "openrouter":
-        return await legacy_councils._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model, temperature, max_tokens)
+        return await llm_providers._complete_openrouter(settings.get("openrouter_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "gemini":
-        return await legacy_councils._complete_gemini(settings.get("gemini_api_key", ""), system, user, model, temperature, max_tokens)
+        return await llm_providers._complete_gemini(settings.get("gemini_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "perplexity":
-        return await legacy_councils._complete_perplexity(settings.get("perplexity_api_key", ""), system, user, model, temperature, max_tokens)
+        return await llm_providers._complete_perplexity(settings.get("perplexity_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "mistral":
-        return await legacy_councils._complete_mistral(settings.get("mistral_api_key", ""), system, user, model, temperature, max_tokens)
+        return await llm_providers._complete_mistral(settings.get("mistral_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "xai":
-        return await legacy_councils._complete_xai(settings.get("xai_api_key", ""), system, user, model, temperature, max_tokens)
+        return await llm_providers._complete_xai(settings.get("xai_api_key", ""), system, user, model, temperature, max_tokens)
     if provider == "openai_file_search":
-        return await legacy_councils._complete_openai_file_search(
+        return await llm_providers._complete_openai_file_search(
             settings.get("openai_api_key", ""),
             settings["vector_store_id"],
             system,
@@ -97,7 +97,7 @@ async def complete_async(
             temperature,
             max_tokens,
         )
-    return await legacy_councils._complete_openai(settings.get("openai_api_key", ""), system, user, model, temperature, max_tokens)
+    return await llm_providers._complete_openai(settings.get("openai_api_key", ""), system, user, model, temperature, max_tokens)
 
 
 def run_async(coro):

@@ -15,10 +15,9 @@ Personas can be used in:
 - Typed chat
 - Live voice
 - Email draft replies
-- Council agents
 - Some blueprint workflows
 
-Select the persona before starting the chat, voice session, email draft, council run, or workflow. The standalone Draft screen uses its own drafting inputs such as tone, audience, facts, terms, and instructions.
+Select the persona before starting the chat, voice session, email draft, or workflow. The standalone Draft screen uses its own drafting inputs such as tone, audience, facts, terms, and instructions.
 
 ## Creating a Persona
 

@@ -303,13 +303,6 @@ async function loadV2ShellData() {
   updateChatScopeControls();
 }
 
-function v2DocumentByNameAndSize(doc) {
-  return App.v2.documents.find(v2 =>
-    v2.original_name === doc.original_name &&
-    (v2.size_bytes || 0) === (doc.size_bytes || 0)
-  );
-}
-
 async function loadV2Personas() {
   const r = await v2Fetch('/personas?page_size=200');
   if (!r || !r.ok) return;
@@ -413,31 +406,6 @@ function onTranslateWorkspaceChange() {
 function selectedTranslateMatterId() {
   const value = document.getElementById('translate-matter-select')?.value || '';
   return value.trim() || null;
-}
-
-async function mirrorUploadToV2(file, workspaceId = null, matterId = null) {
-  if (!App.v2.enabled) return;
-  const targetWorkspaceId = workspaceId || App.v2.workspaceId;
-  if (!targetWorkspaceId) return;
-  try {
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('scope', matterId ? 'matter' : 'workspace');
-    if (matterId) fd.append('matter_id', matterId);
-    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(targetWorkspaceId)}/documents/upload`, {method:'POST', body:fd});
-    if (r && r.ok) await loadV2Documents();
-  } catch(e) {}
-}
-
-async function deleteV2DocumentForLegacyDoc(doc) {
-  if (!App.v2.enabled || !doc) return;
-  try {
-    await loadV2Documents();
-    const v2Doc = v2DocumentByNameAndSize(doc);
-    if (!v2Doc) return;
-    const r = await v2Fetch(`/documents/${encodeURIComponent(v2Doc.id)}`, {method:'DELETE'});
-    if (r && r.ok) await loadV2Documents();
-  } catch(e) {}
 }
 
 async function deleteAllV2Documents() {
@@ -1726,4 +1694,3 @@ async function checkFirstRun() {
     }
   } catch(e) {}
 }
-

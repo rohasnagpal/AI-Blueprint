@@ -3,23 +3,24 @@
     <div class="view-docs-area">
       <div class="view-header">
         <h2>Your Documents</h2>
-        <p>Browse and manage all documents in your knowledge base.</p>
+        <p>Browse and manage documents for the selected workspace and matter.</p>
+      </div>
+
+      <div class="upload-scope-panel docs-scope-panel" id="docs-scope-card">
+        <div class="council-field">
+          <label for="docs-workspace-select">Workspace</label>
+          <select class="council-select" id="docs-workspace-select" onchange="onDocsWorkspaceChange(this.value)"></select>
+        </div>
+        <div class="council-field">
+          <label for="docs-matter-select">Matter</label>
+          <select class="council-select" id="docs-matter-select" onchange="onDocsMatterChange(this.value)"></select>
+        </div>
       </div>
 
       <div class="docs-stats">
         <div class="stat-pill"><strong id="stat-docs-count">0</strong> documents</div>
         <div class="stat-pill"><strong id="stat-total-size">0 B</strong> total size</div>
         <div class="stat-pill"><strong id="stat-file-types">0</strong> file types</div>
-      </div>
-
-      <div class="connected-folders-panel docs-folder-sources">
-        <div class="connected-folders-head">
-          <div>
-            <div class="settings-card-title">Folder Sources</div>
-            <div class="settings-card-subtitle">Folders connected for repeat sync and folders imported through Browse.</div>
-          </div>
-        </div>
-        <div class="connected-folders-list"></div>
       </div>
 
       <div class="docs-toolbar">

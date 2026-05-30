@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 import database
 from app.core.deps import get_current_user
-from routes.chats import _get_persona, _parse_sse, _stream_general, _stream_local, _stream_openai
+from routes.chats import _get_persona, _parse_sse, _stream_general
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -195,19 +195,12 @@ async def draft_email(message_id: str, body: DraftIn):
     if body.instructions:
         prompt += f"\nAdditional drafting instructions:\n{body.instructions}\n"
 
-    use_documents = doc_context != "none"
-    doc_ids = None if doc_context in ("all", "none") else [d.strip() for d in doc_context.split(",") if d.strip()]
-    provider_name = settings.get("rag_provider", "openai")
+    doc_context = "none"
 
     content = []
     sources = []
     try:
-        if not use_documents:
-            stream = _stream_general(prompt, settings, persona)
-        elif provider_name == "openai":
-            stream = _stream_openai({"id": message_id, "thread_id": None}, prompt, settings, doc_ids, persona)
-        else:
-            stream = _stream_local(prompt, settings, doc_ids, persona)
+        stream = _stream_general(prompt, settings, persona)
         async for event in stream:
             data = _parse_sse(event)
             if not data:

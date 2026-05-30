@@ -20,7 +20,6 @@ from app.core.bootstrap import ensure_default_admin
 from app.core.config import get_settings, validate_runtime_security
 from app.core.database import run_migrations
 from app.core.secrets import ensure_secret_key_configured
-from routes.documents import router as doc_router
 from routes.chats import router as chat_router
 from routes.email import router as email_router
 from routes.personas import router as persona_router
@@ -155,7 +154,6 @@ async def health():
     return {"ok": True, "first_run": database.is_first_run()}
 
 
-app.include_router(doc_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(email_router, prefix="/api")
 app.include_router(persona_router, prefix="/api")

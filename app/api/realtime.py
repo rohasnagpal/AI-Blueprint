@@ -158,35 +158,4 @@ async def search_realtime_documents(
             ],
         }
 
-    if body.doc_context == "none":
-        return {"query": query, "scope": "none", "results": []}
-
-    doc_ids = None
-    if body.doc_context not in ("all", "none"):
-        doc_ids = [doc_id.strip() for doc_id in body.doc_context.split(",") if doc_id.strip()]
-
-    try:
-        from rag.llamaindex_rag import LlamaIndexRag
-
-        provider = LlamaIndexRag()
-        chunks = await provider.retrieve(
-            query,
-            doc_ids,
-            top_k,
-            float(settings.get("similarity_threshold", 0.72)),
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Document search failed: {exc}") from exc
-
-    return {
-        "query": query,
-        "scope": "legacy",
-        "results": [
-            {
-                "source": chunk.get("source"),
-                "document_id": chunk.get("doc_id") or chunk.get("document_id"),
-                "excerpt": str(chunk.get("content") or "")[:1200],
-            }
-            for chunk in chunks
-        ],
-    }
+    return {"query": query, "scope": "none", "results": []}

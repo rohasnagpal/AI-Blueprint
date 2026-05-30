@@ -1,30 +1,85 @@
 // ── DOCUMENTS ─────────────────────────────────────────────────────────────
 async function loadDocuments() {
   try {
-    if (App.v2.enabled) await loadV2Documents();
-    const r = await fetch('/api/documents');
-    App.documents = await arrayOrEmpty(r);
+    if (App.v2.enabled) {
+      await loadV2Documents();
+      App.documents = (App.v2.documents || []).map(normalizeV2Document);
+    } else {
+      App.documents = [];
+    }
     if (!App.documents.length && App.chatMode === 'documents') App.chatMode = 'general';
+    renderDocsScopeSelector();
     renderDocuments();
     updateDocsBadge();
     updateDocSelector();
-    renderCouncilDocOptions();
     renderEmailControls();
   } catch(e) {}
 }
 
+function normalizeV2Document(doc) {
+  const name = doc.original_name || 'Document';
+  const ext = (name.split('.').pop() || '').toUpperCase();
+  return {
+    ...doc,
+    file_type: ext && ext !== name.toUpperCase() ? ext : (doc.mime_type || 'TXT').split('/').pop().toUpperCase(),
+    uploaded_at: doc.created_at || doc.updated_at,
+    page_count: doc.page_count || null,
+  };
+}
+
+function docsMatterFilterValue() {
+  const value = document.getElementById('docs-matter-select')?.value;
+  if (value != null) return value;
+  return App.v2.activeMatterId || 'all';
+}
+
+function scopedDocumentsForView() {
+  const matterId = docsMatterFilterValue();
+  const docs = App.documents || [];
+  if (matterId === 'all') return docs;
+  if (matterId === '') return docs.filter(doc => !doc.matter_id);
+  return docs.filter(doc => doc.matter_id === matterId);
+}
+
+function renderDocsScopeSelector() {
+  const card = document.getElementById('docs-scope-card');
+  const workspaceSelect = document.getElementById('docs-workspace-select');
+  const matterSelect = document.getElementById('docs-matter-select');
+  if (!card || !workspaceSelect || !matterSelect) return;
+  const show = !!(App.v2.enabled && App.v2.workspaces.length);
+  card.style.display = show ? 'grid' : 'none';
+  if (!show) return;
+  workspaceSelect.innerHTML = App.v2.workspaces
+    .map(w => `<option value="${esc(w.workspace_id)}" ${w.workspace_id === App.v2.workspaceId ? 'selected' : ''}>${esc(w.workspace_name || w.name || 'Workspace')}</option>`)
+    .join('');
+  const currentMatter = matterSelect.value || App.v2.activeMatterId || 'all';
+  matterSelect.innerHTML = '<option value="all">All workspace documents</option><option value="">Workspace-level only</option>' +
+    (App.v2.matters || []).map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+  matterSelect.value = [...matterSelect.options].some(o => o.value === currentMatter) ? currentMatter : 'all';
+}
+
+async function onDocsWorkspaceChange(workspaceId) {
+  if (!workspaceId || workspaceId === App.v2.workspaceId) return;
+  await setV2Workspace(workspaceId);
+  App.v2.activeMatterId = 'all';
+  await loadDocuments();
+}
+
+function onDocsMatterChange(matterId) {
+  App.v2.activeMatterId = matterId || 'all';
+  renderDocuments(document.querySelector('.search-input')?.value || '');
+  updateDocSelector();
+}
+
 async function loadConnectedFolders() {
-  try {
-    const r = await fetch('/api/connected-folders');
-    App.connectedFolders = await arrayOrEmpty(r);
-    renderConnectedFolders();
-  } catch(e) {
-    App.connectedFolders = [];
-    renderConnectedFolders();
-  }
+  App.connectedFolders = [];
+  renderConnectedFolders();
 }
 
 function renderConnectedFolders() {
+  document.querySelectorAll('.connected-folders-panel').forEach(panel => {
+    panel.style.display = App.v2.enabled ? 'none' : '';
+  });
   const lists = document.querySelectorAll('.connected-folders-list');
   if (!lists.length) return;
   const importedFolders = mergedImportedFolders();
@@ -58,7 +113,7 @@ function renderConnectedFolders() {
 
 function mergedImportedFolders() {
   const inferred = new Map();
-  App.documents.forEach(doc => {
+  scopedDocumentsForView().forEach(doc => {
     const originalName = doc.original_name || '';
     if (!originalName.includes('/')) return;
     const rootName = originalName.split('/')[0];
@@ -112,9 +167,8 @@ async function removeImportedFolder(folderId) {
   const docs = App.documents.filter(doc => (doc.original_name || '').startsWith(prefix));
   try {
     for (const doc of docs) {
-      const r = await fetch(`/api/documents/${encodeURIComponent(doc.id)}`, {method:'DELETE'});
+      const r = await v2Fetch(`/documents/${encodeURIComponent(doc.id)}`, {method:'DELETE'});
       if (!r.ok) throw new Error(await apiError(r));
-      await deleteV2DocumentForLegacyDoc(doc);
     }
     App.importedFolders = App.importedFolders.filter(f => f.id !== folderId);
     saveImportedFolders();
@@ -133,25 +187,7 @@ function reimportFolderSource(folderId) {
 }
 
 async function addConnectedFolder() {
-  const input = document.getElementById('connected-folder-path');
-  const path = input?.value.trim() || '';
-  if (!path) {
-    showToast('Folder path is required.', 'error');
-    return;
-  }
-  try {
-    const r = await fetch('/api/connected-folders', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({path})
-    });
-    if (!r.ok) throw new Error(await apiError(r));
-    if (input) input.value = '';
-    await loadConnectedFolders();
-    showToast('Folder connected.');
-  } catch(e) {
-    showToast('Could not connect folder: ' + e.message, 'error');
-  }
+  showToast('Connected folder sync has been removed. Upload files directly into the selected workspace/matter.', 'warning');
 }
 
 async function browseConnectedFolder() {
@@ -164,41 +200,27 @@ async function browseConnectedFolder() {
 }
 
 async function syncConnectedFolder(folderId) {
-  try {
-    const r = await fetch(`/api/connected-folders/${encodeURIComponent(folderId)}/sync`, {method:'POST'});
-    if (!r.ok) throw new Error(await apiError(r));
-    const result = await r.json();
-    await Promise.all([loadConnectedFolders(), loadDocuments()]);
-    showToast(`Folder synced: ${result.added || 0} added, ${result.updated || 0} updated, ${result.removed || 0} removed, ${result.skipped || 0} unchanged.`);
-  } catch(e) {
-    showToast('Folder sync failed: ' + e.message, 'error');
-  }
+  showToast('Connected folder sync has been removed. Upload files directly into the selected workspace/matter.', 'warning');
 }
 
 async function removeConnectedFolder(folderId) {
-  const folder = App.connectedFolders.find(f => f.id === folderId);
-  if (!folder || !confirm(`Remove connected folder "${folder.path}"? Existing synced documents will remain.`)) return;
-  try {
-    const r = await fetch(`/api/connected-folders/${encodeURIComponent(folderId)}`, {method:'DELETE'});
-    if (!r.ok) throw new Error(await apiError(r));
-    await loadConnectedFolders();
-    showToast('Connected folder removed.');
-  } catch(e) {
-    showToast('Could not remove folder: ' + e.message, 'error');
-  }
+  App.connectedFolders = App.connectedFolders.filter(folder => folder.id !== folderId);
+  renderConnectedFolders();
 }
 
 function renderDocuments(filter = '') {
   const grid = document.getElementById('docs-grid');
   if (!grid) return;
-  const docs = filter ? App.documents.filter(d => d.original_name.toLowerCase().includes(filter.toLowerCase())) : App.documents;
+  const scopedDocs = scopedDocumentsForView();
+  const docs = filter ? scopedDocs.filter(d => d.original_name.toLowerCase().includes(filter.toLowerCase())) : scopedDocs;
   if (!docs.length) { grid.innerHTML = '<div data-csp-style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-subtle)">No documents yet. Upload one to get started.</div>'; }
   else grid.innerHTML = docs.map(d => docCard(d)).join('');
-  const total = App.documents.reduce((s,d) => s+(d.size_bytes||0), 0);
-  const types = new Set(App.documents.map(d=>d.file_type)).size;
-  el('stat-docs-count', App.documents.length);
+  const total = scopedDocs.reduce((s,d) => s+(d.size_bytes||0), 0);
+  const types = new Set(scopedDocs.map(d=>d.file_type)).size;
+  el('stat-docs-count', scopedDocs.length);
   el('stat-total-size', fmtBytes(total));
   el('stat-file-types', types);
+  renderConnectedFolders();
 }
 
 function docCard(d) {
@@ -206,9 +228,11 @@ function docCard(d) {
   const cls = {PDF:'icon-pdf',DOCX:'icon-docx',TXT:'icon-txt',CSV:'icon-csv',XLSX:'icon-csv',MD:'icon-txt',JSON:'icon-txt',HTML:'icon-html',HTM:'icon-html',URL:'icon-html'}[ext]||'icon-txt';
   const date = d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
   const pages = d.page_count ? `<div class="dot"></div><span>${d.page_count} pages</span>` : '';
+  const matter = d.matter_id ? (App.v2.matters || []).find(m => m.id === d.matter_id) : null;
+  const scope = matter ? `Matter: ${matter.name}` : 'Workspace-level';
   return `<div class="doc-card">
     <div class="doc-card-header"><div class="doc-card-icon ${cls}">${ext}</div><div class="doc-card-title" title="${esc(d.original_name)}">${esc(d.original_name)}</div></div>
-    <div class="doc-card-meta"><span>${fmtBytes(d.size_bytes||0)}</span>${date?`<div class="dot"></div><span>${date}</span>`:''}${pages}</div>
+    <div class="doc-card-meta"><span>${esc(scope)}</span><div class="dot"></div><span>${fmtBytes(d.size_bytes||0)}</span>${date?`<div class="dot"></div><span>${date}</span>`:''}${pages}</div>
     <div class="doc-card-actions">
       <button class="doc-action-btn" onclick="chatWithDoc('${d.id}','${esc(d.original_name).replace(/'/g,"\\'")}')">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat
@@ -225,9 +249,8 @@ function updateDocsBadge() { el('docs-count-badge', App.documents.length); }
 async function deleteDocument(id) {
   if (!confirm('Delete this document?')) return;
   try {
-    const doc = App.documents.find(d => d.id === id);
-    await fetch(`/api/documents/${id}`, {method:'DELETE'});
-    await deleteV2DocumentForLegacyDoc(doc);
+    const r = await v2Fetch(`/documents/${encodeURIComponent(id)}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
     showToast('Document deleted.');
     await loadDocuments();
   } catch(e) { showToast('Delete failed.', 'error'); }
@@ -236,8 +259,9 @@ async function deleteDocument(id) {
 async function deleteAllDocuments() {
   if (!confirm('Delete ALL documents? This cannot be undone.')) return;
   try {
-    await fetch('/api/documents', {method:'DELETE'});
-    await deleteAllV2Documents();
+    const r = await v2Fetch('/documents', {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    App.v2.documents = [];
     showToast('All documents deleted.');
     await loadDocuments();
   } catch(e) { showToast('Delete failed.', 'error'); }

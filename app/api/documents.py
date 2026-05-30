@@ -1,4 +1,7 @@
+import hashlib
+import os
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
@@ -16,6 +19,7 @@ from app.core.pagination import page_query_response
 from app.core.storage import delete_stored_file, store_upload
 from app.core.task_control import run_background_job
 from app.core.validation import validate_choice
+from webtools import fetch_page_text
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["documents"])
 
@@ -29,6 +33,10 @@ class DocumentRegisterIn(BaseModel):
     size_bytes: int | None = None
     scope: str = "workspace"
     status: str = "registered"
+
+
+class UrlIngestIn(BaseModel):
+    url: str
 
 
 def _format_document(document: KnowledgeDocument) -> dict:
@@ -77,6 +85,46 @@ def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> N
         ).scalar_one_or_none()
         if not matter:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+
+
+def _safe_display_name(name: str) -> str:
+    parts = []
+    for part in str(name or "").replace("\\", "/").split("/"):
+        clean = part.strip()
+        if not clean or clean in {".", ".."}:
+            continue
+        parts.append(clean[:160])
+    return "/".join(parts)[:500]
+
+
+def _safe_index_filename(name: str) -> str:
+    safe = "".join(ch if ch.isalnum() or ch in "._-" else "-" for ch in name).strip("-")[:120]
+    return f"{safe or 'web-page'}.md"
+
+
+def _store_text_document(original_name: str, content: str) -> dict:
+    data = content.encode("utf-8")
+    size_bytes = len(data)
+    max_bytes = get_settings().max_upload_bytes
+    if size_bytes > max_bytes:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File exceeds upload limit")
+    root = get_settings().uploads_dir
+    root.mkdir(parents=True, exist_ok=True)
+    content_hash = hashlib.sha256(data).hexdigest()
+    final_rel = Path(content_hash[:2]) / f"{content_hash}.md"
+    final_path = root / final_rel
+    final_path.parent.mkdir(parents=True, exist_ok=True)
+    if not final_path.exists():
+        temp_path = root / f".tmp-{uuid.uuid4().hex}.md"
+        temp_path.write_bytes(data)
+        os.replace(temp_path, final_path)
+    return {
+        "original_name": original_name,
+        "storage_key": final_rel.as_posix(),
+        "content_hash": content_hash,
+        "mime_type": "text/markdown",
+        "size_bytes": size_bytes,
+    }
 
 
 def _unreferenced_storage_keys(db: Session, documents: list[KnowledgeDocument]) -> list[str]:
@@ -185,6 +233,7 @@ async def upload_document(
     workspace_id: str,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    original_name: str | None = Form(default=None),
     matter_id: str | None = Form(default=None),
     scope: str = Form(default="workspace"),
     user: User = Depends(get_current_user),
@@ -194,6 +243,60 @@ async def upload_document(
     _validate_matter(db, workspace_id, matter_id)
     _validate_document_scope(scope)
     stored = await store_upload(file, max_bytes=get_settings().max_upload_bytes)
+    display_name = _safe_display_name(original_name or "") or stored["original_name"]
+    document = _create_document(
+        db,
+        workspace_id=workspace_id,
+        user=user,
+        matter_id=matter_id,
+        original_name=display_name,
+        storage_key=stored["storage_key"],
+        content_hash=stored["content_hash"],
+        mime_type=stored["mime_type"],
+        size_bytes=stored["size_bytes"],
+        scope=scope,
+        status_value="stored",
+    )
+    job = create_job(
+        db,
+        workspace_id=workspace_id,
+        created_by_user_id=user.id,
+        job_type="document.index",
+        metadata={"document_id": document.id, "storage_key": document.storage_key},
+        message="Document indexing queued",
+    )
+    db.commit()
+    db.refresh(document)
+    db.refresh(job)
+    background_tasks.add_task(run_background_job, job.id, index_document, job.id, document.id)
+    data = _format_document(document)
+    data["job"] = format_job(job)
+    return data
+
+
+@router.post("/ingest-url", status_code=status.HTTP_201_CREATED)
+async def ingest_url_document(
+    workspace_id: str,
+    body: UrlIngestIn,
+    background_tasks: BackgroundTasks,
+    matter_id: str | None = Query(default=None),
+    scope: str = Query(default="workspace"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_member(workspace_id, user, db)
+    _validate_matter(db, workspace_id, matter_id)
+    _validate_document_scope(scope)
+    try:
+        page = await fetch_page_text(body.url)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Could not fetch URL: {exc}")
+    title = page.get("title") or body.url
+    text = page.get("text") or ""
+    if not text.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No readable text found at URL")
+    markdown = f"# {title}\n\nSource: {body.url}\n\n{text}"
+    stored = _store_text_document(_safe_index_filename(title), markdown)
     document = _create_document(
         db,
         workspace_id=workspace_id,
@@ -212,7 +315,7 @@ async def upload_document(
         workspace_id=workspace_id,
         created_by_user_id=user.id,
         job_type="document.index",
-        metadata={"document_id": document.id, "storage_key": document.storage_key},
+        metadata={"document_id": document.id, "storage_key": document.storage_key, "source_url": body.url},
         message="Document indexing queued",
     )
     db.commit()
@@ -315,4 +418,3 @@ async def delete_all_documents(
     for storage_key in storage_keys_to_delete:
         delete_stored_file(storage_key)
     return {"ok": True, "deleted": len(documents)}
-

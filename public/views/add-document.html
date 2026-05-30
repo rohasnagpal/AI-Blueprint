@@ -45,22 +45,6 @@
         <button type="button" onclick="ingestUrl()">Add URL</button>
       </div>
 
-      <div class="connected-folders-panel">
-        <div class="connected-folders-head">
-          <div>
-            <div class="settings-card-title">Connected Folders</div>
-            <div class="settings-card-subtitle">Browse imports once. Enter a local path and connect it to enable repeat Sync.</div>
-          </div>
-        </div>
-        <div class="connected-folder-add">
-          <input type="file" id="folder-input" data-csp-style="display:none" webkitdirectory directory multiple/>
-          <input id="connected-folder-path" type="text" placeholder="/Users/you/Documents/Matter Folder"/>
-          <button type="button" onclick="browseConnectedFolder()">Browse</button>
-          <button type="button" onclick="addConnectedFolder()">Connect Folder</button>
-        </div>
-        <div class="connected-folders-list" id="connected-folders-list"></div>
-      </div>
-
       <!-- Upload queue -->
       <div class="upload-queue">
         <div class="upload-queue-title" id="upload-queue-title" data-csp-style="display:none">Uploading</div>

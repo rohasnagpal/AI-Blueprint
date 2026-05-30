@@ -6,7 +6,6 @@ async function loadModels() {
     renderChatProviderOptions();
     renderChatModelOptions();
     renderModelRegistry();
-    renderCouncilBuilder();
   } catch(e) {}
 }
 

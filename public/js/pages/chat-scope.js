@@ -173,10 +173,7 @@ function v2ChatScopePayload() {
   let v2DocIds = [];
   if (App.chatMode === 'documents' && Array.isArray(App.selectedDocIds)) {
     v2DocIds = App.selectedDocIds
-      .map(id => App.documents.find(d => d.id === id))
-      .map(doc => doc ? v2DocumentByNameAndSize(doc) : null)
-      .filter(Boolean)
-      .map(doc => doc.id);
+      .filter(id => (App.v2.documents || []).some(doc => doc.id === id));
   }
   return {
     v2_workspace_id: App.v2.workspaceId,

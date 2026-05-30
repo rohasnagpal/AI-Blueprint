@@ -272,7 +272,6 @@ def _search_help(message: str, limit: int = 5) -> list[dict]:
         "documents": {"document", "documents"},
         "blueprint": {"blueprint", "blueprints"},
         "plugin": {"plugin", "plugins"},
-        "council": {"council", "councils"},
         "matter": {"matter", "matters"},
         "workspace": {"workspace", "workspaces"},
     }
@@ -697,24 +696,8 @@ async def _stream(
                         collected_content.append(data.get("content", ""))
                     elif data.get("type") == "source":
                         collected_sources.append(data)
-        elif provider_name == "openai":
-            async for event in _stream_openai(chat, message, settings, doc_ids, persona, web_results):
-                yield event
-                data = _parse_sse(event)
-                if data:
-                    if data.get("type") == "token":
-                        collected_content.append(data.get("content", ""))
-                    elif data.get("type") == "source":
-                        collected_sources.append(data)
         else:
-            async for event in _stream_local(message, settings, doc_ids, persona, web_results):
-                yield event
-                data = _parse_sse(event)
-                if data:
-                    if data.get("type") == "token":
-                        collected_content.append(data.get("content", ""))
-                    elif data.get("type") == "source":
-                        collected_sources.append(data)
+            yield f'data: {json.dumps({"type": "error", "content": "Document search now requires a workspace document scope. Start a new document chat from the current workspace."})}\n\n'
     except Exception as e:
         err_event = f'data: {json.dumps({"type": "error", "content": str(e)})}\n\n'
         yield err_event

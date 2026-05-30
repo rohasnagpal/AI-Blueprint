@@ -33,7 +33,7 @@ Use **Draft** to generate legal notices, agreements, replies, clauses, board doc
 
 Use **Blueprints** for structured legal workflows such as Contract Review, AI Council, and Legal Research.
 
-Use **Councils** for configurable multi-agent analysis in the legacy council interface or through the AI Council blueprint plugin.
+Use the **AI Council** blueprint plugin for configurable multi-agent analysis.
 
 Use **Settings** to configure model providers, API keys, RAG settings, app branding, and user/admin options.
 

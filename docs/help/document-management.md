@@ -1,6 +1,6 @@
 # Document Management
 
-Document management covers Add Documents, View Documents, URL ingestion, connected folders, folder sync, document search, and deletion.
+Document management covers Add Documents, View Documents, URL ingestion, workspace and matter scope, document search, and deletion.
 
 ## Add Documents
 
@@ -43,19 +43,6 @@ Use URL ingestion for:
 
 Do not ingest confidential third-party pages unless permitted.
 
-## Connected Folders
-
-Connected Folders let users import from a local folder path and repeat sync later.
-
-To connect a folder:
-
-1. Open Add Document.
-2. Enter a local folder path or use Browse.
-3. Click Connect Folder.
-4. Use Sync when the folder contents change.
-
-Connected folders are useful for matter folders that receive new files over time.
-
 ## View Documents
 
 Open **View Documents** from the More menu to browse the document library.
@@ -65,7 +52,7 @@ The screen shows:
 - Document count
 - Total size
 - File type count
-- Folder sources
+- Workspace and matter selectors
 - Search
 - Document cards
 - Delete actions
@@ -87,5 +74,4 @@ Deleting a document removes it from the app's document list and retrieval contex
 - Upload documents before creating document-grounded chats or blueprint runs.
 - Use clear filenames.
 - Keep documents in the correct workspace and matter.
-- Connect folders only when repeat sync is useful.
 - Split unrelated bundles where possible.
