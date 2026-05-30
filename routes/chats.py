@@ -383,6 +383,8 @@ def _require_v2_chat_access(request: Request, chat) -> None:
 def _validate_v2_chat_scope(request: Request, body: CreateChat) -> dict | None:
     if not body.v2_workspace_id:
         return None
+    if not body.v2_matter_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Matter is required")
     user = _get_v2_user(request)
     document_ids = [doc_id for doc_id in (body.v2_document_ids or []) if doc_id]
     with SessionLocal() as db:
@@ -396,12 +398,11 @@ def _validate_v2_chat_scope(request: Request, body: CreateChat) -> dict | None:
         _workspace_member, workspace = membership
         if workspace.deleted_at:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
-        if body.v2_matter_id:
-            matter = db.execute(
-                select(Matter).where(Matter.workspace_id == body.v2_workspace_id, Matter.id == body.v2_matter_id)
-            ).scalar_one_or_none()
-            if not matter:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+        matter = db.execute(
+            select(Matter).where(Matter.workspace_id == body.v2_workspace_id, Matter.id == body.v2_matter_id)
+        ).scalar_one_or_none()
+        if not matter:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
         if body.v2_blueprint_id:
             blueprint_row = db.execute(
                 select(BlueprintInstance, BlueprintMember)
@@ -415,8 +416,8 @@ def _validate_v2_chat_scope(request: Request, body: CreateChat) -> dict | None:
             if not blueprint_row:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Blueprint access denied")
             blueprint, _blueprint_member = blueprint_row
-            if not body.v2_matter_id and blueprint.matter_id:
-                body.v2_matter_id = blueprint.matter_id
+            if blueprint.matter_id and blueprint.matter_id != body.v2_matter_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Blueprint must belong to the selected matter")
         if document_ids:
             count = db.execute(
                 select(KnowledgeDocument.id).where(

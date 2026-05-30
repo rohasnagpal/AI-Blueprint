@@ -8,7 +8,7 @@ function contractReviewWorkspaceId() {
 
 function selectedContractReviewMatterId() {
   const value = document.getElementById('contract-review-matter-select')?.value || '';
-  return value.trim() || null;
+  return value.trim() || uploadMattersForWorkspace(contractReviewWorkspaceId())[0]?.id || null;
 }
 
 async function renderStandaloneContractReview() {
@@ -30,9 +30,10 @@ function renderContractReviewScopeSelector() {
   card.style.display = 'grid';
   const currentWorkspaceId = contractReviewWorkspaceId();
   workspaceSelect.innerHTML = workspaces.map(w => `<option value="${esc(w.workspace_id)}" ${w.workspace_id === currentWorkspaceId ? 'selected' : ''}>${esc(w.workspace_name || 'Workspace')}</option>`).join('');
-  const selectedMatter = matterSelect.value || (App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : '');
+  const selectedMatter = matterSelect.value || App.v2.activeMatterId || '';
   const matters = uploadMattersForWorkspace(currentWorkspaceId);
-  matterSelect.innerHTML = '<option value="">All workspace contracts</option>' + matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  matterSelect.innerHTML = matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  if (!matterSelect.value && matters.length) matterSelect.value = matters[0].id;
   if (!matters.length && currentWorkspaceId) loadUploadMattersForWorkspace(currentWorkspaceId).then(renderContractReviewScopeSelector).catch(() => {});
 }
 
@@ -75,8 +76,7 @@ function renderContractReviewSourceDocuments() {
   }
   const docs = (App.v2.documents || []).filter(doc => {
     if (doc.status && doc.status !== 'indexed') return false;
-    if (selectedMatter) return !doc.matter_id || doc.matter_id === selectedMatter;
-    return true;
+    return doc.matter_id === selectedMatter;
   });
   field.style.display = 'block';
   select.innerHTML = docs.length
@@ -328,4 +328,3 @@ function resetStandaloneContractReview() {
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('contract-review-result-grid').style.display = 'none';
 }
-

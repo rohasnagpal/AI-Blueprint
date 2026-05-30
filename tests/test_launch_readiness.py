@@ -41,7 +41,7 @@ from app.core.config import Settings, get_settings, validate_runtime_security
 from app.core.database import SessionLocal
 from app.core.document_indexer import _extract_chunks
 from app.api.contract_review_standalone import _select_playbook
-from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, KnowledgeChunk, KnowledgeEmbedding, User, Workspace
+from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, KnowledgeChunk, KnowledgeEmbedding, User, Workspace, WorkspaceMember, utcnow
 from app.core.secrets import decrypt_secret
 
 
@@ -104,6 +104,7 @@ class LaunchReadinessTest(unittest.TestCase):
         )
         self.assertEqual(setup.status_code, 200, setup.text)
         self.assertFalse(setup.json()["user"]["must_change_credentials"])
+        admin_user_id = setup.json()["user"]["id"]
 
         public_translation = self.client.post(
             "/api/v2/translations/public/text",
@@ -163,6 +164,21 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(closed_matter.status_code, 201, closed_matter.text)
         self.assertEqual(closed_matter.json()["status"], "closed")
 
+        with SessionLocal() as db:
+            stale_workspace = Workspace(
+                id=f"stale-workspace-{uuid.uuid4().hex}",
+                name="Stale Reuse",
+                slug="stale-reuse",
+                created_by_user_id=admin_user_id,
+                deleted_at=utcnow(),
+            )
+            db.add(stale_workspace)
+            db.add(WorkspaceMember(id=str(uuid.uuid4()), workspace_id=stale_workspace.id, user_id=admin_user_id, role="admin"))
+            db.commit()
+        reused = self.client.post("/api/v2/workspaces", json={"name": "Stale Reuse", "slug": "stale-reuse"})
+        self.assertEqual(reused.status_code, 201, reused.text)
+        self.assertEqual(reused.json()["slug"], "stale-reuse")
+
         rejected_upload = self.client.post(
             f"/api/v2/workspaces/{workspace_id}/documents/upload",
             files={"file": ("malware.exe", b"not really malware", "application/octet-stream")},
@@ -193,7 +209,7 @@ class LaunchReadinessTest(unittest.TestCase):
             self.assertGreaterEqual(len(builtin_playbooks), 7)
             builtin_msa = next(playbook for playbook in builtin_playbooks if playbook.id == "builtin-msa-v1")
             self.assertEqual(builtin_msa.version, "1.1")
-        documents = self.client.get(f"/api/v2/workspaces/{workspace_id}/documents?page=1&page_size=10")
+        documents = self.client.get(f"/api/v2/workspaces/{workspace_id}/documents?page=1&page_size=10&matter_id={matter_id}")
         self.assertEqual(documents.status_code, 200, documents.text)
         self.assertEqual(documents.json()["pages"], 1)
         self.assertFalse(documents.json()["has_next"])

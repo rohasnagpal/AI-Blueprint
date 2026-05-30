@@ -132,7 +132,7 @@ async def request_context(request: Request, call_next):
     if request.url.path == "/" or request.url.path in APP_ROUTES or request.url.path.endswith(".html"):
         response.headers["Cache-Control"] = "no-store, max-age=0"
     elif request.url.path.endswith((".js", ".css")):
-        response.headers["Cache-Control"] = "public, max-age=3600"
+        response.headers["Cache-Control"] = "no-store, max-age=0"
     duration_ms = round((time.perf_counter() - started) * 1000, 2)
     logger.info(
         json.dumps(

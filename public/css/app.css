@@ -1188,19 +1188,28 @@
   }
 
   .input-persona-select {
-    min-width: 160px;
-    max-width: 220px;
-    height: 28px;
-    padding-top: 4px;
-    padding-bottom: 4px;
+    min-width: 180px;
+    max-width: 260px;
+    height: 36px;
+    line-height: 20px;
+    padding: 7px 36px 7px 12px;
   }
 
   .input-scope-select {
-    min-width: 150px;
-    max-width: 210px;
-    height: 28px;
-    padding-top: 4px;
-    padding-bottom: 4px;
+    min-width: 190px;
+    max-width: 300px;
+    height: 36px;
+    line-height: 20px;
+    padding: 7px 38px 7px 12px;
+    background-position: right 12px center;
+  }
+
+  #chat-workspace-select {
+    min-width: 240px;
+  }
+
+  #chat-matter-select {
+    min-width: 200px;
   }
 
   .input-row {
@@ -3167,16 +3176,137 @@
     font-size: 13px;
   }
 
+  .admin-user-row {
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .admin-user-summary {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    font: inherit;
+    text-align: left;
+  }
+
+  .admin-user-summary:hover {
+    background: var(--surface-muted);
+  }
+
+  .admin-user-summary-main {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+
+  .admin-user-summary-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .admin-user-chevron {
+    min-width: 58px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .admin-user-details {
+    border-top: 1px solid var(--border);
+    padding: 14px;
+    display: grid;
+    gap: 14px;
+  }
+
+  .admin-user-section {
+    display: grid;
+    gap: 10px;
+  }
+
+  .admin-user-section + .admin-user-section {
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  .admin-user-section-head,
+  .admin-user-danger,
+  .admin-add-access {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+    justify-content: space-between;
+  }
+
+  .admin-user-section-title {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
   .admin-user-fields {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
   }
 
   .admin-user-memberships {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .admin-membership-list {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .admin-membership-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(90px, 0.5fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 9px 10px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .admin-membership-row:first-child {
+    border-top: 0;
+  }
+
+  .admin-membership-header {
+    background: var(--surface-muted);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .admin-add-access {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(160px, 240px) auto;
+    align-items: end;
+  }
+
+  .compact-btn {
+    min-height: 32px;
+    padding: 6px 10px;
   }
 
   .mini-x {
@@ -3301,6 +3431,19 @@
     .council-tab { white-space: nowrap; }
     .council-form-row { grid-template-columns: 1fr; }
     .admin-user-fields { grid-template-columns: 1fr; }
+    .admin-user-summary,
+    .admin-user-section-head,
+    .admin-user-danger {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    .admin-user-summary-meta {
+      justify-content: flex-start;
+    }
+    .admin-add-access,
+    .admin-membership-row {
+      grid-template-columns: 1fr;
+    }
     .docs-toolbar { flex-wrap: wrap; }
     .search-input-wrap { flex-basis: 100%; }
   }
@@ -3974,11 +4117,11 @@
   .s-select:focus { border-color: var(--accent); }
 
   .input-context-bar .input-persona-select {
-    min-width: 160px;
-    max-width: 220px;
-    height: 28px;
-    padding-top: 4px;
-    padding-bottom: 4px;
+    min-width: 180px;
+    max-width: 260px;
+    height: 36px;
+    line-height: 20px;
+    padding: 7px 36px 7px 12px;
   }
 
   .s-input {

@@ -37,7 +37,7 @@ async function refreshV2Workspace(autoCreate = true) {
       const created = await fetch('/api/v2/workspaces', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name:'My Workspace'})
+        body:JSON.stringify({name:'Default Workspace'})
       });
       if (created.ok) {
         const navAgain = await fetch('/api/v2/me/navigation');
@@ -98,7 +98,7 @@ async function logoutV2() {
       documents: [],
       personas: [],
       secrets: [],
-      activeMatterId: 'all',
+      activeMatterId: '',
       activeBlueprintId: null,
       skipped: true
     };
@@ -283,10 +283,19 @@ async function v2Fetch(path, options = {}) {
 }
 
 async function loadV2Documents() {
-  const r = await v2Fetch('/documents?page_size=200');
+  const matterId = App.v2.activeMatterId || App.v2.matters[0]?.id || '';
+  if (!matterId) {
+    App.v2.documents = [];
+    if (typeof normalizeV2Document === 'function') App.documents = [];
+    return;
+  }
+  const r = await v2Fetch(`/documents?page_size=200&matter_id=${encodeURIComponent(matterId)}`);
   if (!r || !r.ok) return;
   const data = await r.json();
   App.v2.documents = data.items || [];
+  if (typeof normalizeV2Document === 'function') {
+    App.documents = App.v2.documents.map(normalizeV2Document);
+  }
 }
 
 async function loadV2Matters() {
@@ -294,13 +303,22 @@ async function loadV2Matters() {
   if (!r || !r.ok) return;
   const data = await r.json();
   App.v2.matters = data.items || [];
+  if (!App.v2.matters.some(m => m.id === App.v2.activeMatterId)) {
+    App.v2.activeMatterId = App.v2.matters[0]?.id || '';
+  }
 }
 
 async function loadV2ShellData() {
-  await Promise.all([loadV2Matters(), loadV2Documents(), loadV2Personas(), loadV2Secrets()]);
+  await loadV2Matters();
+  await Promise.all([loadV2Documents(), loadV2Personas(), loadV2Secrets()]);
   renderV2Shell();
   renderUploadMatterSelector();
   updateChatScopeControls();
+  if (document.getElementById('view-view-docs')?.classList.contains('active')) {
+    renderDocsScopeSelector();
+    renderDocuments(document.querySelector('.search-input')?.value || '');
+    updateDocsBadge();
+  }
 }
 
 async function loadV2Personas() {
@@ -332,7 +350,8 @@ function renderUploadMatterSelector() {
   workspaceSelect.innerHTML = workspaces.map(w => `<option value="${esc(w.workspace_id)}" ${w.workspace_id === currentWorkspaceId ? 'selected' : ''}>${esc(w.workspace_name || 'Workspace')}</option>`).join('');
   const selectedMatter = matterSelect.value || (App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : '');
   const matters = uploadMattersForWorkspace(currentWorkspaceId);
-  matterSelect.innerHTML = '<option value="">Workspace documents</option>' + matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  matterSelect.innerHTML = matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  if (!matterSelect.value && matters.length) matterSelect.value = matters[0].id;
   if (!matters.length && currentWorkspaceId) loadUploadMattersForWorkspace(currentWorkspaceId);
 }
 
@@ -368,7 +387,7 @@ function onUploadWorkspaceChange() {
 
 function selectedUploadMatterId() {
   const value = document.getElementById('upload-matter-select')?.value || '';
-  return value.trim() || null;
+  return value.trim() || uploadMattersForWorkspace(uploadWorkspaceId())[0]?.id || null;
 }
 
 function renderTranslateScopeSelector() {
@@ -386,7 +405,8 @@ function renderTranslateScopeSelector() {
   workspaceSelect.innerHTML = workspaces.map(w => `<option value="${esc(w.workspace_id)}" ${w.workspace_id === currentWorkspaceId ? 'selected' : ''}>${esc(w.workspace_name || 'Workspace')}</option>`).join('');
   const selectedMatter = matterSelect.value || (App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : '');
   const matters = uploadMattersForWorkspace(currentWorkspaceId);
-  matterSelect.innerHTML = '<option value="">No matter</option>' + matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  matterSelect.innerHTML = matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  if (!matterSelect.value && matters.length) matterSelect.value = matters[0].id;
   if (!matters.length && currentWorkspaceId) loadUploadMattersForWorkspace(currentWorkspaceId).then(renderTranslateScopeSelector).catch(() => {});
 }
 
@@ -405,7 +425,7 @@ function onTranslateWorkspaceChange() {
 
 function selectedTranslateMatterId() {
   const value = document.getElementById('translate-matter-select')?.value || '';
-  return value.trim() || null;
+  return value.trim() || uploadMattersForWorkspace(translateWorkspaceId())[0]?.id || null;
 }
 
 async function deleteAllV2Documents() {
@@ -478,8 +498,8 @@ function renderV2MatterOptions() {
   const filter = document.getElementById('v2-matter-filter');
   const options = App.v2.matters.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
   if (filter) {
-    filter.innerHTML = `<option value="all">All matters</option>${options}`;
-    filter.value = App.v2.activeMatterId && App.v2.activeMatterId !== '' ? App.v2.activeMatterId : 'all';
+    filter.innerHTML = options;
+    filter.value = App.v2.activeMatterId || App.v2.matters[0]?.id || '';
   }
 }
 
@@ -512,8 +532,8 @@ function renderV2Matters() {
 function renderV2Blueprints() {
   const list = document.getElementById('v2-blueprints-list');
   if (!list) return;
-  const active = App.v2.activeMatterId || 'all';
-  const rows = App.v2.blueprints.filter(b => active === 'all' || (active === '' ? !b.matter_id : b.matter_id === active));
+  const active = App.v2.activeMatterId || App.v2.matters[0]?.id || '';
+  const rows = App.v2.blueprints.filter(b => b.matter_id === active);
   if (!rows.length) {
     list.innerHTML = '<div class="council-row"><div class="council-card-desc">No blueprints for this filter.</div></div>';
     renderV2PluginWorkspace();
@@ -1576,7 +1596,7 @@ async function loadV2Shell() {
 async function setV2Workspace(workspaceId) {
   if (!workspaceId || workspaceId === App.v2.workspaceId) return;
   App.v2.workspaceId = workspaceId;
-  App.v2.activeMatterId = 'all';
+  App.v2.activeMatterId = '';
   App.v2.activeBlueprintId = null;
   await loadV2ShellData();
 }
@@ -1622,11 +1642,11 @@ async function createV2Matter() {
 }
 
 async function deleteV2Matter(matterId) {
-  if (!confirm('Delete this matter? Blueprints and documents will remain but lose the matter link.')) return;
+  if (!confirm('Permanently delete this matter and all related documents, chats, runs, and outputs? This cannot be undone.')) return;
   try {
     const r = await v2Fetch(`/matters/${encodeURIComponent(matterId)}`, {method:'DELETE'});
     if (!r || !r.ok) throw new Error(await apiError(r));
-    if (App.v2.activeMatterId === matterId) App.v2.activeMatterId = 'all';
+    if (App.v2.activeMatterId === matterId) App.v2.activeMatterId = '';
     await loadV2ShellData();
     showToast('Matter deleted.');
   } catch(e) { showToast('Failed to delete matter: ' + e.message, 'error'); }

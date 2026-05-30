@@ -13,9 +13,10 @@ function renderDraftScopeSelector() {
   card.style.display = 'grid';
   const currentWorkspaceId = draftWorkspaceId();
   workspaceSelect.innerHTML = workspaces.map(w => `<option value="${esc(w.workspace_id)}" ${w.workspace_id === currentWorkspaceId ? 'selected' : ''}>${esc(w.workspace_name || 'Workspace')}</option>`).join('');
-  const selectedMatter = matterSelect.value || (App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : '');
+  const selectedMatter = matterSelect.value || App.v2.activeMatterId || '';
   const matters = uploadMattersForWorkspace(currentWorkspaceId);
-  matterSelect.innerHTML = '<option value="">No matter</option>' + matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  matterSelect.innerHTML = matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  if (!matterSelect.value && matters.length) matterSelect.value = matters[0].id;
   if (!matters.length && currentWorkspaceId) loadUploadMattersForWorkspace(currentWorkspaceId).then(renderDraftScopeSelector).catch(() => {});
   renderDraftSourceDocuments();
 }
@@ -36,7 +37,7 @@ function onDraftWorkspaceChange() {
 
 function selectedDraftMatterId() {
   const value = document.getElementById('draft-matter-select')?.value || '';
-  return value.trim() || null;
+  return value.trim() || uploadMattersForWorkspace(draftWorkspaceId())[0]?.id || null;
 }
 
 function renderDraftSourceDocuments() {
@@ -53,8 +54,7 @@ function renderDraftSourceDocuments() {
   }
   const docs = (App.v2.documents || []).filter(doc => {
     if (doc.status && doc.status !== 'indexed') return false;
-    if (selectedMatter) return !doc.matter_id || doc.matter_id === selectedMatter;
-    return true;
+    return doc.matter_id === selectedMatter;
   });
   if (!docs.length) {
     field.style.display = 'none';
@@ -88,7 +88,7 @@ function collectDraftPayload() {
     instructions: document.getElementById('draft-instructions')?.value.trim() || null,
     source_document_ids: selectedDraftSourceDocumentIds(),
   };
-  if (App.v2.enabled && App.v2.user && selectedDraftMatterId()) payload.matter_id = selectedDraftMatterId();
+  if (App.v2.enabled && App.v2.user) payload.matter_id = selectedDraftMatterId();
   return payload;
 }
 
@@ -416,4 +416,3 @@ function resetDraft() {
   const sourceSelect = document.getElementById('draft-source-documents');
   if (sourceSelect) [...sourceSelect.options].forEach(option => { option.selected = false; });
 }
-

@@ -63,7 +63,7 @@ async function uploadFile(file) {
     fd.append('file', file);
     fd.append('original_name', displayName);
     const matterId = selectedUploadMatterId();
-    fd.append('scope', matterId ? 'matter' : 'workspace');
+    fd.append('scope', 'matter');
     if (matterId) fd.append('matter_id', matterId);
     const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(uploadWorkspaceId())}/documents/upload`, {method:'POST', body:fd});
     clearInterval(iv);
@@ -82,6 +82,7 @@ async function uploadFile(file) {
       if (!App.currentChatId && !App.isStreaming && uploaded.id) {
         App.chatMode = 'documents';
         App.selectedDocIds = [uploaded.id];
+        if (uploaded.matter_id) App.v2.activeMatterId = uploaded.matter_id;
         updateChatModeUI();
       }
     }
@@ -110,7 +111,7 @@ async function ingestUrl() {
   const status = item.querySelector('.upload-item-status');
   try {
     const matterId = selectedUploadMatterId();
-    const params = new URLSearchParams({scope: matterId ? 'matter' : 'workspace'});
+    const params = new URLSearchParams({scope: 'matter'});
     if (matterId) params.set('matter_id', matterId);
     const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(uploadWorkspaceId())}/documents/ingest-url?${params.toString()}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url})});
     if (!r.ok) throw new Error(await apiError(r));

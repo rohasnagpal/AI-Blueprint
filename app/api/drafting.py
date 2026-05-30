@@ -84,7 +84,7 @@ def _validate_tone(tone: str) -> str:
 
 def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> None:
     if not matter_id:
-        return
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Matter is required")
     matter = db.execute(select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)).scalar_one_or_none()
     if not matter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
@@ -104,8 +104,8 @@ def _source_context(db: Session, workspace_id: str, matter_id: str | None, docum
     missing = [doc_id for doc_id in unique_ids if doc_id not in docs_by_id]
     if missing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="One or more source documents were not found")
-    if matter_id and any(doc.matter_id not in {None, matter_id} for doc in docs):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Source documents must belong to the selected matter or workspace scope")
+    if any(doc.matter_id != matter_id for doc in docs):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Source documents must belong to the selected matter")
     chunks = db.execute(
         select(KnowledgeChunk, KnowledgeDocument)
         .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)

@@ -3,13 +3,14 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
+from app.core.data_deletion import delete_storage_keys, hard_delete_matter, hard_delete_workspace
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_workspace_admin, require_workspace_member
-from app.core.models import KnowledgeDocument, Matter, User, Workspace, WorkspaceMember, utcnow
+from app.core.models import Matter, User, Workspace, WorkspaceMember, utcnow
 from app.core.pagination import page_query_response
 from app.core.security import hash_password
 from app.core.validation import normalize_email, validate_choice
@@ -43,6 +44,15 @@ class WorkspaceMemberRoleIn(BaseModel):
 def _slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or f"workspace-{uuid.uuid4().hex[:8]}"
+
+
+def _unique_workspace_slug(db: Session, base_slug: str) -> str:
+    slug = base_slug
+    suffix = 2
+    while db.execute(select(Workspace.id).where(Workspace.slug == slug)).scalar_one_or_none():
+        slug = f"{base_slug}-{suffix}"
+        suffix += 1
+    return slug
 
 
 def _format_workspace(workspace: Workspace, role: str | None = None) -> dict:
@@ -82,6 +92,27 @@ def _validate_matter_status(status_value: str) -> str:
     return validate_choice(status_value, {"active", "closed"}, "matter status")
 
 
+def _create_default_matter(db: Session, workspace: Workspace, user: User) -> Matter:
+    matter = Matter(
+        id=str(uuid.uuid4()),
+        workspace_id=workspace.id,
+        name="Default Matter",
+        status="active",
+        created_by_user_id=user.id,
+    )
+    db.add(matter)
+    db.flush()
+    record_audit_event(
+        db,
+        action="matter.create_default",
+        resource_type="matter",
+        resource_id=matter.id,
+        user_id=user.id,
+        workspace_id=workspace.id,
+    )
+    return matter
+
+
 def _format_workspace_member(membership: WorkspaceMember, member: User) -> dict:
     return {
         "id": membership.id,
@@ -110,14 +141,21 @@ async def list_workspaces(page: int = Query(default=1, ge=1), page_size: int = Q
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_workspace(body: WorkspaceIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     slug = _slugify(body.slug or body.name)
-    if db.execute(select(Workspace).where(Workspace.slug == slug)).scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workspace slug already exists")
+    storage_keys_to_delete: list[str] = []
+    existing = db.execute(select(Workspace).where(Workspace.slug == slug)).scalar_one_or_none()
+    if existing and existing.deleted_at:
+        summary = hard_delete_workspace(db, existing)
+        storage_keys_to_delete.extend(summary["storage_keys"])
+    elif existing:
+        slug = _unique_workspace_slug(db, slug)
     workspace = Workspace(id=str(uuid.uuid4()), name=body.name.strip(), slug=slug, created_by_user_id=user.id)
     db.add(workspace)
     db.add(WorkspaceMember(id=str(uuid.uuid4()), workspace_id=workspace.id, user_id=user.id, role="admin"))
     db.flush()
+    _create_default_matter(db, workspace, user)
     record_audit_event(db, action="workspace.create", resource_type="workspace", resource_id=workspace.id, user_id=user.id, workspace_id=workspace.id)
     db.commit()
+    delete_storage_keys(storage_keys_to_delete)
     db.refresh(workspace)
     return _format_workspace(workspace, "admin")
 
@@ -143,14 +181,19 @@ async def update_workspace(
     if not workspace or workspace.deleted_at:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     slug = _slugify(body.slug or body.name)
+    storage_keys_to_delete: list[str] = []
     existing = db.execute(select(Workspace).where(Workspace.slug == slug, Workspace.id != workspace_id)).scalar_one_or_none()
-    if existing:
+    if existing and existing.deleted_at:
+        summary = hard_delete_workspace(db, existing)
+        storage_keys_to_delete.extend(summary["storage_keys"])
+    elif existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Workspace slug already exists")
     workspace.name = body.name.strip()
     workspace.slug = slug
     workspace.updated_at = utcnow()
     record_audit_event(db, action="workspace.update", resource_type="workspace", resource_id=workspace.id, user_id=user.id, workspace_id=workspace.id)
     db.commit()
+    delete_storage_keys(storage_keys_to_delete)
     db.refresh(workspace)
     return _format_workspace(workspace, membership.role)
 
@@ -161,12 +204,19 @@ async def delete_workspace(workspace_id: str, user: User = Depends(get_current_u
     workspace = db.get(Workspace, workspace_id)
     if not workspace or workspace.deleted_at:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
-    now = utcnow()
-    workspace.deleted_at = now
-    workspace.updated_at = now
-    record_audit_event(db, action="workspace.delete", resource_type="workspace", resource_id=workspace.id, user_id=user.id, workspace_id=workspace.id)
+    summary = hard_delete_workspace(db, workspace)
+    record_audit_event(
+        db,
+        action="workspace.hard_delete",
+        resource_type="workspace",
+        resource_id=workspace_id,
+        user_id=user.id,
+        workspace_id=None,
+        metadata={"documents": summary["documents"], "legacy_chats": summary["legacy_chats"]},
+    )
     db.commit()
-    return {"ok": True}
+    delete_storage_keys(summary["storage_keys"])
+    return {"ok": True, "deleted": {"documents": summary["documents"], "legacy_chats": summary["legacy_chats"]}}
 
 
 @router.get("/{workspace_id}/members")
@@ -281,6 +331,13 @@ async def remove_workspace_member(
 @router.get("/{workspace_id}/matters")
 async def list_matters(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_member(workspace_id, user, db)
+    workspace = db.get(Workspace, workspace_id)
+    if not workspace or workspace.deleted_at:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    first_matter = db.execute(select(Matter.id).where(Matter.workspace_id == workspace_id)).scalar_one_or_none()
+    if not first_matter:
+        _create_default_matter(db, workspace, user)
+        db.commit()
     matters = (
         select(Matter).where(Matter.workspace_id == workspace_id).order_by(Matter.updated_at.desc())
     )
@@ -364,12 +421,16 @@ async def delete_matter(
     matter = db.execute(select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)).scalar_one_or_none()
     if not matter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
-    db.execute(
-        update(KnowledgeDocument)
-        .where(KnowledgeDocument.workspace_id == workspace_id, KnowledgeDocument.matter_id == matter_id)
-        .values(matter_id=None, updated_at=utcnow())
+    summary = hard_delete_matter(db, matter)
+    record_audit_event(
+        db,
+        action="matter.hard_delete",
+        resource_type="matter",
+        resource_id=matter_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        metadata={"documents": summary["documents"], "legacy_chats": summary["legacy_chats"]},
     )
-    db.delete(matter)
-    record_audit_event(db, action="matter.delete", resource_type="matter", resource_id=matter_id, user_id=user.id, workspace_id=workspace_id)
     db.commit()
-    return {"ok": True}
+    delete_storage_keys(summary["storage_keys"])
+    return {"ok": True, "deleted": {"documents": summary["documents"], "legacy_chats": summary["legacy_chats"]}}

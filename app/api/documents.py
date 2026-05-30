@@ -78,13 +78,15 @@ def _validate_document_status(status_value: str) -> str:
     return validate_choice(status_value, {"registered", "stored", "indexing", "indexed", "failed", "cancelled"}, "document status")
 
 
-def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> None:
-    if matter_id:
-        matter = db.execute(
-            select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)
-        ).scalar_one_or_none()
-        if not matter:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> Matter:
+    if not matter_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Matter is required")
+    matter = db.execute(
+        select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)
+    ).scalar_one_or_none()
+    if not matter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+    return matter
 
 
 def _safe_display_name(name: str) -> str:
@@ -194,9 +196,9 @@ async def list_documents(
     db: Session = Depends(get_db),
 ):
     require_workspace_member(workspace_id, user, db)
+    _validate_matter(db, workspace_id, matter_id)
     query = select(KnowledgeDocument).where(KnowledgeDocument.workspace_id == workspace_id)
-    if matter_id:
-        query = query.where(KnowledgeDocument.matter_id == matter_id)
+    query = query.where(KnowledgeDocument.matter_id == matter_id)
     return page_query_response(db, query.order_by(KnowledgeDocument.created_at.desc()), _format_document, page=page, page_size=page_size, scalars=True)
 
 
@@ -220,7 +222,7 @@ async def register_document(
         content_hash=body.content_hash,
         mime_type=body.mime_type,
         size_bytes=body.size_bytes,
-        scope=body.scope,
+        scope="matter",
         status_value=body.status,
     )
     db.commit()
@@ -254,7 +256,7 @@ async def upload_document(
         content_hash=stored["content_hash"],
         mime_type=stored["mime_type"],
         size_bytes=stored["size_bytes"],
-        scope=scope,
+        scope="matter",
         status_value="stored",
     )
     job = create_job(
@@ -307,7 +309,7 @@ async def ingest_url_document(
         content_hash=stored["content_hash"],
         mime_type=stored["mime_type"],
         size_bytes=stored["size_bytes"],
-        scope=scope,
+        scope="matter",
         status_value="stored",
     )
     job = create_job(

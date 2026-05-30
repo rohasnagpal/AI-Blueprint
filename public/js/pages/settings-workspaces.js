@@ -177,7 +177,7 @@ async function updateWorkspaceManagerWorkspace() {
 
 async function deleteWorkspaceManagerWorkspace(workspaceId) {
   const workspace = App.workspaceManager.workspaces.find(w => w.id === workspaceId);
-  if (!workspace || !confirm(`Delete workspace "${workspace.name}"? This is a soft delete.`)) return;
+  if (!workspace || !confirm(`Permanently delete workspace "${workspace.name}" and all related matters, documents, chats, runs, and outputs? This cannot be undone.`)) return;
   try {
     const r = await fetch(workspaceApi(workspaceId), {method:'DELETE'});
     if (!r.ok) throw new Error(await apiError(r));
@@ -254,7 +254,7 @@ async function updateWorkspaceManagerMatter(matterId) {
 async function deleteWorkspaceManagerMatter(matterId) {
   const workspaceId = App.workspaceManager.selectedId;
   const matter = App.workspaceManager.matters.find(m => m.id === matterId);
-  if (!workspaceId || !matter || !confirm(`Delete matter "${matter.name}"? Linked documents will be unassigned from this matter.`)) return;
+  if (!workspaceId || !matter || !confirm(`Permanently delete matter "${matter.name}" and all related documents, chats, runs, and outputs? This cannot be undone.`)) return;
   try {
     const r = await fetch(workspaceApi(workspaceId, `/matters/${encodeURIComponent(matterId)}`), {method:'DELETE'});
     if (!r.ok) throw new Error(await apiError(r));

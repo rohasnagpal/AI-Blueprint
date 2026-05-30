@@ -49,7 +49,7 @@ function setChatMode(mode) {
     }
   }
   App.chatMode = mode;
-  if (mode === 'documents' && App.selectedDocIds === 'none') App.selectedDocIds = 'all';
+  if (mode === 'documents' && App.selectedDocIds !== 'all') App.selectedDocIds = 'all';
   updateChatModeUI();
 }
 
@@ -103,8 +103,7 @@ function updateDocSelector() {
     if (topbarLabel) topbarLabel.textContent = scopeLabel || 'General';
     return;
   }
-  const v2Label = v2ChatScopeLabel();
-  const docText = v2Label || (App.selectedDocIds === 'all' ? `All Documents (${App.documents.length})` : `${App.selectedDocIds.length} selected`);
+  const docText = v2DocumentScopeLabel() || v2ChatScopeLabel() || (App.selectedDocIds === 'all' ? `All Documents (${App.documents.length})` : `${App.selectedDocIds.length} selected`);
   if (badge) {
     badge.textContent = docText;
     badge.style.display = 'inline-flex';
@@ -124,9 +123,8 @@ function updateChatScopeControls() {
     .map(w => `<option value="${esc(w.workspace_id)}">${esc(w.workspace_name || w.name || 'Workspace')}</option>`)
     .join('');
   workspaceSelect.value = App.v2.workspaceId || '';
-  matterSelect.innerHTML = `<option value="all">All matters</option>` +
-    App.v2.matters.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
-  matterSelect.value = App.v2.activeMatterId && App.v2.activeMatterId !== '' ? App.v2.activeMatterId : 'all';
+  matterSelect.innerHTML = App.v2.matters.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+  matterSelect.value = App.v2.activeMatterId || App.v2.matters[0]?.id || '';
 }
 
 function prepareNewChatForScopeChange() {
@@ -143,6 +141,7 @@ function prepareNewChatForScopeChange() {
 async function setChatWorkspaceFromInput(workspaceId) {
   if (!workspaceId || workspaceId === App.v2.workspaceId) return;
   prepareNewChatForScopeChange();
+  App.selectedDocIds = 'all';
   await setV2Workspace(workspaceId);
   updateChatModeUI();
 }
@@ -151,8 +150,22 @@ function setChatMatterFromInput(matterId) {
   prepareNewChatForScopeChange();
   App.v2.activeMatterId = matterId || '';
   App.v2.activeBlueprintId = null;
+  App.selectedDocIds = 'all';
   renderV2Shell();
   updateChatModeUI();
+}
+
+function selectedV2Documents() {
+  if (App.chatMode !== 'documents' || !Array.isArray(App.selectedDocIds)) return [];
+  const ids = new Set(App.selectedDocIds);
+  return (App.v2.documents || []).filter(doc => ids.has(doc.id));
+}
+
+function v2DocumentScopeLabel() {
+  const docs = selectedV2Documents();
+  if (!docs.length) return '';
+  if (docs.length === 1) return `Document: ${docs[0].original_name || 'Document'}`;
+  return `${docs.length} documents selected`;
 }
 
 function v2ChatScopeLabel() {
@@ -160,24 +173,24 @@ function v2ChatScopeLabel() {
   const blueprint = App.v2.activeBlueprintId ? App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId) : null;
   if (blueprint) return `Blueprint: ${blueprint.name}`;
   const matterId = App.v2.activeMatterId;
-  if (matterId && matterId !== 'all') {
+  if (matterId) {
     const matter = App.v2.matters.find(m => m.id === matterId);
     return matter ? `Matter: ${matter.name}` : 'Matter documents';
   }
-  const workspace = App.v2.workspaces.find(w => w.workspace_id === App.v2.workspaceId);
-  return workspace ? `Workspace: ${workspace.workspace_name || workspace.name}` : 'Workspace';
+  return 'Matter required';
 }
 
 function v2ChatScopePayload() {
   if (!App.v2.enabled || !App.v2.workspaceId) return {};
   let v2DocIds = [];
   if (App.chatMode === 'documents' && Array.isArray(App.selectedDocIds)) {
+    const matterId = App.v2.activeMatterId || App.v2.matters[0]?.id || null;
     v2DocIds = App.selectedDocIds
-      .filter(id => (App.v2.documents || []).some(doc => doc.id === id));
+      .filter(id => (App.v2.documents || []).some(doc => doc.id === id && (!matterId || doc.matter_id === matterId)));
   }
   return {
     v2_workspace_id: App.v2.workspaceId,
-    v2_matter_id: App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : null,
+    v2_matter_id: App.v2.activeMatterId || App.v2.matters[0]?.id || null,
     v2_blueprint_id: App.v2.activeBlueprintId || null,
     v2_document_ids: v2DocIds
   };

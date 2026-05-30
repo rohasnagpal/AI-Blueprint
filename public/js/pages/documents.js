@@ -30,14 +30,12 @@ function normalizeV2Document(doc) {
 function docsMatterFilterValue() {
   const value = document.getElementById('docs-matter-select')?.value;
   if (value != null) return value;
-  return App.v2.activeMatterId || 'all';
+  return App.v2.activeMatterId || App.v2.matters?.[0]?.id || '';
 }
 
 function scopedDocumentsForView() {
   const matterId = docsMatterFilterValue();
   const docs = App.documents || [];
-  if (matterId === 'all') return docs;
-  if (matterId === '') return docs.filter(doc => !doc.matter_id);
   return docs.filter(doc => doc.matter_id === matterId);
 }
 
@@ -52,22 +50,20 @@ function renderDocsScopeSelector() {
   workspaceSelect.innerHTML = App.v2.workspaces
     .map(w => `<option value="${esc(w.workspace_id)}" ${w.workspace_id === App.v2.workspaceId ? 'selected' : ''}>${esc(w.workspace_name || w.name || 'Workspace')}</option>`)
     .join('');
-  const currentMatter = matterSelect.value || App.v2.activeMatterId || 'all';
-  matterSelect.innerHTML = '<option value="all">All workspace documents</option><option value="">Workspace-level only</option>' +
-    (App.v2.matters || []).map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
-  matterSelect.value = [...matterSelect.options].some(o => o.value === currentMatter) ? currentMatter : 'all';
+  const currentMatter = matterSelect.value || App.v2.activeMatterId || App.v2.matters?.[0]?.id || '';
+  matterSelect.innerHTML = (App.v2.matters || []).map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
+  matterSelect.value = [...matterSelect.options].some(o => o.value === currentMatter) ? currentMatter : (App.v2.matters?.[0]?.id || '');
 }
 
 async function onDocsWorkspaceChange(workspaceId) {
   if (!workspaceId || workspaceId === App.v2.workspaceId) return;
   await setV2Workspace(workspaceId);
-  App.v2.activeMatterId = 'all';
   await loadDocuments();
 }
 
-function onDocsMatterChange(matterId) {
-  App.v2.activeMatterId = matterId || 'all';
-  renderDocuments(document.querySelector('.search-input')?.value || '');
+async function onDocsMatterChange(matterId) {
+  App.v2.activeMatterId = matterId || App.v2.matters?.[0]?.id || '';
+  await loadDocuments();
   updateDocSelector();
 }
 
@@ -91,7 +87,7 @@ function docCard(d) {
   const date = d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
   const pages = d.page_count ? `<div class="dot"></div><span>${d.page_count} pages</span>` : '';
   const matter = d.matter_id ? (App.v2.matters || []).find(m => m.id === d.matter_id) : null;
-  const scope = matter ? `Matter: ${matter.name}` : 'Workspace-level';
+  const scope = matter ? `Matter: ${matter.name}` : 'Matter required';
   return `<div class="doc-card">
     <div class="doc-card-header"><div class="doc-card-icon ${cls}">${ext}</div><div class="doc-card-title" title="${esc(d.original_name)}">${esc(d.original_name)}</div></div>
     <div class="doc-card-meta"><span>${esc(scope)}</span><div class="dot"></div><span>${fmtBytes(d.size_bytes||0)}</span>${date?`<div class="dot"></div><span>${date}</span>`:''}${pages}</div>
@@ -130,6 +126,9 @@ async function deleteAllDocuments() {
 }
 
 function chatWithDoc(id) {
+  const doc = (App.v2.documents || App.documents || []).find(item => item.id === id);
+  if (doc?.matter_id) App.v2.activeMatterId = doc.matter_id;
+  App.v2.activeBlueprintId = null;
   App.chatMode = 'documents';
   App.selectedDocIds = [id];
   updateChatModeUI();

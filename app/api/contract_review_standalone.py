@@ -50,7 +50,7 @@ def _format_playbook(playbook: ContractPlaybook) -> dict:
 
 def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> None:
     if not matter_id:
-        return
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Matter is required")
     matter = db.execute(select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)).scalar_one_or_none()
     if not matter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
@@ -72,8 +72,8 @@ def _source_chunks(db: Session, workspace_id: str, body: StandaloneContractRevie
         for doc in docs:
             if doc.status != "indexed":
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Selected document is not indexed: {doc.original_name}")
-            if body.matter_id and doc.matter_id not in {None, body.matter_id}:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected documents must belong to the selected matter or workspace scope")
+            if doc.matter_id != body.matter_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected documents must belong to the selected matter")
         query = (
             select(KnowledgeChunk, KnowledgeDocument)
             .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)

@@ -135,6 +135,8 @@ async def search_realtime_documents(
     if body.v2_workspace_id:
         from routes.chats import _get_v2_user, _load_v2_chunks, _user_can_access_v2_scope
 
+        if not body.v2_matter_id:
+            raise HTTPException(status_code=400, detail="Matter is required.")
         scope = {
             "workspace_id": body.v2_workspace_id,
             "matter_id": body.v2_matter_id,

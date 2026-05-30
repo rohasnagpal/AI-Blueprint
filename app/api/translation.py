@@ -90,7 +90,7 @@ def _validate_target_language(target_language: str) -> str:
 
 def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> None:
     if not matter_id:
-        return
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Matter is required")
     matter = db.execute(select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)).scalar_one_or_none()
     if not matter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
