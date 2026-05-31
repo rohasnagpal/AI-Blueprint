@@ -110,6 +110,49 @@ On first use, complete the setup flow, create or select a workspace, and open Se
 
 For closed local deployments that need a temporary bootstrap account, set `AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN=true` before starting the server, then sign in with the bootstrap credentials and immediately change them. Do not use the bootstrap account path for public deployments.
 
+## Local-Only Beta Notes
+
+For a local-only beta, run AI Blueprint on the user's own machine and open it only through:
+
+```text
+http://127.0.0.1:8000
+http://localhost:8000
+```
+
+Do not bind the app to a public interface or share the local port on a LAN unless you are intentionally running a network/server deployment.
+
+Recommended local-only settings:
+
+```bash
+AI_BLUEPRINT_ENV=development
+AI_BLUEPRINT_SECURE_COOKIES=false
+AI_BLUEPRINT_CORS_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
+```
+
+HTTPS is not required for same-machine localhost use. HTTPS and `AI_BLUEPRINT_SECURE_COOKIES=true` are required when AI Blueprint is exposed through a real domain, reverse proxy, tunnel, LAN hostname, or public server.
+
+### Local Data and Backups
+
+Local users are responsible for their own backups. Back up these runtime files together:
+
+```text
+ai_blueprint.db
+ai_blueprint_v2.db
+uploads/
+uploads_v2/
+chroma_db/
+.secret_key
+.secret_key_v2
+```
+
+The secret key files are required to decrypt stored credentials after restore. Keep backup archives outside the repository and treat them as confidential client data.
+
+### Provider Privacy
+
+AI Blueprint runs locally, but configured external providers may still receive data. Depending on enabled settings, model, embedding, retrieval, email, or voice providers may receive prompts, document excerpts, embeddings, credentials, audio, outputs, or related metadata.
+
+Review each provider's data usage and retention policy before using confidential client material. If no external provider is configured, local documents and local databases remain on the user's machine.
+
 ## First Run
 
 The fastest successful path is:
