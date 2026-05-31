@@ -175,6 +175,14 @@ APP_ROUTES = {
     "/translate",
     "/draft",
     "/contract-review",
+    "/arbitration-prep",
+    "/arbitration-prep/",
+    "/litigation-prep",
+    "/litigation-prep/",
+    "/mediation-prep",
+    "/mediation-prep/",
+    "/negotiation-prep",
+    "/negotiation-prep/",
     "/admin/users",
 }
 

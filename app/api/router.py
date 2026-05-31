@@ -4,7 +4,7 @@ import shutil
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from app.api import admin, audit, auth, contract_review_standalone, documents, drafting, escalations, jobs, navigation, personas, realtime, secrets, settings, skills, translation, workspaces
+from app.api import admin, arbitration_prep, audit, auth, contract_review_standalone, documents, drafting, escalations, jobs, litigation_prep, mediation_prep, navigation, negotiation_prep, personas, realtime, secrets, settings, skills, translation, workspaces
 from app.core.config import get_settings
 from app.core.database import get_engine
 
@@ -54,6 +54,10 @@ router.include_router(documents.router)
 router.include_router(drafting.router)
 router.include_router(escalations.router)
 router.include_router(jobs.router)
+router.include_router(arbitration_prep.router)
+router.include_router(litigation_prep.router)
+router.include_router(mediation_prep.router)
+router.include_router(negotiation_prep.router)
 router.include_router(contract_review_standalone.router)
 router.include_router(skills.router)
 router.include_router(secrets.router)

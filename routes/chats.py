@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 import database
+from app.core.audit import record_audit_event
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.models import (
@@ -129,7 +130,7 @@ def _status_event(message: str, progress: int | None = None) -> str:
 
 
 def _max_tokens_for_persona(settings: dict, persona: dict | None) -> int:
-    configured = int(settings.get("max_tokens", 2048))
+    configured = int(settings.get("max_tokens", 4096))
     if _is_contract_reviewer(persona):
         return max(configured, 6000)
     return configured
@@ -341,6 +342,27 @@ def _optional_v2_user(request: Request) -> User | None:
         return None
 
 
+def _record_chat_activity(
+    *,
+    action: str,
+    chat_id: str,
+    user: User,
+    v2_scope: dict | None,
+    metadata: dict | None = None,
+) -> None:
+    with SessionLocal() as db:
+        record_audit_event(
+            db,
+            action=action,
+            resource_type="chat",
+            resource_id=chat_id,
+            user_id=user.id,
+            workspace_id=v2_scope["workspace_id"] if v2_scope else None,
+            metadata=metadata or {},
+        )
+        db.commit()
+
+
 def _user_can_access_v2_scope(user: User | None, scope: dict | None) -> bool:
     if not scope:
         return True
@@ -460,6 +482,7 @@ async def list_chats(request: Request, archived: bool = False):
 
 @router.post("/chats")
 async def create_chat(body: CreateChat, request: Request):
+    user = _get_v2_user(request)
     v2_scope = _validate_v2_chat_scope(request, body)
     chat_id = str(uuid.uuid4())
     now = _now()
@@ -488,6 +511,19 @@ async def create_chat(body: CreateChat, request: Request):
     )
     conn.commit()
     conn.close()
+    _record_chat_activity(
+        action="chat.create",
+        chat_id=chat_id,
+        user=user,
+        v2_scope=v2_scope,
+        metadata={
+            "doc_context": body.doc_context,
+            "persona_id": body.persona_id,
+            "matter_id": v2_scope["matter_id"] if v2_scope else None,
+            "blueprint_id": v2_scope["blueprint_id"] if v2_scope else None,
+            "document_count": len(v2_scope["document_ids"]) if v2_scope else 0,
+        },
+    )
     return {
         "id": chat_id,
         "title": None,
@@ -519,6 +555,7 @@ async def get_messages(chat_id: str, request: Request):
 
 @router.post("/chats/{chat_id}/message")
 async def send_message(chat_id: str, body: SendMessage, request: Request):
+    user = _get_v2_user(request)
     conn = database.get_connection()
     chat = conn.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)).fetchone()
     if not chat:
@@ -558,6 +595,22 @@ async def send_message(chat_id: str, body: SendMessage, request: Request):
     doc_ids = None if doc_context in ("all", "none", "help") else [d.strip() for d in doc_context.split(",") if d.strip()]
     persona = _get_persona(chat["persona_id"] if "persona_id" in chat.keys() else None)
     v2_scope = _v2_scope_from_chat(chat)
+    _record_chat_activity(
+        action="chat.message.create",
+        chat_id=chat_id,
+        user=user,
+        v2_scope=v2_scope,
+        metadata={
+            "persona_id": persona.get("id") if persona else None,
+            "persona_name": persona.get("name") if persona else None,
+            "doc_context": doc_context,
+            "message_length": len(body.message),
+            "web_search": body.web_search,
+            "matter_id": v2_scope.get("matter_id") if v2_scope else None,
+            "blueprint_id": v2_scope.get("blueprint_id") if v2_scope else None,
+            "document_count": len(v2_scope.get("document_ids") or []) if v2_scope else 0,
+        },
+    )
 
     return StreamingResponse(
         _stream(chat_id, chat, body.message, settings, provider_name, doc_ids, use_documents, persona, body.web_search, v2_scope, use_help),
@@ -889,7 +942,7 @@ def _load_v2_chunks(scope: dict, message: str, top_k: int) -> list[dict]:
 
 async def _stream_v2_documents(message: str, settings: dict, scope: dict, persona: dict | None, web_results: list[dict] | None = None) -> AsyncGenerator[str, None]:
     yield _status_event(f"Searching {_v2_scope_name(scope)}", 10)
-    top_k = int(settings.get("top_k", 5))
+    top_k = int(settings.get("top_k", 10))
     if _is_contract_reviewer(persona):
         top_k = max(top_k, 12)
     retrieval_query = _document_review_query(message, persona)

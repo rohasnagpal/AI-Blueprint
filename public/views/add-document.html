@@ -13,7 +13,7 @@
         </div>
         <div class="council-field">
           <label for="upload-matter-select">Matter</label>
-          <select class="council-select" id="upload-matter-select"></select>
+          <select class="council-select" id="upload-matter-select" onchange="loadFolderSources()"></select>
         </div>
       </div>
 
@@ -43,6 +43,23 @@
       <div class="url-ingest">
         <input id="url-ingest-input" type="url" placeholder="Paste a webpage URL to add it as a document"/>
         <button type="button" onclick="ingestUrl()">Add URL</button>
+      </div>
+
+      <div class="folder-sync-panel">
+        <div class="folder-sync-head">
+          <div>
+            <h3>Folder Sources</h3>
+            <p>Select a folder for browser-based refresh, or connect a local path for one-click server sync.</p>
+          </div>
+          <button class="folder-secondary-btn" type="button" onclick="loadFolderSources()">Refresh</button>
+        </div>
+        <div class="folder-sync-actions">
+          <input type="file" id="folder-input" data-csp-style="display:none" webkitdirectory directory multiple/>
+          <button class="folder-primary-btn" type="button" onclick="browseConnectedFolder()">Select Folder</button>
+          <input id="connected-folder-path" type="text" placeholder="/Users/you/Documents/Matter Folder"/>
+          <button class="folder-secondary-btn" type="button" onclick="connectLocalFolder()">Connect Path</button>
+        </div>
+        <div class="folder-source-list" id="folder-source-list"></div>
       </div>
 
       <!-- Upload queue -->

@@ -1,9 +1,14 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
-const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, voice: { active: false, connecting: false, pc: null, dc: null, stream: null, audioEl: null, statusEl: null, assistantText: '', assistantEl: null, toolCalls: {} }, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), models: [], liveModels: {}, liveModelRequestId: 0, editingModelId: null, adminUsers: [], adminWorkspaces: [], workspaceManager: { workspaces: [], selectedId: null, matters: [] }, translation: { sourceType: 'text', file: null, result: null, isRunning: false }, drafting: { result: null, isRunning: false, job: null, events: [], stream: null, startedAt: null, history: [], historyLoading: false }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: '', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, contractReviewPlaybooks: [], contractReviewModules: [], editingContractPlaybookId: null, activeContractRun: null, activeContractClauses: [], activeContractTrace: [], activeContractEscalations: [], contractReviewFilters: { risk: 'all', status: 'all', type: 'all', sort: 'risk' }, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
-App.contractReview = { result: null, isRunning: false, playbooks: [] };
+const App = { currentChatId: null, settings: {}, documents: [], chats: [], personas: [], editingPersonaId: null, emailMessages: [], selectedPersonaId: '', selectedPersonaCategory: '', chatMode: 'general', selectedDocIds: 'all', webSearchEnabled: false, isStreaming: false, activeChatController: null, voice: { active: false, connecting: false, pc: null, dc: null, stream: null, audioEl: null, statusEl: null, assistantText: '', assistantEl: null, toolCalls: {} }, openChatMenuId: null, chatArchiveFilter: false, chatSelectMode: false, chatSearchQuery: '', selectedChatIds: new Set(), models: [], liveModels: {}, liveModelRequestId: 0, editingModelId: null, adminUsers: [], adminWorkspaces: [], adminActivity: { items: [], total: 0, page: 1, pageSize: 50, selectedId: null }, workspaceManager: { workspaces: [], selectedId: null, matters: [] }, translation: { sourceType: 'text', file: null, result: null, isRunning: false }, drafting: { result: null, isRunning: false, job: null, events: [], stream: null, startedAt: null, history: [], historyLoading: false }, v2: { enabled: false, user: null, workspaceId: null, workspaces: [], matters: [], blueprints: [], plugins: [], documents: [], personas: [], secrets: [], activeMatterId: '', activeBlueprintId: null, pluginConfig: null, pluginRuns: [], pluginJobs: {}, pluginJobEvents: {}, pluginJobStreams: {}, pluginJobTimers: {}, contractReviewPlaybooks: [], contractReviewModules: [], editingContractPlaybookId: null, activeContractRun: null, activeContractClauses: [], activeContractTrace: [], activeContractEscalations: [], contractReviewFilters: { risk: 'all', status: 'all', type: 'all', sort: 'risk' }, setupRequired: false, skipped: localStorage.getItem('aibp_v2_skip') === 'true' } };
+App.contractReview = { result: null, isRunning: false, playbooks: [], job: null, events: [], stream: null, startedAt: null, history: [] };
+App.arbitrationPrep = { result: null, isRunning: false, job: null, events: [], stream: null, startedAt: null, history: [] };
+App.litigationPrep = { result: null, isRunning: false, job: null, events: [], stream: null, startedAt: null, history: [] };
+App.mediationPrep = { result: null, isRunning: false, job: null, events: [], stream: null, startedAt: null, history: [] };
+App.negotiationPrep = { result: null, isRunning: false, job: null, events: [], stream: null, startedAt: null, history: [] };
 const NAV_CONFIG = window.AIBP_NAVIGATION || {};
 const PRIMARY_NAV_ITEMS = NAV_CONFIG.primaryNavItems || [];
 const MORE_NAV_ITEMS = NAV_CONFIG.moreNavItems || [];
+const MENU_GROUPS = NAV_CONFIG.menuGroups || {};
 const NAV_ITEMS = NAV_CONFIG.navItems || [];
 const VIEWS = NAV_CONFIG.views || {};
 const NAVS = NAV_CONFIG.navs || {};
@@ -210,12 +215,14 @@ function switchView(name, options = {}) {
   }
   Object.values(VIEWS).forEach(id => document.getElementById(id)?.classList.remove('active'));
   Object.values(NAVS).forEach(id => document.getElementById(id)?.classList.remove('active'));
+  document.querySelectorAll('[data-nav-group]').forEach(item => item.classList.remove('active'));
   document.getElementById(VIEWS[name])?.classList.add('active');
   document.getElementById(NAVS[name])?.classList.add('active');
   document.getElementById('view-settings')?.classList.toggle('workspace-standalone', name === 'workspaces');
-  const moreViews = MORE_NAV_ITEMS.map(item => item.view);
-  document.getElementById('nav-more')?.classList.toggle('active', moreViews.includes(name));
   document.querySelectorAll('.sidebar-more-menu button').forEach(b => b.classList.remove('active'));
+  Object.entries(MENU_GROUPS).forEach(([group, items]) => {
+    if (items.some(item => item.view === name)) document.getElementById('nav-' + group)?.classList.add('active');
+  });
   const moreActive = document.getElementById('more-' + name) || (name === 'admin-users' ? document.getElementById('nav-admin-users') : null);
   moreActive?.classList.add('active');
   document.getElementById('topbar-title').textContent = TITLES[name] || name;
@@ -225,6 +232,10 @@ function switchView(name, options = {}) {
   if (name === 'add-doc') renderUploadMatterSelector();
   if (name === 'translate') { renderTranslateScopeSelector(); setTranslateSourceType(App.translation.sourceType); renderTranslationFile(); }
   if (name === 'contract-review') loadV2ShellData().then(renderStandaloneContractReview).catch(() => renderStandaloneContractReview());
+  if (name === 'arbitration-prep') loadV2ShellData().then(renderArbitrationPrep).catch(() => renderArbitrationPrep());
+  if (name === 'litigation-prep') loadV2ShellData().then(renderLitigationPrep).catch(() => renderLitigationPrep());
+  if (name === 'mediation-prep') loadV2ShellData().then(renderMediationPrep).catch(() => renderMediationPrep());
+  if (name === 'negotiation-prep') loadV2ShellData().then(renderNegotiationPrep).catch(() => renderNegotiationPrep());
   if (name === 'draft') { renderDraftScopeSelector(); loadDraftHistory(); }
   if (name === 'email') { renderEmailControls(); loadEmailMessages(); }
   if (name === 'workspaces') {

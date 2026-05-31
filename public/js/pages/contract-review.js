@@ -15,6 +15,7 @@ async function renderStandaloneContractReview() {
   renderContractReviewScopeSelector();
   await loadStandaloneContractPlaybooks();
   renderContractReviewSourceDocuments();
+  await loadStandaloneContractReviewHistory();
 }
 
 function renderContractReviewScopeSelector() {
@@ -43,6 +44,51 @@ async function onContractReviewWorkspaceChange() {
   renderContractReviewScopeSelector();
   await loadStandaloneContractPlaybooks();
   renderContractReviewSourceDocuments();
+  await loadStandaloneContractReviewHistory();
+}
+
+async function loadStandaloneContractReviewHistory() {
+  const workspaceId = contractReviewWorkspaceId();
+  const card = document.getElementById('contract-review-history-card');
+  const list = document.getElementById('contract-review-history-list');
+  if (!card || !list) return;
+  if (!App.v2.enabled || !App.v2.user || !workspaceId) {
+    card.style.display = 'none';
+    return;
+  }
+  try {
+    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/contract-review/runs?page_size=8`);
+    if (!r.ok) throw new Error(await apiError(r));
+    const data = await r.json();
+    App.contractReview.history = data.items || [];
+    card.style.display = App.contractReview.history.length ? 'block' : 'none';
+    list.innerHTML = App.contractReview.history.map(run => `<div class="council-row">
+      <div class="council-row-head">
+        <div>
+          <div class="council-card-title">${esc(run.title || 'Contract review')}</div>
+          <div class="council-card-meta">${esc(run.completed_at ? new Date(run.completed_at).toLocaleString() : run.status || 'queued')}${run.review_depth ? ' · ' + esc(run.review_depth) : ''}</div>
+        </div>
+        <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
+      </div>
+      <div class="council-actions"><button class="btn-secondary" type="button" onclick="openStandaloneContractReviewRun('${esc(run.id)}')">Open</button></div>
+    </div>`).join('');
+  } catch(e) {
+    card.style.display = 'none';
+  }
+}
+
+async function openStandaloneContractReviewRun(runId) {
+  const workspaceId = contractReviewWorkspaceId();
+  if (!workspaceId) return;
+  try {
+    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/contract-review/runs/${encodeURIComponent(runId)}`);
+    if (!r.ok) throw new Error(await apiError(r));
+    App.contractReview.result = await r.json();
+    renderStandaloneContractReviewResult();
+    showToast('Contract review loaded.');
+  } catch(e) {
+    showToast('Failed to load review: ' + e.message, 'error');
+  }
 }
 
 async function loadStandaloneContractPlaybooks() {
@@ -113,19 +159,103 @@ async function runStandaloneContractReview() {
     App.contractReview.isRunning = true;
     App.contractReview.result = null;
     if (btn) btn.disabled = true;
-    if (status) status.textContent = 'Reviewing...';
+    if (status) status.textContent = 'Queuing review...';
     const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/contract-review`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     if (!r.ok) throw new Error(await apiError(r));
-    App.contractReview.result = await r.json();
+    const data = await r.json();
+    if (data.job) {
+      startContractReviewJobStream(workspaceId, data.job);
+      showToast('Contract review queued.');
+      return;
+    }
+    App.contractReview.result = data;
     renderStandaloneContractReviewResult();
     showToast('Contract review complete.');
   } catch(e) {
     showToast('Contract review failed: ' + e.message, 'error');
+    App.contractReview.isRunning = false;
+    if (btn) btn.disabled = false;
+    if (status) status.textContent = '';
   } finally {
+    if (App.contractReview.job) return;
     App.contractReview.isRunning = false;
     if (btn) btn.disabled = false;
     if (status) status.textContent = '';
   }
+}
+
+function stopContractReviewStream() {
+  App.contractReview.stream?.close();
+  App.contractReview.stream = null;
+}
+
+async function loadContractReviewResultFromJob(workspaceId, job) {
+  const runId = job?.metadata?.run_id;
+  if (!runId) return false;
+  const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/contract-review/runs/${encodeURIComponent(runId)}`);
+  if (!r.ok) throw new Error(await apiError(r));
+  App.contractReview.result = await r.json();
+  renderStandaloneContractReviewResult();
+  return true;
+}
+
+function renderContractReviewProgress() {
+  const status = document.getElementById('contract-review-status');
+  const job = App.contractReview.job;
+  if (!status || !job) return;
+  const latest = [...(App.contractReview.events || [])].reverse().find(e => e.content)?.content || job.status || 'running';
+  const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+  status.textContent = `${latest} · ${progress}%`;
+}
+
+function startContractReviewJobStream(workspaceId, job) {
+  stopContractReviewStream();
+  App.contractReview.job = job;
+  App.contractReview.events = [{type:'status', content:'Contract review queued', metadata:{progress:0}}];
+  App.contractReview.startedAt = Date.now();
+  renderContractReviewProgress();
+  const source = new EventSource(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/jobs/${encodeURIComponent(job.id)}/events`);
+  App.contractReview.stream = source;
+  source.onmessage = async event => {
+    let data;
+    try { data = JSON.parse(event.data); } catch(e) { return; }
+    if (data.type === 'status' && data.metadata?.id) App.contractReview.job = data.metadata;
+    if (data.type && data.type !== 'status') App.contractReview.events.push(data);
+    App.contractReview.events = App.contractReview.events.slice(-24);
+    renderContractReviewProgress();
+    if (data.type === 'done') {
+      stopContractReviewStream();
+      App.contractReview.job = data.metadata || App.contractReview.job;
+      try {
+        if (data.content === 'completed') {
+          await loadContractReviewResultFromJob(workspaceId, App.contractReview.job);
+          await loadStandaloneContractReviewHistory();
+          showToast('Contract review complete.');
+        } else {
+          showToast('Contract review ended: ' + data.content, data.content === 'failed' ? 'error' : 'warning');
+        }
+      } catch(e) {
+        showToast('Review completed but result load failed: ' + e.message, 'error');
+      } finally {
+        App.contractReview.isRunning = false;
+        App.contractReview.job = null;
+        const btn = document.getElementById('contract-review-run-btn');
+        const status = document.getElementById('contract-review-status');
+        if (btn) btn.disabled = false;
+        if (status) status.textContent = '';
+      }
+    }
+  };
+  source.onerror = () => {
+    stopContractReviewStream();
+    App.contractReview.isRunning = false;
+    App.contractReview.job = null;
+    const btn = document.getElementById('contract-review-run-btn');
+    const status = document.getElementById('contract-review-status');
+    if (btn) btn.disabled = false;
+    if (status) status.textContent = '';
+    showToast('Contract review event stream disconnected.', 'error');
+  };
 }
 
 function contractReviewDisplayValue(value) {
@@ -264,6 +394,8 @@ function renderStandaloneClauseDetail(item) {
 function contractReviewMarkdown(result = App.contractReview.result) {
   if (!result) return '';
   const workflow = result.workflow || {};
+  const agentTrace = result.agentic_review?.trace || [];
+  const agentSummary = agentTrace.length ? `## Agent Trace\n${agentTrace.map(step => `- **${step.step_name || 'agent'}**: ${step.status || 'unknown'}${step.error ? ` (${step.error})` : ''}`).join('\n')}\n\n` : '';
   const workflowSummary = workflow.stats ? `## Workflow Dashboard\n- Clauses: ${workflow.stats.clauses ?? 0}\n- Need review: ${workflow.stats.review_needed ?? 0}\n- High risk: ${workflow.stats.high ?? 0}\n- Critical risk: ${workflow.stats.critical ?? 0}\n- Escalations: ${workflow.stats.escalations ?? 0}\n\n` : '';
   const workflowClauses = (workflow.clauses || []).map(item => {
     const clause = item.clause || {};
@@ -274,7 +406,7 @@ function contractReviewMarkdown(result = App.contractReview.result) {
   const risks = (result.risk_matrix || []).map(r => `- **${contractReviewDisplayValue(r.issue || 'Issue')}** (${contractReviewDisplayValue(r.severity || r.risk_level || 'n/a')}): ${contractReviewDisplayValue(r.finding || r.reasoning || '')}`).join('\n');
   const extraction = Object.entries(result.extraction || {}).map(([key, value]) => `- **${key.replace(/_/g, ' ')}**: ${contractReviewDisplayValue(value)}`).join('\n');
   const sources = (result.sources || []).map(s => `- ${contractReviewSourceLabel(s)}: ${contractReviewDisplayValue(s?.excerpt || '')}`).join('\n');
-  return `# ${result.title || 'Contract Review'}\n\n${workflowSummary}${workflowClauses ? `## Workflow Clauses\n${workflowClauses}\n\n` : ''}## Client Summary\n${contractReviewDisplayValue(result.client_summary)}\n\n## Structured Extraction\n${extraction || 'No extraction returned.'}\n\n## Risk Matrix\n${risks || 'No risks returned.'}\n\n## Negotiation Memo\n${contractReviewDisplayValue(result.negotiation_memo)}\n\n## Sources\n${sources || 'No sources returned.'}\n\n## Review Notice\nHuman legal review is required before use or circulation.\n`;
+  return `# ${result.title || 'Contract Review'}\n\n${workflowSummary}${agentSummary}${workflowClauses ? `## Workflow Clauses\n${workflowClauses}\n\n` : ''}## Client Summary\n${contractReviewDisplayValue(result.client_summary)}\n\n## Structured Extraction\n${extraction || 'No extraction returned.'}\n\n## Risk Matrix\n${risks || 'No risks returned.'}\n\n## Negotiation Memo\n${contractReviewDisplayValue(result.negotiation_memo)}\n\n## Sources\n${sources || 'No sources returned.'}\n\n## Review Notice\nHuman legal review is required before use or circulation.\n`;
 }
 
 function renderStandaloneContractReviewResult() {
@@ -285,7 +417,8 @@ function renderStandaloneContractReviewResult() {
   const side = document.getElementById('contract-review-side-list');
   if (!result || !grid || !preview || !side) return;
   grid.style.display = 'grid';
-  if (meta) meta.textContent = `${result.review_depth || 'standard'}${result.playbook?.name ? ' · ' + result.playbook.name : ''}${result.provider ? ' · ' + result.provider : ' · fallback'}`;
+  const agentLabel = result.agentic_review?.enabled ? 'agentic review' : 'deterministic fallback';
+  if (meta) meta.textContent = `${result.review_depth || 'standard'}${result.playbook?.name ? ' · ' + result.playbook.name : ''}${result.provider ? ' · ' + result.provider : ' · fallback'} · ${agentLabel}`;
   const riskRows = (result.risk_matrix || []).map(r => `<tr><td>${esc(contractReviewDisplayValue(r.issue || 'Issue'))}</td><td>${esc(contractReviewDisplayValue(r.severity || r.risk_level || 'n/a'))}</td><td>${esc(contractReviewDisplayValue(r.finding || r.reasoning || ''))}</td></tr>`).join('');
   const extractionRows = Object.entries(result.extraction || {}).map(([key, value]) => `<tr><td>${esc(key.replace(/_/g, ' '))}</td><td>${esc(contractReviewDisplayValue(value))}</td></tr>`).join('');
   preview.innerHTML = sanitizeDraftHtml(`
@@ -300,6 +433,7 @@ function renderStandaloneContractReviewResult() {
   `);
   side.innerHTML = `
     <div class="translate-review-section"><strong>Warnings</strong>${renderTranslationList(result.review_warnings || [], 'Human legal review required.')}</div>
+    <div class="translate-review-section"><strong>Agent Trace</strong>${renderTranslationList((result.agentic_review?.trace || []).map(step => `${step.step_name || 'agent'}: ${step.status || 'unknown'}`), 'No agent trace returned.')}</div>
     <div class="translate-review-section"><strong>Sources</strong>${renderTranslationList((result.sources || []).map(contractReviewSourceLabel), 'No source documents returned.')}</div>
   `;
 }

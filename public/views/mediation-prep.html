@@ -1,0 +1,121 @@
+  <!-- ── MEDIATION PREP VIEW ── -->
+  <div class="view" id="view-mediation-prep">
+    <div class="add-doc-view translate-view draft-view">
+      <div class="view-header">
+        <h2>Mediation Prep</h2>
+        <p>Prepare structured mediation work product from indexed matter documents.</p>
+      </div>
+
+      <div class="upload-scope-panel" id="mediation-prep-scope-card">
+        <div class="council-field">
+          <label for="mediation-prep-workspace-select">Workspace</label>
+          <select class="council-select" id="mediation-prep-workspace-select" onchange="onMediationPrepWorkspaceChange()"></select>
+        </div>
+        <div class="council-field">
+          <label for="mediation-prep-matter-select">Matter</label>
+          <select class="council-select" id="mediation-prep-matter-select" onchange="renderMediationPrepSourceDocuments()"></select>
+        </div>
+      </div>
+
+      <div class="settings-card translate-setup-card draft-setup-card">
+        <div class="council-form">
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="mediation-prep-title">Run title</label>
+              <input class="council-input" id="mediation-prep-title" placeholder="Mediation prep"/>
+            </div>
+            <div class="council-field">
+              <label for="mediation-prep-party-role">Party role</label>
+              <select class="council-select" id="mediation-prep-party-role">
+                <option value="requesting party">Requesting party</option>
+                <option value="responding party">Responding party</option>
+                <option value="third party">Third party</option>
+                <option value="neutral analysis" selected>Neutral analysis</option>
+              </select>
+            </div>
+            <div class="council-field">
+              <label for="mediation-prep-court">Mediator / provider / court</label>
+              <input class="council-input" id="mediation-prep-court" placeholder="JAMS, AAA, private mediator, court program"/>
+            </div>
+          </div>
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="mediation-prep-jurisdiction">Jurisdiction</label>
+              <input class="council-input" id="mediation-prep-jurisdiction" placeholder="Confidential, England and Wales"/>
+            </div>
+            <div class="council-field">
+              <label for="mediation-prep-venue">Venue</label>
+              <input class="council-input" id="mediation-prep-venue" placeholder="County, division, district"/>
+            </div>
+            <div class="council-field">
+              <label for="mediation-prep-stage">Procedural stage</label>
+              <input class="council-input" id="mediation-prep-stage" placeholder="Pre-mediation, statements due, session scheduled"/>
+            </div>
+          </div>
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="mediation-prep-focus">Mediation focus</label>
+              <select class="council-select" id="mediation-prep-focus">
+                <option value="full prep">Full prep</option>
+                <option value="positions">Positions</option>
+                <option value="information gaps">Information gaps</option>
+                <option value="participant prep">Participant prep</option>
+                <option value="mediator brief">Mediator brief</option>
+                <option value="session plan">Session plan</option>
+                <option value="damages">Damages</option>
+              </select>
+            </div>
+            <div class="council-field">
+              <label for="mediation-prep-dates">Mediation / deadline dates</label>
+              <input class="council-input" id="mediation-prep-dates" placeholder="2026-07-15, 2026-08-01"/>
+            </div>
+          </div>
+          <div class="council-field" id="mediation-prep-source-documents-field">
+            <label for="mediation-prep-source-documents">Indexed source documents</label>
+            <select class="council-select draft-source-select" id="mediation-prep-source-documents" multiple></select>
+          </div>
+          <div class="council-field">
+            <label for="mediation-prep-instructions">Prep instructions</label>
+            <textarea class="council-textarea" id="mediation-prep-instructions" rows="4" placeholder="Focus positions, interests, authority, information gaps, mediator brief, damages, settlement options, or session planning"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="translate-actions">
+        <button class="btn-primary" type="button" id="mediation-prep-run-btn" onclick="runMediationPrep()">Run Prep</button>
+        <button class="btn-secondary" type="button" onclick="resetMediationPrep()">Clear</button>
+        <span class="translate-status" id="mediation-prep-status"></span>
+      </div>
+
+      <div class="settings-card translate-setup-card draft-setup-card" id="mediation-prep-history-card" data-csp-style="display:none">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">Recent Runs</div><div class="settings-card-subtitle">Persisted mediation preparation runs.</div></div>
+        </div>
+        <div class="council-list" id="mediation-prep-history-list"></div>
+      </div>
+
+      <div class="translate-result-grid draft-result-grid" id="mediation-prep-result-grid" data-csp-style="display:none">
+        <div class="settings-card translate-result-card draft-result-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Preparation Package</div><div class="settings-card-subtitle" id="mediation-prep-result-meta"></div></div>
+            <div class="settings-card-actions">
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Copy package" aria-label="Copy package" onclick="copyMediationPrep()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download Markdown" aria-label="Download Markdown" onclick="downloadMediationPrep()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="translate-html-preview draft-html-preview" id="mediation-prep-preview"></div>
+        </div>
+
+        <div class="settings-card translate-review-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Sources & Audit</div><div class="settings-card-subtitle">Trace, warnings, and source basis.</div></div>
+          </div>
+          <div class="translate-review-list" id="mediation-prep-side-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>

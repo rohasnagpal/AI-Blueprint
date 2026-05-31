@@ -1,0 +1,85 @@
+<div class="settings-section" id="stab-activity">
+  <div class="settings-section-title">Activity Log</div>
+  <div class="settings-section-desc">System-wide activity across users and workspaces. Activity entries exclude prompt text, document text, and generated work product.</div>
+
+  <div class="settings-card">
+    <div class="settings-card-header">
+      <div>
+        <div class="settings-card-title">Filters</div>
+        <div class="settings-card-subtitle">Export uses the same filters shown here.</div>
+      </div>
+      <div class="council-actions">
+        <button class="btn-secondary" type="button" onclick="loadAdminActivity()">Refresh</button>
+        <button class="btn-primary" type="button" onclick="exportAdminActivity()">Export CSV</button>
+      </div>
+    </div>
+    <div class="council-form">
+      <div class="council-form-row">
+        <div class="council-field">
+          <label for="admin-activity-search">Search</label>
+          <input class="council-input" id="admin-activity-search" placeholder="User, workspace, action, resource" onkeydown="handleAdminActivitySearchKey(event)"/>
+        </div>
+        <div class="council-field">
+          <label for="admin-activity-category">Category</label>
+          <select class="council-select" id="admin-activity-category">
+            <option value="">All categories</option>
+            <option value="auth">Auth</option>
+            <option value="chat">Chat</option>
+            <option value="draft">Drafting</option>
+            <option value="contract_review">Contract Review</option>
+            <option value="document">Documents</option>
+            <option value="translation">Translation</option>
+            <option value="workspace">Workspaces</option>
+            <option value="matter">Matters</option>
+            <option value="admin">Admin</option>
+            <option value="setting">Settings</option>
+            <option value="secret">Secrets</option>
+          </select>
+        </div>
+      </div>
+      <div class="council-form-row">
+        <div class="council-field">
+          <label for="admin-activity-user">User</label>
+          <select class="council-select" id="admin-activity-user"></select>
+        </div>
+        <div class="council-field">
+          <label for="admin-activity-workspace">Workspace</label>
+          <select class="council-select" id="admin-activity-workspace"></select>
+        </div>
+      </div>
+      <div class="council-form-row">
+        <div class="council-field">
+          <label for="admin-activity-from">From</label>
+          <input class="council-input" id="admin-activity-from" type="datetime-local"/>
+        </div>
+        <div class="council-field">
+          <label for="admin-activity-to">To</label>
+          <input class="council-input" id="admin-activity-to" type="datetime-local"/>
+        </div>
+      </div>
+      <div class="council-actions">
+        <button class="btn-secondary" type="button" onclick="resetAdminActivityFilters()">Clear</button>
+        <button class="btn-primary" type="button" onclick="loadAdminActivity(1)">Apply Filters</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <div class="settings-card-header">
+      <div>
+        <div class="settings-card-title">Events</div>
+        <div class="settings-card-subtitle" id="admin-activity-count">No activity loaded.</div>
+      </div>
+      <div class="council-actions">
+        <button class="btn-secondary" type="button" onclick="pageAdminActivity(-1)">Previous</button>
+        <button class="btn-secondary" type="button" onclick="pageAdminActivity(1)">Next</button>
+      </div>
+    </div>
+    <div class="activity-log-layout">
+      <div class="council-list activity-log-list" id="admin-activity-list"></div>
+      <div class="activity-log-detail" id="admin-activity-detail">
+        <div class="council-card-desc">Select an event to inspect metadata.</div>
+      </div>
+    </div>
+  </div>
+</div>

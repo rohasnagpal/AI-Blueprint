@@ -1,6 +1,9 @@
+import csv
+import io
 import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -8,7 +11,8 @@ from sqlalchemy.orm import Session
 from app.core.audit import record_audit_event
 from app.core.database import get_db
 from app.core.deps import require_system_admin
-from app.core.models import SessionToken, User, Workspace, WorkspaceMember, utcnow
+from app.core.json_utils import json_loads
+from app.core.models import AuditEvent, SessionToken, User, Workspace, WorkspaceMember, utcnow
 from app.core.security import hash_password
 from app.core.validation import normalize_email, validate_choice
 
@@ -78,6 +82,99 @@ def _format_user(user: User, memberships: list[WorkspaceMember] | None = None, w
     }
 
 
+def _activity_category(action: str) -> str:
+    if action.startswith("contract_review"):
+        return "contract_review"
+    return action.split(".", 1)[0] if action else "activity"
+
+
+def _activity_summary(event: AuditEvent) -> str:
+    labels = {
+        "auth.login": "User signed in",
+        "auth.logout": "User signed out",
+        "chat.create": "Chat created",
+        "chat.message.create": "Chat message sent",
+        "draft.run.create": "Draft generated",
+        "contract_review_standalone.run": "Contract review run",
+        "translation.run.create": "Translation run",
+        "document.register": "Document registered",
+        "admin.activity.export": "Activity export downloaded",
+    }
+    return labels.get(event.action, event.action.replace("_", " ").replace(".", " ").title())
+
+
+def _format_activity_event(event: AuditEvent, actor: User | None = None, workspace: Workspace | None = None) -> dict:
+    return {
+        "id": event.id,
+        "created_at": event.created_at.isoformat(),
+        "user_id": event.user_id,
+        "user": {
+            "id": actor.id,
+            "display_name": actor.display_name,
+            "email": actor.email,
+            "username": actor.username,
+        } if actor else None,
+        "workspace_id": event.workspace_id,
+        "workspace": {
+            "id": workspace.id,
+            "name": workspace.name,
+            "slug": workspace.slug,
+        } if workspace else None,
+        "category": _activity_category(event.action),
+        "action": event.action,
+        "resource_type": event.resource_type,
+        "resource_id": event.resource_id,
+        "summary": _activity_summary(event),
+        "metadata": json_loads(event.metadata_json, {}),
+    }
+
+
+def _activity_query(
+    *,
+    user_id: str | None = None,
+    workspace_id: str | None = None,
+    category: str | None = None,
+    action: str | None = None,
+    resource_type: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    search: str | None = None,
+):
+    query = (
+        select(AuditEvent, User, Workspace)
+        .outerjoin(User, User.id == AuditEvent.user_id)
+        .outerjoin(Workspace, Workspace.id == AuditEvent.workspace_id)
+    )
+    if user_id:
+        query = query.where(AuditEvent.user_id == user_id)
+    if workspace_id:
+        query = query.where(AuditEvent.workspace_id == workspace_id)
+    if category:
+        query = query.where(or_(AuditEvent.action.like(f"{category}.%"), AuditEvent.action.like(f"{category}_%")))
+    if action:
+        query = query.where(AuditEvent.action == action)
+    if resource_type:
+        query = query.where(AuditEvent.resource_type == resource_type)
+    if date_from:
+        query = query.where(AuditEvent.created_at >= date_from)
+    if date_to:
+        query = query.where(AuditEvent.created_at <= date_to)
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.where(
+            or_(
+                AuditEvent.action.like(term),
+                AuditEvent.resource_type.like(term),
+                AuditEvent.resource_id.like(term),
+                User.email.like(term),
+                User.display_name.like(term),
+                User.username.like(term),
+                Workspace.name.like(term),
+            )
+        )
+    return query
+
+
 def _user_lookup(db: Session, user_id: str) -> User:
     user = db.get(User, user_id)
     if not user:
@@ -122,6 +219,116 @@ async def list_admin_workspaces(
             for workspace in rows
         ]
     }
+
+
+@router.get("/activity")
+async def list_activity(
+    user_id: str | None = None,
+    workspace_id: str | None = None,
+    category: str | None = None,
+    action: str | None = None,
+    resource_type: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    search: str | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    _admin: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    base = _activity_query(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        category=category,
+        action=action,
+        resource_type=resource_type,
+        date_from=date_from,
+        date_to=date_to,
+        search=search,
+    )
+    total = db.execute(select(func.count()).select_from(base.subquery())).scalar_one()
+    rows = db.execute(
+        base.order_by(AuditEvent.created_at.desc())
+        .limit(page_size)
+        .offset((page - 1) * page_size)
+    ).all()
+    return {
+        "items": [_format_activity_event(event, actor, workspace) for event, actor, workspace in rows],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.get("/activity/export.csv")
+async def export_activity_csv(
+    user_id: str | None = None,
+    workspace_id: str | None = None,
+    category: str | None = None,
+    action: str | None = None,
+    resource_type: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    search: str | None = None,
+    admin: User = Depends(require_system_admin),
+    db: Session = Depends(get_db),
+):
+    base = _activity_query(
+        user_id=user_id,
+        workspace_id=workspace_id,
+        category=category,
+        action=action,
+        resource_type=resource_type,
+        date_from=date_from,
+        date_to=date_to,
+        search=search,
+    )
+    rows = db.execute(base.order_by(AuditEvent.created_at.desc()).limit(10000)).all()
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=[
+            "created_at",
+            "user_email",
+            "user_display_name",
+            "workspace",
+            "category",
+            "action",
+            "resource_type",
+            "resource_id",
+            "summary",
+            "metadata_json",
+        ],
+    )
+    writer.writeheader()
+    for event, actor, workspace in rows:
+        writer.writerow(
+            {
+                "created_at": event.created_at.isoformat(),
+                "user_email": actor.email if actor else "",
+                "user_display_name": actor.display_name if actor else "",
+                "workspace": workspace.name if workspace else "",
+                "category": _activity_category(event.action),
+                "action": event.action,
+                "resource_type": event.resource_type,
+                "resource_id": event.resource_id or "",
+                "summary": _activity_summary(event),
+                "metadata_json": event.metadata_json,
+            }
+        )
+    record_audit_event(
+        db,
+        action="admin.activity.export",
+        resource_type="audit_event",
+        user_id=admin.id,
+        metadata={"row_count": len(rows), "format": "csv"},
+    )
+    db.commit()
+    return Response(
+        output.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="activity-log.csv"'},
+    )
 
 
 @router.get("/users")

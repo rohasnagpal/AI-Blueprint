@@ -210,6 +210,48 @@ class KnowledgeDocument(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 
+class DocumentFolderSource(Base):
+    __tablename__ = "document_folder_sources"
+    __table_args__ = (
+        Index("ix_document_folder_sources_workspace_matter", "workspace_id", "matter_id"),
+        Index("ix_document_folder_sources_workspace_type", "workspace_id", "source_type"),
+        UniqueConstraint("workspace_id", "matter_id", "source_type", "path", name="uq_document_folder_sources_scope_path"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(500), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False, default="local_path")
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="active")
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class DocumentFolderFile(Base):
+    __tablename__ = "document_folder_files"
+    __table_args__ = (
+        UniqueConstraint("folder_source_id", "source_path", name="uq_document_folder_files_source_path"),
+        Index("ix_document_folder_files_workspace_matter", "workspace_id", "matter_id"),
+        Index("ix_document_folder_files_document_id", "document_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    folder_source_id: Mapped[str] = mapped_column(ForeignKey("document_folder_sources.id", ondelete="CASCADE"), nullable=False, index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    size_bytes: Mapped[int | None] = mapped_column(Integer)
+    mtime: Mapped[float | None] = mapped_column(Float)
+    content_hash: Mapped[str | None] = mapped_column(String(128), index=True)
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
 class DocumentLink(Base):
     __tablename__ = "document_links"
     __table_args__ = (
@@ -584,6 +626,1466 @@ class ContractClauseReviewDecision(Base):
     prior_status_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationPrepRun(Base):
+    __tablename__ = "arbitration_prep_runs"
+    __table_args__ = (
+        Index("ix_arbitration_prep_runs_workspace_created", "workspace_id", "created_at"),
+        Index("ix_arbitration_prep_runs_matter_status", "matter_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    config_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    workflow_version: Mapped[str | None] = mapped_column(String(50))
+    source_anchor_version: Mapped[str | None] = mapped_column(String(50))
+    error: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ArbitrationPrepOutput(Base):
+    __tablename__ = "arbitration_prep_outputs"
+    __table_args__ = (Index("ix_arbitration_prep_outputs_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    issues_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    chronology_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    evidence_matrix_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    witness_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    argument_strategy_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    cross_examination_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    procedural_tasks_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    damages_and_remedies_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    risks_and_gaps_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    client_or_team_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    warnings_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    agentic_review_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    sources_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationIssue(Base):
+    __tablename__ = "arbitration_issues"
+    __table_args__ = (Index("ix_arbitration_issues_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(100))
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    proof_elements_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    burdens_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    disputed_facts_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    missing_proof_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationChronologyEvent(Base):
+    __tablename__ = "arbitration_chronology_events"
+    __table_args__ = (Index("ix_arbitration_chronology_events_run_date", "run_id", "event_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    event_date: Mapped[str | None] = mapped_column(String(50), index=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    relevance: Mapped[str | None] = mapped_column(Text)
+    anchor_text: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationEvidenceItem(Base):
+    __tablename__ = "arbitration_evidence_items"
+    __table_args__ = (Index("ix_arbitration_evidence_items_run_issue", "run_id", "issue_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    issue_id: Mapped[str | None] = mapped_column(ForeignKey("arbitration_issues.id", ondelete="SET NULL"), index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    evidence_type: Mapped[str] = mapped_column(String(64), nullable=False, default="supporting")
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    anchor_text: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationWitness(Base):
+    __tablename__ = "arbitration_witnesses"
+    __table_args__ = (Index("ix_arbitration_witnesses_run_name", "run_id", "name"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str | None] = mapped_column(String(255))
+    topics_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    contradictions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    prep_questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationArgument(Base):
+    __tablename__ = "arbitration_arguments"
+    __table_args__ = (Index("ix_arbitration_arguments_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    theme: Mapped[str] = mapped_column(String(255), nullable=False)
+    strongest_points_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    vulnerabilities_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    opponent_responses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationProceduralTask(Base):
+    __tablename__ = "arbitration_procedural_tasks"
+    __table_args__ = (Index("ix_arbitration_procedural_tasks_run_due", "run_id", "due_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    task_type: Mapped[str] = mapped_column(String(100), nullable=False, default="obligation")
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    due_date: Mapped[str | None] = mapped_column(String(50), index=True)
+    compliance_risk: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationRiskItem(Base):
+    __tablename__ = "arbitration_risk_items"
+    __table_args__ = (Index("ix_arbitration_risk_items_run_level", "run_id", "risk_level"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    risk_level: Mapped[str] = mapped_column(String(50), nullable=False, default="medium")
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    leverage: Mapped[str | None] = mapped_column(Text)
+    decision_point: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationAgentStepOutput(Base):
+    __tablename__ = "arbitration_agent_step_outputs"
+    __table_args__ = (
+        Index("ix_arbitration_agent_step_outputs_run_step", "run_id", "step_name"),
+        Index("ix_arbitration_agent_step_outputs_workspace_run", "workspace_id", "run_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    step_version: Mapped[str | None] = mapped_column(String(50))
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    output_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    provider: Mapped[str | None] = mapped_column(String(64))
+    model: Mapped[str | None] = mapped_column(String(255))
+    error: Mapped[str | None] = mapped_column(Text)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class ArbitrationReviewDecision(Base):
+    __tablename__ = "arbitration_review_decisions"
+    __table_args__ = (Index("ix_arbitration_review_decisions_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("arbitration_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    target_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    decision: Mapped[str] = mapped_column(String(64), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    prior_status_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationPrepRun(Base):
+    __tablename__ = "litigation_prep_runs"
+    __table_args__ = (
+        Index("ix_litigation_prep_runs_workspace_created", "workspace_id", "created_at"),
+        Index("ix_litigation_prep_runs_matter_status", "matter_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    config_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    workflow_version: Mapped[str | None] = mapped_column(String(50))
+    source_anchor_version: Mapped[str | None] = mapped_column(String(50))
+    error: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LitigationPrepOutput(Base):
+    __tablename__ = "litigation_prep_outputs"
+    __table_args__ = (Index("ix_litigation_prep_outputs_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    claims_and_defenses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    issues_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    chronology_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    evidence_matrix_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    discovery_analysis_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    witness_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    deposition_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    motion_strategy_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    trial_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    argument_strategy_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    cross_examination_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    procedural_tasks_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    damages_and_remedies_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    risks_and_gaps_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    client_or_team_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    warnings_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    agentic_review_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    sources_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationIssue(Base):
+    __tablename__ = "litigation_issues"
+    __table_args__ = (Index("ix_litigation_issues_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(100))
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    proof_elements_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    burdens_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    disputed_facts_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    missing_proof_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationClaim(Base):
+    __tablename__ = "litigation_claims"
+    __table_args__ = (Index("ix_litigation_claims_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    claim_type: Mapped[str] = mapped_column(String(100), nullable=False, default="claim")
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    elements_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    defenses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    missing_proof_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationChronologyEvent(Base):
+    __tablename__ = "litigation_chronology_events"
+    __table_args__ = (Index("ix_litigation_chronology_events_run_date", "run_id", "event_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    event_date: Mapped[str | None] = mapped_column(String(50), index=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    relevance: Mapped[str | None] = mapped_column(Text)
+    anchor_text: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationEvidenceItem(Base):
+    __tablename__ = "litigation_evidence_items"
+    __table_args__ = (Index("ix_litigation_evidence_items_run_issue", "run_id", "issue_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    issue_id: Mapped[str | None] = mapped_column(ForeignKey("litigation_issues.id", ondelete="SET NULL"), index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    evidence_type: Mapped[str] = mapped_column(String(64), nullable=False, default="supporting")
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    anchor_text: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationWitness(Base):
+    __tablename__ = "litigation_witnesses"
+    __table_args__ = (Index("ix_litigation_witnesses_run_name", "run_id", "name"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str | None] = mapped_column(String(255))
+    topics_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    contradictions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    prep_questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationDepositionTopic(Base):
+    __tablename__ = "litigation_deposition_topics"
+    __table_args__ = (Index("ix_litigation_deposition_topics_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    witness_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    topics_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    anchors_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationArgument(Base):
+    __tablename__ = "litigation_arguments"
+    __table_args__ = (Index("ix_litigation_arguments_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    theme: Mapped[str] = mapped_column(String(255), nullable=False)
+    strongest_points_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    vulnerabilities_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    opponent_responses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationProceduralTask(Base):
+    __tablename__ = "litigation_procedural_tasks"
+    __table_args__ = (Index("ix_litigation_procedural_tasks_run_due", "run_id", "due_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    task_type: Mapped[str] = mapped_column(String(100), nullable=False, default="obligation")
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    due_date: Mapped[str | None] = mapped_column(String(50), index=True)
+    compliance_risk: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationMotion(Base):
+    __tablename__ = "litigation_motions"
+    __table_args__ = (Index("ix_litigation_motions_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    motion_type: Mapped[str] = mapped_column(String(100), nullable=False, default="motion")
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    support_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    vulnerabilities_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationDiscoveryItem(Base):
+    __tablename__ = "litigation_discovery_items"
+    __table_args__ = (Index("ix_litigation_discovery_items_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    item_type: Mapped[str] = mapped_column(String(100), nullable=False, default="discovery")
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str | None] = mapped_column(String(100))
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationDamagesItem(Base):
+    __tablename__ = "litigation_damages_items"
+    __table_args__ = (Index("ix_litigation_damages_items_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    item_type: Mapped[str] = mapped_column(String(100), nullable=False, default="damages")
+    amount: Mapped[str | None] = mapped_column(String(100))
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationRiskItem(Base):
+    __tablename__ = "litigation_risk_items"
+    __table_args__ = (Index("ix_litigation_risk_items_run_level", "run_id", "risk_level"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    risk_level: Mapped[str] = mapped_column(String(50), nullable=False, default="medium")
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    leverage: Mapped[str | None] = mapped_column(Text)
+    decision_point: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationAgentStepOutput(Base):
+    __tablename__ = "litigation_agent_step_outputs"
+    __table_args__ = (
+        Index("ix_litigation_agent_step_outputs_run_step", "run_id", "step_name"),
+        Index("ix_litigation_agent_step_outputs_workspace_run", "workspace_id", "run_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    step_version: Mapped[str | None] = mapped_column(String(50))
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    output_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    provider: Mapped[str | None] = mapped_column(String(64))
+    model: Mapped[str | None] = mapped_column(String(255))
+    error: Mapped[str | None] = mapped_column(Text)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class LitigationReviewDecision(Base):
+    __tablename__ = "litigation_review_decisions"
+    __table_args__ = (Index("ix_litigation_review_decisions_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("litigation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    target_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    decision: Mapped[str] = mapped_column(String(64), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    prior_status_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+
+class MediationPrepRun(Base):
+    __tablename__ = "mediation_prep_runs"
+    __table_args__ = (
+        Index("ix_mediation_prep_runs_workspace_created", "workspace_id", "created_at"),
+        Index("ix_mediation_prep_runs_matter_status", "matter_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    config_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    workflow_version: Mapped[str | None] = mapped_column(String(50))
+    source_anchor_version: Mapped[str | None] = mapped_column(String(50))
+    error: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class MediationPrepOutput(Base):
+    __tablename__ = "mediation_prep_outputs"
+    __table_args__ = (Index("ix_mediation_prep_outputs_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    claims_and_defenses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    issues_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    chronology_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    evidence_matrix_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    discovery_analysis_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    witness_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    deposition_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    motion_strategy_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    trial_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    argument_strategy_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    cross_examination_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    procedural_tasks_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    damages_and_remedies_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    risks_and_gaps_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    client_or_team_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    warnings_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    agentic_review_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    sources_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationIssue(Base):
+    __tablename__ = "mediation_issues"
+    __table_args__ = (Index("ix_mediation_issues_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(100))
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    proof_elements_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    burdens_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    disputed_facts_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    missing_proof_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationClaim(Base):
+    __tablename__ = "mediation_claims"
+    __table_args__ = (Index("ix_mediation_claims_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    claim_type: Mapped[str] = mapped_column(String(100), nullable=False, default="claim")
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    elements_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    defenses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    missing_proof_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationChronologyEvent(Base):
+    __tablename__ = "mediation_chronology_events"
+    __table_args__ = (Index("ix_mediation_chronology_events_run_date", "run_id", "event_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    event_date: Mapped[str | None] = mapped_column(String(50), index=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    relevance: Mapped[str | None] = mapped_column(Text)
+    anchor_text: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationEvidenceItem(Base):
+    __tablename__ = "mediation_evidence_items"
+    __table_args__ = (Index("ix_mediation_evidence_items_run_issue", "run_id", "issue_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    issue_id: Mapped[str | None] = mapped_column(ForeignKey("mediation_issues.id", ondelete="SET NULL"), index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    evidence_type: Mapped[str] = mapped_column(String(64), nullable=False, default="supporting")
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    anchor_text: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationWitness(Base):
+    __tablename__ = "mediation_witnesses"
+    __table_args__ = (Index("ix_mediation_witnesses_run_name", "run_id", "name"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str | None] = mapped_column(String(255))
+    topics_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    contradictions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    prep_questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationDepositionTopic(Base):
+    __tablename__ = "mediation_deposition_topics"
+    __table_args__ = (Index("ix_mediation_deposition_topics_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    witness_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    topics_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    anchors_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationArgument(Base):
+    __tablename__ = "mediation_arguments"
+    __table_args__ = (Index("ix_mediation_arguments_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    theme: Mapped[str] = mapped_column(String(255), nullable=False)
+    strongest_points_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    vulnerabilities_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    opponent_responses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationProceduralTask(Base):
+    __tablename__ = "mediation_procedural_tasks"
+    __table_args__ = (Index("ix_mediation_procedural_tasks_run_due", "run_id", "due_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    task_type: Mapped[str] = mapped_column(String(100), nullable=False, default="obligation")
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    due_date: Mapped[str | None] = mapped_column(String(50), index=True)
+    compliance_risk: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationMotion(Base):
+    __tablename__ = "mediation_motions"
+    __table_args__ = (Index("ix_mediation_motions_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    motion_type: Mapped[str] = mapped_column(String(100), nullable=False, default="motion")
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    support_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    vulnerabilities_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationDiscoveryItem(Base):
+    __tablename__ = "mediation_discovery_items"
+    __table_args__ = (Index("ix_mediation_discovery_items_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    item_type: Mapped[str] = mapped_column(String(100), nullable=False, default="discovery")
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str | None] = mapped_column(String(100))
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationDamagesItem(Base):
+    __tablename__ = "mediation_damages_items"
+    __table_args__ = (Index("ix_mediation_damages_items_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    item_type: Mapped[str] = mapped_column(String(100), nullable=False, default="damages")
+    amount: Mapped[str | None] = mapped_column(String(100))
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationRiskItem(Base):
+    __tablename__ = "mediation_risk_items"
+    __table_args__ = (Index("ix_mediation_risk_items_run_level", "run_id", "risk_level"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    risk_level: Mapped[str] = mapped_column(String(50), nullable=False, default="medium")
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    leverage: Mapped[str | None] = mapped_column(Text)
+    decision_point: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationAgentStepOutput(Base):
+    __tablename__ = "mediation_agent_step_outputs"
+    __table_args__ = (
+        Index("ix_mediation_agent_step_outputs_run_step", "run_id", "step_name"),
+        Index("ix_mediation_agent_step_outputs_workspace_run", "workspace_id", "run_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    step_version: Mapped[str | None] = mapped_column(String(50))
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    output_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    provider: Mapped[str | None] = mapped_column(String(64))
+    model: Mapped[str | None] = mapped_column(String(255))
+    error: Mapped[str | None] = mapped_column(Text)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MediationReviewDecision(Base):
+    __tablename__ = "mediation_review_decisions"
+    __table_args__ = (Index("ix_mediation_review_decisions_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("mediation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    target_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    decision: Mapped[str] = mapped_column(String(64), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    prior_status_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+
+
+class NegotiationPrepRun(Base):
+    __tablename__ = "negotiation_prep_runs"
+    __table_args__ = (
+        Index("ix_negotiation_prep_runs_workspace_created", "workspace_id", "created_at"),
+        Index("ix_negotiation_prep_runs_matter_status", "matter_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    blueprint_id: Mapped[str] = mapped_column(ForeignKey("blueprint_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    config_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    workflow_version: Mapped[str | None] = mapped_column(String(50))
+    source_anchor_version: Mapped[str | None] = mapped_column(String(50))
+    error: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class NegotiationPrepOutput(Base):
+    __tablename__ = "negotiation_prep_outputs"
+    __table_args__ = (Index("ix_negotiation_prep_outputs_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_snapshot_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    claims_and_defenses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    issues_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    chronology_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    evidence_matrix_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    discovery_analysis_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    witness_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    deposition_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    motion_strategy_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    trial_prep_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    argument_strategy_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    cross_examination_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    procedural_tasks_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    damages_and_remedies_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    risks_and_gaps_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    client_or_team_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    warnings_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    agentic_review_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    sources_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationIssue(Base):
+    __tablename__ = "negotiation_issues"
+    __table_args__ = (Index("ix_negotiation_issues_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(100))
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    proof_elements_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    burdens_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    disputed_facts_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    missing_proof_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationClaim(Base):
+    __tablename__ = "negotiation_claims"
+    __table_args__ = (Index("ix_negotiation_claims_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    claim_type: Mapped[str] = mapped_column(String(100), nullable=False, default="claim")
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    elements_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    defenses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    missing_proof_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationChronologyEvent(Base):
+    __tablename__ = "negotiation_chronology_events"
+    __table_args__ = (Index("ix_negotiation_chronology_events_run_date", "run_id", "event_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    event_date: Mapped[str | None] = mapped_column(String(50), index=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    relevance: Mapped[str | None] = mapped_column(Text)
+    anchor_text: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationEvidenceItem(Base):
+    __tablename__ = "negotiation_evidence_items"
+    __table_args__ = (Index("ix_negotiation_evidence_items_run_issue", "run_id", "issue_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    issue_id: Mapped[str | None] = mapped_column(ForeignKey("negotiation_issues.id", ondelete="SET NULL"), index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    evidence_type: Mapped[str] = mapped_column(String(64), nullable=False, default="supporting")
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    anchor_text: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationWitness(Base):
+    __tablename__ = "negotiation_witnesses"
+    __table_args__ = (Index("ix_negotiation_witnesses_run_name", "run_id", "name"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str | None] = mapped_column(String(255))
+    topics_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    admissions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    contradictions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    prep_questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationDepositionTopic(Base):
+    __tablename__ = "negotiation_deposition_topics"
+    __table_args__ = (Index("ix_negotiation_deposition_topics_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    witness_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    topics_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    anchors_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationArgument(Base):
+    __tablename__ = "negotiation_arguments"
+    __table_args__ = (Index("ix_negotiation_arguments_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    theme: Mapped[str] = mapped_column(String(255), nullable=False)
+    strongest_points_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    vulnerabilities_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    opponent_responses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationProceduralTask(Base):
+    __tablename__ = "negotiation_procedural_tasks"
+    __table_args__ = (Index("ix_negotiation_procedural_tasks_run_due", "run_id", "due_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    task_type: Mapped[str] = mapped_column(String(100), nullable=False, default="obligation")
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    due_date: Mapped[str | None] = mapped_column(String(50), index=True)
+    compliance_risk: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationMotion(Base):
+    __tablename__ = "negotiation_motions"
+    __table_args__ = (Index("ix_negotiation_motions_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    motion_type: Mapped[str] = mapped_column(String(100), nullable=False, default="motion")
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    support_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    vulnerabilities_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationDiscoveryItem(Base):
+    __tablename__ = "negotiation_discovery_items"
+    __table_args__ = (Index("ix_negotiation_discovery_items_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    item_type: Mapped[str] = mapped_column(String(100), nullable=False, default="discovery")
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str | None] = mapped_column(String(100))
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationDamagesItem(Base):
+    __tablename__ = "negotiation_damages_items"
+    __table_args__ = (Index("ix_negotiation_damages_items_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    item_type: Mapped[str] = mapped_column(String(100), nullable=False, default="damages")
+    amount: Mapped[str | None] = mapped_column(String(100))
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationRiskItem(Base):
+    __tablename__ = "negotiation_risk_items"
+    __table_args__ = (Index("ix_negotiation_risk_items_run_level", "run_id", "risk_level"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_document_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_documents.id", ondelete="SET NULL"), index=True)
+    chunk_id: Mapped[str | None] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="SET NULL"), index=True)
+    risk_level: Mapped[str] = mapped_column(String(50), nullable=False, default="medium")
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    leverage: Mapped[str | None] = mapped_column(Text)
+    decision_point: Mapped[str | None] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    start_offset: Mapped[int | None] = mapped_column(Integer)
+    end_offset: Mapped[int | None] = mapped_column(Integer)
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationAgentStepOutput(Base):
+    __tablename__ = "negotiation_agent_step_outputs"
+    __table_args__ = (
+        Index("ix_negotiation_agent_step_outputs_run_step", "run_id", "step_name"),
+        Index("ix_negotiation_agent_step_outputs_workspace_run", "workspace_id", "run_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    step_version: Mapped[str | None] = mapped_column(String(50))
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    output_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    confidence_score: Mapped[float | None] = mapped_column(Float)
+    provider: Mapped[str | None] = mapped_column(String(64))
+    model: Mapped[str | None] = mapped_column(String(255))
+    error: Mapped[str | None] = mapped_column(Text)
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class NegotiationReviewDecision(Base):
+    __tablename__ = "negotiation_review_decisions"
+    __table_args__ = (Index("ix_negotiation_review_decisions_run", "run_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    matter_id: Mapped[str] = mapped_column(ForeignKey("matters.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("negotiation_prep_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    target_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    decision: Mapped[str] = mapped_column(String(64), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    prior_status_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
 
 
 class LegalResearchConfig(Base):

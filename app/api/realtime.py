@@ -130,7 +130,7 @@ async def search_realtime_documents(
         raise HTTPException(status_code=400, detail="Search query is required.")
 
     settings = database.get_all_settings()
-    top_k = min(max(int(settings.get("top_k", 5)), 1), 12)
+    top_k = min(max(int(settings.get("top_k", 10)), 1), 12)
 
     if body.v2_workspace_id:
         from routes.chats import _get_v2_user, _load_v2_chunks, _user_can_access_v2_scope

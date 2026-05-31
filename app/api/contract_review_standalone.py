@@ -2,7 +2,7 @@ import json
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,13 +15,38 @@ from app.core.contract_agents.redliner import suggest_redlines
 from app.core.contract_agents.risk_scorer import score_risks
 from app.core.contract_agents.summarizer import build_summaries
 from app.core.contract_agents.intake import run_intake
+from app.core.contract_agents.agentic_review import run_agentic_contract_review
+from app.core.contract_agents.tools import SUPPORTED_TOOLS
 from app.core.audit import record_audit_event
-from app.core.contract_review_utils import ai_contract_review, client_summary, extract_fields, negotiation_memo, risk_matrix
-from app.core.database import get_db
+from app.core.contract_review_utils import client_summary, extract_fields, negotiation_memo, risk_matrix
+from app.core.database import SessionLocal, get_db
 from app.core.deps import get_current_user, require_workspace_member
+from app.core.jobs import add_job_event, create_job, format_job, update_job_status
 from app.core.json_utils import json_loads
 from app.core.llm import configured_llm_provider, get_runtime_settings_with_secrets
-from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, KnowledgeChunk, KnowledgeDocument, Matter, User
+from app.core.pagination import page_query_response
+from app.core.task_control import run_background_job
+from app.core.models import (
+    BlueprintInstance,
+    BlueprintMember,
+    ContractClause,
+    ContractPlaybook,
+    ContractPlaybookClause,
+    ContractPlaybookFinding,
+    ContractRedlineSuggestion,
+    ContractReviewOutput,
+    ContractReviewRun,
+    ContractReviewStepOutput,
+    ContractReviewSummary,
+    ContractRiskFinding,
+    Escalation,
+    Job,
+    KnowledgeChunk,
+    KnowledgeDocument,
+    Matter,
+    User,
+    utcnow,
+)
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/contract-review", tags=["contract-review-standalone"])
 
@@ -48,12 +73,13 @@ def _format_playbook(playbook: ContractPlaybook) -> dict:
     }
 
 
-def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> None:
+def _validate_matter(db: Session, workspace_id: str, matter_id: str | None) -> Matter:
     if not matter_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Matter is required")
     matter = db.execute(select(Matter).where(Matter.workspace_id == workspace_id, Matter.id == matter_id)).scalar_one_or_none()
     if not matter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Matter not found")
+    return matter
 
 
 def _source_chunks(db: Session, workspace_id: str, body: StandaloneContractReviewIn) -> list[tuple[KnowledgeChunk, KnowledgeDocument]]:
@@ -197,12 +223,355 @@ def _format_clause(clause: ContractClause) -> dict[str, Any]:
     }
 
 
+def _format_run_row(run: ContractReviewRun) -> dict[str, Any]:
+    config = json_loads(run.config_snapshot_json, {})
+    return {
+        "id": run.id,
+        "title": run.title,
+        "mode": run.mode,
+        "status": run.status,
+        "status_detail": run.status_detail,
+        "review_depth": config.get("review_depth"),
+        "playbook_id": run.selected_playbook_id,
+        "coverage_score": run.coverage_score,
+        "config_snapshot": config,
+        "created_at": run.created_at.isoformat(),
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        "error": run.error,
+    }
+
+
+def _format_persisted_run(db: Session, workspace_id: str, run_id: str) -> dict[str, Any]:
+    run = db.execute(select(ContractReviewRun).where(ContractReviewRun.workspace_id == workspace_id, ContractReviewRun.id == run_id)).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract review run not found")
+    output = db.execute(select(ContractReviewOutput).where(ContractReviewOutput.run_id == run_id)).scalar_one_or_none()
+    if not output:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract review output not found")
+    metadata = json_loads(output.metadata_json, {})
+    playbook = db.get(ContractPlaybook, run.selected_playbook_id) if run.selected_playbook_id else None
+    return {
+        "id": run.id,
+        "title": run.title,
+        "mode": "standalone",
+        "review_depth": json_loads(run.config_snapshot_json, {}).get("review_depth", "standard"),
+        "playbook": _format_playbook(playbook) if playbook else None,
+        "extraction": json_loads(output.extraction_json, {}),
+        "risk_matrix": json_loads(output.risk_matrix_json, []),
+        "negotiation_memo": output.negotiation_memo,
+        "client_summary": output.client_summary,
+        "sources": json_loads(output.sources_json, []),
+        "workflow": metadata.get("workflow", {}),
+        "agentic_review": metadata.get("agentic_review", {"enabled": False, "trace": []}),
+        "provider": metadata.get("provider"),
+        "model": metadata.get("model"),
+        "persisted": {"blueprint_id": run.blueprint_id, "run_id": run.id},
+        "review_warnings": ["AI-assisted contract review. Human legal review is required before use or circulation."],
+        "created_at": run.created_at.isoformat(),
+        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+    }
+
+
 def _coverage_score(clauses: list[ContractClause], playbook_clauses: list[ContractPlaybookClause]) -> float | None:
     required = [item for item in playbook_clauses if item.required]
     if not required:
         return None
     extracted_types = {item.clause_type for item in clauses}
     return round(sum(1 for item in required if item.clause_type in extracted_types) / len(required), 4)
+
+
+def _standalone_blueprint(db: Session, workspace_id: str, matter: Matter, user: User) -> BlueprintInstance:
+    name = "Standalone Contract Review"
+    blueprint = db.execute(
+        select(BlueprintInstance).where(
+            BlueprintInstance.workspace_id == workspace_id,
+            BlueprintInstance.matter_id == matter.id,
+            BlueprintInstance.plugin_id == "contract_review",
+            BlueprintInstance.name == name,
+            BlueprintInstance.status == "active",
+        )
+    ).scalar_one_or_none()
+    if blueprint:
+        member = db.execute(
+            select(BlueprintMember).where(BlueprintMember.blueprint_id == blueprint.id, BlueprintMember.user_id == user.id)
+        ).scalar_one_or_none()
+        if not member:
+            db.add(BlueprintMember(id=str(uuid.uuid4()), blueprint_id=blueprint.id, user_id=user.id, role="owner"))
+            db.flush()
+        return blueprint
+    blueprint = BlueprintInstance(
+        id=str(uuid.uuid4()),
+        workspace_id=workspace_id,
+        matter_id=matter.id,
+        plugin_id="contract_review",
+        name=name,
+        description="Hidden system blueprint used to persist standalone contract review agent runs.",
+        status="active",
+        created_by_user_id=user.id,
+    )
+    db.add(blueprint)
+    db.add(BlueprintMember(id=str(uuid.uuid4()), blueprint_id=blueprint.id, user_id=user.id, role="owner"))
+    db.flush()
+    return blueprint
+
+
+def _persist_review_state(
+    db: Session,
+    *,
+    workspace_id: str,
+    blueprint_id: str,
+    run_id: str,
+    user: User,
+    title: str,
+    config: dict[str, Any],
+    workflow: dict[str, Any],
+    selected_playbook: ContractPlaybook | None,
+    extraction: dict[str, Any],
+    risks: list[dict[str, Any]],
+    negotiation_memo_text: str,
+    client_summary_text: str,
+    sources: list[dict[str, Any]],
+    agentic_review: dict[str, Any],
+    provider: str | None,
+    model: str | None,
+) -> None:
+    now = utcnow()
+    run = ContractReviewRun(
+        id=run_id,
+        workspace_id=workspace_id,
+        blueprint_id=blueprint_id,
+        title=title,
+        status="completed",
+        config_snapshot_json=json.dumps(config, sort_keys=True),
+        mode="agentic_standalone",
+        workflow_version=workflow.get("version") or "contract_review_workflow_v1",
+        status_detail="Agentic standalone contract review completed.",
+        selected_playbook_id=selected_playbook.id if selected_playbook else None,
+        coverage_score=workflow.get("coverage_score"),
+        source_anchor_version="knowledge_chunk_v1",
+        created_by_user_id=user.id,
+        started_at=now,
+        completed_at=now,
+    )
+    db.add(run)
+    db.flush()
+    db.add(
+        ContractReviewOutput(
+            id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
+            blueprint_id=blueprint_id,
+            run_id=run_id,
+            extraction_json=json.dumps(extraction, sort_keys=True),
+            risk_matrix_json=json.dumps(risks, sort_keys=True),
+            negotiation_memo=negotiation_memo_text,
+            client_summary=client_summary_text,
+            sources_json=json.dumps(sources, sort_keys=True),
+            metadata_json=json.dumps(
+                {
+                    "agentic_review": {
+                        "enabled": bool(agentic_review.get("agentic_enabled")),
+                        "trace": agentic_review.get("agent_trace", []),
+                        "quality_control": agentic_review.get("quality_control", {}),
+                        "outputs": agentic_review.get("agent_outputs", {}),
+                    },
+                    "workflow": workflow,
+                    "provider": provider,
+                    "model": model,
+                },
+                sort_keys=True,
+            ),
+        )
+    )
+    _persist_workflow_detail(db, workspace_id, blueprint_id, run_id, user, workflow, selected_playbook)
+    _persist_step_outputs(db, workspace_id, blueprint_id, run_id, config, workflow, agentic_review, provider, model)
+
+
+def _persist_workflow_detail(
+    db: Session,
+    workspace_id: str,
+    blueprint_id: str,
+    run_id: str,
+    user: User,
+    workflow: dict[str, Any],
+    selected_playbook: ContractPlaybook | None,
+) -> None:
+    clauses_by_id: dict[str, dict[str, Any]] = {}
+    for item in workflow.get("clauses", []):
+        clause = item.get("clause") or {}
+        clause_id = clause.get("id") or str(uuid.uuid4())
+        source = clause.get("source") if isinstance(clause.get("source"), dict) else {}
+        clauses_by_id[clause_id] = clause
+        db.add(
+            ContractClause(
+                id=clause_id,
+                workspace_id=workspace_id,
+                blueprint_id=blueprint_id,
+                run_id=run_id,
+                document_id=source.get("document_id"),
+                chunk_id=source.get("chunk_id"),
+                clause_type=clause.get("clause_type") or "unknown",
+                title=clause.get("title"),
+                text=clause.get("text") or "",
+                normalized_text=(clause.get("text") or "").lower(),
+                source_json=json.dumps(source, sort_keys=True),
+                page=source.get("page"),
+                start_offset=source.get("start_offset"),
+                end_offset=source.get("end_offset"),
+                confidence_score=clause.get("confidence_score"),
+                review_status=clause.get("review_status") or "pending",
+            )
+        )
+        for finding in item.get("playbook_findings", []):
+            db.add(
+                ContractPlaybookFinding(
+                    id=str(uuid.uuid4()),
+                    workspace_id=workspace_id,
+                    blueprint_id=blueprint_id,
+                    run_id=run_id,
+                    clause_id=finding.get("clause_id"),
+                    playbook_id=selected_playbook.id if selected_playbook else None,
+                    playbook_clause_id=finding.get("playbook_clause_id"),
+                    status=finding.get("status") or "unknown",
+                    deviation_summary=finding.get("deviation_summary"),
+                    missing=bool(finding.get("missing")),
+                    prohibited_match=finding.get("prohibited_match"),
+                    confidence_score=finding.get("confidence_score"),
+                    metadata_json=json.dumps({"source": "agentic_standalone_workflow"}, sort_keys=True),
+                )
+            )
+        for risk in item.get("risks", []):
+            _add_risk_finding(db, workspace_id, blueprint_id, run_id, risk)
+        for redline in item.get("redline_suggestions", []):
+            db.add(
+                ContractRedlineSuggestion(
+                    id=str(uuid.uuid4()),
+                    workspace_id=workspace_id,
+                    blueprint_id=blueprint_id,
+                    run_id=run_id,
+                    clause_id=redline.get("clause_id"),
+                    suggestion_text=redline.get("suggestion_text") or "",
+                    fallback_language=redline.get("fallback_language"),
+                    rationale=redline.get("rationale"),
+                    source_playbook_id=selected_playbook.id if selected_playbook else None,
+                    confidence_score=redline.get("confidence_score"),
+                    status="draft",
+                    metadata_json=json.dumps({"source": "agentic_standalone_workflow"}, sort_keys=True),
+                )
+            )
+    for risk in workflow.get("unattached_risk_findings", []):
+        _add_risk_finding(db, workspace_id, blueprint_id, run_id, risk)
+    for summary in workflow.get("summaries", []):
+        db.add(
+            ContractReviewSummary(
+                id=str(uuid.uuid4()),
+                workspace_id=workspace_id,
+                blueprint_id=blueprint_id,
+                run_id=run_id,
+                audience=summary.get("audience") or "summary",
+                summary_text=summary.get("summary_text") or "",
+                obligations_json=json.dumps(summary.get("obligations") or [], sort_keys=True),
+                negotiation_points_json=json.dumps(summary.get("negotiation_points") or [], sort_keys=True),
+                unusual_terms_json=json.dumps(summary.get("unusual_terms") or [], sort_keys=True),
+                metadata_json=json.dumps({"source": "agentic_standalone_workflow"}, sort_keys=True),
+            )
+        )
+    for escalation in workflow.get("escalations", []):
+        db.add(
+            Escalation(
+                id=str(uuid.uuid4()),
+                workspace_id=workspace_id,
+                blueprint_id=blueprint_id,
+                source_type="contract_review_run",
+                source_id=run_id,
+                severity=escalation.get("severity") or "high",
+                status="open",
+                reason=escalation.get("reason") or "Contract review escalation",
+                required_action=escalation.get("required_action") or "Human lawyer review required.",
+                metadata_json=json.dumps(
+                    {"clause_id": escalation.get("clause_id"), **(escalation.get("metadata") or {})},
+                    sort_keys=True,
+                ),
+                created_by_user_id=user.id,
+            )
+        )
+
+
+def _add_risk_finding(db: Session, workspace_id: str, blueprint_id: str, run_id: str, risk: dict[str, Any]) -> None:
+    db.add(
+        ContractRiskFinding(
+            id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
+            blueprint_id=blueprint_id,
+            run_id=run_id,
+            clause_id=risk.get("clause_id"),
+            risk_level=risk.get("risk_level") or risk.get("severity") or "low",
+            likelihood=risk.get("likelihood"),
+            impact=risk.get("impact"),
+            priority=risk.get("priority"),
+            reasoning=risk.get("reasoning") or risk.get("finding") or "",
+            requires_review=bool(risk.get("requires_review")),
+            confidence_score=risk.get("confidence_score"),
+            metadata_json=json.dumps({"source": "agentic_standalone_workflow"}, sort_keys=True),
+        )
+    )
+
+
+def _persist_step_outputs(
+    db: Session,
+    workspace_id: str,
+    blueprint_id: str,
+    run_id: str,
+    config: dict[str, Any],
+    workflow: dict[str, Any],
+    agentic_review: dict[str, Any],
+    provider: str | None,
+    model: str | None,
+) -> None:
+    agent_outputs = agentic_review.get("agent_outputs", {}) if isinstance(agentic_review.get("agent_outputs"), dict) else {}
+    for step in workflow.get("trace", []):
+        db.add(
+            ContractReviewStepOutput(
+                id=str(uuid.uuid4()),
+                workspace_id=workspace_id,
+                blueprint_id=blueprint_id,
+                run_id=run_id,
+                step_name=step.get("step_name") or "workflow_step",
+                step_version=workflow.get("version"),
+                status=step.get("status") or "completed",
+                input_json=json.dumps(config, sort_keys=True),
+                output_json=json.dumps(step, sort_keys=True),
+                confidence_score=step.get("confidence_score"),
+                provider=None,
+                model=None,
+                error=step.get("error"),
+                metadata_json=json.dumps({"kind": "deterministic_workflow"}, sort_keys=True),
+                started_at=utcnow(),
+                completed_at=utcnow(),
+            )
+        )
+    for step in agentic_review.get("agent_trace", []):
+        step_name = step.get("step_name") or "agent_step"
+        db.add(
+            ContractReviewStepOutput(
+                id=str(uuid.uuid4()),
+                workspace_id=workspace_id,
+                blueprint_id=blueprint_id,
+                run_id=run_id,
+                step_name=step_name,
+                step_version="agentic_contract_review_v1",
+                status=step.get("status") or "completed",
+                input_json=json.dumps(config, sort_keys=True),
+                output_json=json.dumps(agent_outputs.get(step_name, {}), sort_keys=True),
+                confidence_score=None,
+                provider=step.get("provider") or provider,
+                model=step.get("model") or model,
+                error=step.get("error"),
+                metadata_json=json.dumps({"kind": "llm_agent", "duration_ms": step.get("duration_ms")}, sort_keys=True),
+                started_at=utcnow(),
+                completed_at=utcnow(),
+            )
+        )
 
 
 def _workflow_review(db: Session, workspace_id: str, run_id: str, chunks: list[tuple[KnowledgeChunk, KnowledgeDocument]], playbook_id: str | None) -> tuple[dict[str, Any], ContractPlaybook | None]:
@@ -287,19 +656,58 @@ async def list_standalone_playbooks(
     return [_format_playbook(playbook) for playbook in playbooks]
 
 
-@router.post("")
-@router.post("/", include_in_schema=False)
-async def run_standalone_contract_review(
+@router.get("/runs")
+async def list_standalone_runs(
     workspace_id: str,
-    body: StandaloneContractReviewIn,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     require_workspace_member(workspace_id, user, db)
-    _validate_matter(db, workspace_id, body.matter_id)
+    rows = (
+        select(ContractReviewRun)
+        .where(ContractReviewRun.workspace_id == workspace_id, ContractReviewRun.mode == "agentic_standalone")
+        .order_by(ContractReviewRun.created_at.desc())
+    )
+    return page_query_response(db, rows, _format_run_row, page=page, page_size=page_size, scalars=True)
+
+
+@router.get("/runs/{run_id}")
+async def get_standalone_run(
+    workspace_id: str,
+    run_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_member(workspace_id, user, db)
+    return _format_persisted_run(db, workspace_id, run_id)
+
+
+def _execute_standalone_contract_review(
+    db: Session,
+    *,
+    workspace_id: str,
+    body: StandaloneContractReviewIn,
+    user: User,
+    run_id: str | None = None,
+    job: Job | None = None,
+) -> dict[str, Any]:
+    matter = _validate_matter(db, workspace_id, body.matter_id)
     chunks = _source_chunks(db, workspace_id, body)
-    run_id = str(uuid.uuid4())
+    run_id = run_id or str(uuid.uuid4())
+    blueprint = _standalone_blueprint(db, workspace_id, matter, user)
+    if job:
+        update_job_status(db, job=job, status="running", progress=10, message="Contract review started")
+        add_job_event(db, job=job, event_type="progress", message="Running deterministic workflow", metadata={"progress": 20, "run_id": run_id})
+        db.commit()
     workflow, selected_playbook = _workflow_review(db, workspace_id, run_id, chunks, body.playbook_id)
+    playbook_clauses = _playbook_clauses(db, selected_playbook.id if selected_playbook else None)
+    source_bundle = _source_bundle(chunks)
+    if job:
+        add_job_event(db, job=job, event_type="progress", message="Running specialist contract agents", metadata={"progress": 45, "run_id": run_id})
+        job.progress = max(job.progress, 45)
+        db.commit()
     full_text = "\n\n".join(chunk.content for chunk, _document in chunks)
     config = {
         "review_depth": body.review_depth or "standard",
@@ -307,18 +715,61 @@ async def run_standalone_contract_review(
         "playbook_id": selected_playbook.id if selected_playbook else None,
         "playbook_name": selected_playbook.name if selected_playbook else None,
         "mode": "standalone",
+        "matter_id": matter.id,
+        "document_ids": body.document_ids,
     }
     extraction = extract_fields(full_text, config)
     risks = risk_matrix(full_text)
     sources = _sources(chunks)
+    deterministic_negotiation_memo = negotiation_memo(extraction, risks)
+    deterministic_client_summary = client_summary(extraction, risks)
     settings = get_runtime_settings_with_secrets()
-    ai_review = ai_contract_review(full_text, extraction, risks, sources=sources, config=config, settings=settings)
-    if ai_review:
-        extraction = ai_review.get("extraction", extraction)
-        risks = ai_review.get("risk_matrix", risks)
-    negotiation_memo_text = (ai_review or {}).get("negotiation_memo") or negotiation_memo(extraction, risks)
-    client_summary_text = (ai_review or {}).get("client_summary") or client_summary(extraction, risks)
+    agentic_review = run_agentic_contract_review(
+        text=full_text,
+        sources=sources,
+        config=config,
+        workflow=workflow,
+        deterministic_extraction=extraction,
+        deterministic_risks=risks,
+        deterministic_negotiation_memo=deterministic_negotiation_memo,
+        deterministic_client_summary=deterministic_client_summary,
+        settings=settings,
+        tool_context={
+            "source_bundle": source_bundle,
+            "playbook": selected_playbook,
+            "playbook_clauses": playbook_clauses,
+            "supported_tools": sorted(SUPPORTED_TOOLS),
+        },
+    )
+    extraction = agentic_review.get("extraction", extraction)
+    risks = agentic_review.get("risk_matrix", risks)
+    negotiation_memo_text = agentic_review.get("negotiation_memo") or deterministic_negotiation_memo
+    client_summary_text = agentic_review.get("client_summary") or deterministic_client_summary
     provider = configured_llm_provider(settings)
+    model = settings.get("chat_model") if provider else None
+    if job:
+        add_job_event(db, job=job, event_type="progress", message="Persisting review trace", metadata={"progress": 80, "run_id": run_id})
+        job.progress = max(job.progress, 80)
+        db.commit()
+    _persist_review_state(
+        db,
+        workspace_id=workspace_id,
+        blueprint_id=blueprint.id,
+        run_id=run_id,
+        user=user,
+        title=body.title or "Contract Review",
+        config=config,
+        workflow=workflow,
+        selected_playbook=selected_playbook,
+        extraction=extraction,
+        risks=risks,
+        negotiation_memo_text=negotiation_memo_text,
+        client_summary_text=client_summary_text,
+        sources=sources,
+        agentic_review=agentic_review,
+        provider=provider,
+        model=model,
+    )
     payload = {
         "id": run_id,
         "title": body.title or "Contract Review",
@@ -331,8 +782,15 @@ async def run_standalone_contract_review(
         "client_summary": client_summary_text,
         "sources": sources,
         "workflow": workflow,
+        "agentic_review": {
+            "enabled": bool(agentic_review.get("agentic_enabled")),
+            "trace": agentic_review.get("agent_trace", []),
+            "quality_control": agentic_review.get("quality_control", {}),
+            "outputs": agentic_review.get("agent_outputs", {}),
+        },
         "provider": provider,
-        "model": settings.get("chat_model") if provider else None,
+        "model": model,
+        "persisted": {"blueprint_id": blueprint.id, "run_id": run_id},
         "review_warnings": ["AI-assisted contract review. Human legal review is required before use or circulation."],
     }
     record_audit_event(
@@ -344,5 +802,65 @@ async def run_standalone_contract_review(
         workspace_id=workspace_id,
         metadata={"document_count": len({doc.id for _chunk, doc in chunks}), "playbook_id": body.playbook_id},
     )
-    db.commit()
     return payload
+
+
+def _run_standalone_contract_review_job(job_id: str, workspace_id: str, user_id: str, body_data: dict[str, Any], run_id: str) -> None:
+    with SessionLocal() as db:
+        job = db.get(Job, job_id)
+        user = db.get(User, user_id)
+        if not job or not user:
+            return
+        try:
+            body = StandaloneContractReviewIn(**body_data)
+            payload = _execute_standalone_contract_review(db, workspace_id=workspace_id, body=body, user=user, run_id=run_id, job=job)
+            metadata = json_loads(job.metadata_json, {})
+            metadata.update({"run_id": run_id, "result_url": f"/api/v2/workspaces/{workspace_id}/contract-review/runs/{run_id}"})
+            job.metadata_json = json.dumps(metadata, sort_keys=True)
+            update_job_status(db, job=job, status="completed", progress=100, message="Contract review completed")
+            add_job_event(db, job=job, event_type="result", message="Contract review result ready", metadata={"run_id": run_id, "title": payload["title"]})
+            db.commit()
+        except Exception as exc:
+            update_job_status(db, job=job, status="failed", progress=job.progress, message="Contract review failed", error=str(exc))
+            db.commit()
+
+
+@router.post("")
+@router.post("/", include_in_schema=False)
+async def run_standalone_contract_review(
+    workspace_id: str,
+    body: StandaloneContractReviewIn,
+    background_tasks: BackgroundTasks,
+    sync: bool = Query(default=False),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_member(workspace_id, user, db)
+    if sync:
+        payload = _execute_standalone_contract_review(db, workspace_id=workspace_id, body=body, user=user)
+        db.commit()
+        return payload
+    _validate_matter(db, workspace_id, body.matter_id)
+    _source_chunks(db, workspace_id, body)
+    run_id = str(uuid.uuid4())
+    job = create_job(
+        db,
+        workspace_id=workspace_id,
+        created_by_user_id=user.id,
+        job_type="contract_review.run",
+        metadata={"run_id": run_id, "title": body.title or "Contract Review"},
+        message="Contract review queued",
+    )
+    record_audit_event(
+        db,
+        action="contract_review_standalone.queue",
+        resource_type="contract_review_standalone",
+        resource_id=run_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        metadata={"job_id": job.id, "document_count": len(set(body.document_ids)), "playbook_id": body.playbook_id},
+    )
+    db.commit()
+    db.refresh(job)
+    background_tasks.add_task(run_background_job, job.id, _run_standalone_contract_review_job, job.id, workspace_id, user.id, body.model_dump(), run_id)
+    return {"status": "queued", "run_id": run_id, "job": format_job(job)}

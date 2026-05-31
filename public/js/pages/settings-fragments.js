@@ -13,6 +13,7 @@
     {slotId:'settings-tab-matters-slot', viewId:'stab-matters', url:'/views/settings/matters.html'},
     {slotId:'settings-tab-appearance-slot', viewId:'stab-appearance', url:'/views/settings/appearance.html'},
     {slotId:'settings-tab-users-slot', viewId:'stab-users', url:'/views/settings/users.html'},
+    {slotId:'settings-tab-activity-slot', viewId:'stab-activity', url:'/views/settings/activity.html'},
   ];
 
   async function loadFragment(fragment) {

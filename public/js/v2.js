@@ -191,10 +191,12 @@ function updateAdminNav() {
   const workspaceNav = document.getElementById('settings-nav-workspaces');
   const mattersNav = document.getElementById('settings-nav-matters');
   const settingsNav = document.getElementById('settings-nav-users');
+  const activityNav = document.getElementById('settings-nav-activity');
   const mainNav = document.getElementById('nav-admin-users');
   if (workspaceNav) workspaceNav.style.display = workspaceShow;
   if (mattersNav) mattersNav.style.display = workspaceShow;
   if (settingsNav) settingsNav.style.display = show;
+  if (activityNav) activityNav.style.display = show;
   if (mainNav) mainNav.style.display = show;
 }
 
@@ -383,6 +385,7 @@ function onUploadWorkspaceChange() {
   const matterSelect = document.getElementById('upload-matter-select');
   if (matterSelect) matterSelect.value = '';
   renderUploadMatterSelector();
+  if (typeof loadFolderSources === 'function') loadFolderSources();
 }
 
 function selectedUploadMatterId() {
@@ -578,7 +581,7 @@ function renderV2Plugins() {
 }
 
 function v2PluginApiSegment(pluginId) {
-  return {contract_review:'contract-review', ai_council:'council', legal_research:'legal-research'}[pluginId] || pluginId;
+  return {ai_council:'council', legal_research:'legal-research'}[pluginId] || pluginId;
 }
 
 function defaultV2PluginConfig(pluginId) {
@@ -590,36 +593,22 @@ function defaultV2PluginConfig(pluginId) {
     };
   }
   if (pluginId === 'legal_research') return {jurisdiction:'', memo_format:'IRAC', authorities_required:true};
-  if (pluginId === 'contract_review') return {review_standard:'balanced', jurisdiction:'', risk_tolerance:'medium', mode:'workflow'};
+  if (pluginId === 'contract_review') return {};
   return {review_standard:'balanced', jurisdiction:'', risk_tolerance:'medium'};
 }
 
 function v2PluginRunFields(blueprint) {
   if (!blueprint) return '';
   if (blueprint.plugin_id === 'contract_review') {
-    const playbooks = App.v2.contractReviewPlaybooks || [];
-    const documents = App.v2.documents || [];
-    const playbookOptions = ['<option value="">Auto-select playbook</option>'].concat(playbooks.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.contract_category ? ' · ' + esc(p.contract_category.toUpperCase()) : ''}</option>`)).join('');
-    const matchingIndexedDocs = documents.filter(doc => doc.status === 'indexed' && (!blueprint.matter_id || doc.matter_id === blueprint.matter_id));
-    const sourceDocs = documents.length
-      ? documents.map(doc => {
-        const isIndexed = doc.status === 'indexed';
-        const matchesMatter = !blueprint.matter_id || doc.matter_id === blueprint.matter_id;
-        const checked = isIndexed && matchesMatter && matchingIndexedDocs.length > 0;
-        const disabled = !isIndexed ? 'disabled' : '';
-        const statusLabel = !isIndexed ? ` (${esc(doc.status || 'not indexed')})` : (!matchesMatter ? ' (other matter)' : '');
-        return `<label class="contract-source-option ${!isIndexed ? 'disabled' : ''}"><input type="checkbox" class="contract-source-doc" value="${esc(doc.id)}" ${checked ? 'checked' : ''} ${disabled}/> <span>${esc(doc.original_name || 'Document')}${statusLabel}</span></label>`;
-      }).join('')
-      : '<div class="council-card-desc">Upload a document before starting a structured review.</div>';
     return `
-      <div class="council-field"><label for="v2-plugin-run-title">Run title</label><input class="council-input" id="v2-plugin-run-title" placeholder="Contract review"/></div>
-      <div class="council-form-row">
-        <div class="council-field"><label for="v2-contract-review-mode">Review mode</label><select class="council-select" id="v2-contract-review-mode"><option value="workflow">Structured workflow</option></select></div>
-        <div class="council-field"><label for="v2-contract-playbook">Playbook</label><select class="council-select" id="v2-contract-playbook">${playbookOptions}</select></div>
-      </div>
-      <div class="council-field">
-        <label>Source documents</label>
-        <div class="contract-source-docs">${sourceDocs}</div>
+      <div class="council-row">
+        <div class="council-row-head">
+          <div>
+            <div class="council-card-title">Use Standalone Contract Review</div>
+            <div class="council-card-desc">Blueprint-backed contract review is not enabled in this build. The standalone Contract Review workspace is the supported path.</div>
+          </div>
+          <button class="btn-primary" type="button" onclick="switchView('contract-review')">Open Contract Review</button>
+        </div>
       </div>
     `;
   }
@@ -658,17 +647,8 @@ function renderV2RunProgress(run) {
 }
 
 function renderV2RunActions(blueprint, run) {
-  const segment = v2PluginApiSegment(blueprint.plugin_id);
-  const base = `/api/v2/workspaces/${encodeURIComponent(App.v2.workspaceId)}/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs/${encodeURIComponent(run.id)}`;
   if (blueprint.plugin_id === 'contract_review') {
-    const reviewButton = run.mode === 'workflow' ? `<button class="btn-secondary" type="button" onclick="openContractReviewRun('${esc(run.id)}')">Review</button>` : '';
-    const auditButton = run.mode === 'workflow' ? `<button class="btn-secondary" type="button" onclick="openContractAuditPackage('${esc(run.id)}')">Audit JSON</button>` : '';
-    return `
-      ${reviewButton}
-      ${auditButton}
-      <button class="btn-secondary" type="button" onclick="exportV2PluginRun('${esc(run.id)}')">Export</button>
-      <button class="danger-btn" type="button" onclick="deleteV2PluginRun('${esc(run.id)}')">Delete</button>
-    `;
+    return '<button class="btn-primary" type="button" onclick="switchView(\'contract-review\')">Open Contract Review</button>';
   }
   return `
     <button class="btn-secondary" type="button" onclick="exportV2PluginRun('${esc(run.id)}')">Export</button>
@@ -690,7 +670,7 @@ function renderV2PluginWorkspace() {
   const config = App.v2.pluginConfig || defaultV2PluginConfig(blueprint.plugin_id);
   const runs = App.v2.pluginRuns || [];
   if (blueprint.plugin_id === 'contract_review') {
-    host.innerHTML = renderContractReviewPluginWorkspace(blueprint, matter, config, runs);
+    host.innerHTML = renderContractReviewUnavailableWorkspace(blueprint, matter);
     return;
   }
   host.innerHTML = `
@@ -708,7 +688,6 @@ function renderV2PluginWorkspace() {
       <div class="settings-section-desc">New run</div>
       ${v2PluginRunFields(blueprint)}
       <div class="council-actions"><button class="btn-primary" type="button" onclick="runV2Plugin()">Run ${esc(v2PluginLabel(blueprint.plugin_id))}</button></div>
-      ${blueprint.plugin_id === 'contract_review' ? renderContractPlaybookManager() : ''}
       <div class="settings-section-desc">Runs</div>
       <div class="council-list">
         ${runs.length ? runs.map(run => `<div class="council-row">
@@ -723,103 +702,32 @@ function renderV2PluginWorkspace() {
           </div>
         </div>`).join('') : '<div class="council-row"><div class="council-card-desc">No runs yet.</div></div>'}
       </div>
-      ${blueprint.plugin_id === 'contract_review' ? renderContractReviewWorkspace() : ''}
         </div>
   `;
 }
 
-function renderContractReviewPluginWorkspace(blueprint, matter, config, runs) {
-  const active = App.v2.activeContractRun?.run;
+function renderContractReviewUnavailableWorkspace(blueprint, matter) {
   return `
     <div class="settings-card-header contract-review-shell-header">
       <div>
-        <div class="settings-card-title">${active ? esc(active.title || 'Contract review') : esc(blueprint.name)}</div>
-        <div class="settings-card-subtitle">${active ? 'Single contract review' : esc(v2PluginLabel(blueprint.plugin_id))}${matter ? ' · ' + esc(matter.name) : ''}</div>
+        <div class="settings-card-title">${esc(blueprint.name)}</div>
+        <div class="settings-card-subtitle">${esc(v2PluginLabel(blueprint.plugin_id))}${matter ? ' · ' + esc(matter.name) : ''}</div>
       </div>
       <div class="contract-shell-actions">
-        ${active ? `<button class="btn-secondary" type="button" onclick="closeContractReviewRun()">All Reviews</button>` : ''}
         <button class="btn-secondary" type="button" onclick="openV2BlueprintChat('${esc(blueprint.id)}')">Chat</button>
+        <button class="btn-primary" type="button" onclick="switchView('contract-review')">Open Contract Review</button>
       </div>
     </div>
     <div class="council-form v2-plugin-workspace-body contract-review-shell">
-      ${active ? renderContractReviewWorkspace() : renderContractReviewDashboard(blueprint, config, runs)}
-    </div>
-  `;
-}
-
-function renderContractReviewDashboard(blueprint, config, runs) {
-  const reviewRuns = runs || [];
-  const completed = reviewRuns.filter(run => run.status === 'completed').length;
-  const running = reviewRuns.filter(run => ['pending','running'].includes(run.status)).length;
-  const complete = reviewRuns.filter(run => run.review_complete).length;
-  return `
-    <div class="contract-dashboard">
-      <div class="contract-dashboard-summary">
-        <div>
-          <div class="settings-section-desc">Contract reviews</div>
-          <div class="contract-dashboard-title">All Reviews</div>
-        </div>
-        <div class="contract-review-stats">
-          <div class="stat-pill"><strong>${reviewRuns.length}</strong> reviews</div>
-          <div class="stat-pill"><strong>${completed}</strong> completed</div>
-          <div class="stat-pill"><strong>${running}</strong> running</div>
-          <div class="stat-pill"><strong>${complete}</strong> human complete</div>
-        </div>
-      </div>
-      <details class="contract-setup-panel">
-        <summary>New review and settings</summary>
-        <div class="contract-setup-content">
-          <div class="settings-section-desc">New review</div>
-          ${v2PluginRunFields(blueprint)}
-          <div class="council-actions"><button class="btn-primary" type="button" onclick="runV2Plugin()">Run Contract Review</button></div>
-          <div class="settings-section-desc">Plugin config</div>
-          <div class="council-field"><textarea class="council-textarea" id="v2-plugin-config-json">${esc(JSON.stringify(config, null, 2))}</textarea></div>
-          <div class="council-actions">
-            <button class="btn-secondary" type="button" onclick="saveV2PluginConfig()">Save Config</button>
-            <button class="btn-secondary" type="button" onclick="loadV2PluginData()">Refresh</button>
+      <div class="council-row">
+        <div class="council-row-head">
+          <div>
+            <div class="council-card-title">Blueprint Contract Review Disabled</div>
+            <div class="council-card-desc">This build only supports the standalone Contract Review workspace. Blueprint-specific contract review runs, playbooks, clause decisions, and audit packages are hidden until their backend routes exist.</div>
           </div>
-          ${renderContractPlaybookManager()}
         </div>
-      </details>
-      <div class="contract-review-cards">
-        ${reviewRuns.length ? reviewRuns.map(run => renderContractReviewDashboardRow(blueprint, run)).join('') : '<div class="contract-empty-state">No contract reviews yet. Start one from New review and settings.</div>'}
       </div>
     </div>
-  `;
-}
-
-function renderContractReviewDashboardRow(blueprint, run) {
-  const statusDetail = run.status_detail || (run.review_complete ? 'Review complete' : 'Human review pending');
-  const started = run.completed_at || run.started_at || run.created_at;
-  const dateLabel = started ? new Date(started).toLocaleString() : 'n/a';
-  return `<div class="contract-review-card-row">
-    <div class="contract-review-card-main">
-      <div class="contract-review-card-title">
-        <strong>${esc(run.title || 'Contract review')}</strong>
-        <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
-      </div>
-      <div class="contract-review-card-meta">
-        <span>${esc(run.config_snapshot?.document_ids?.length ? run.config_snapshot.document_ids.length + ' source document(s)' : 'Source documents captured in run')}</span>
-        <span>${esc(statusDetail)}</span>
-        <span>${esc(dateLabel)}</span>
-      </div>
-      ${renderV2RunProgress(run)}
-      ${run.error ? `<div class="contract-run-error">${esc(run.error)}</div>` : ''}
-    </div>
-    <div class="contract-row-actions">${renderContractReviewDashboardActions(run)}</div>
-  </div>`;
-}
-
-function renderContractReviewDashboardActions(run) {
-  const reviewButton = run.mode === 'workflow' ? `<button class="btn-primary" type="button" onclick="openContractReviewRun('${esc(run.id)}')">Open Review</button>` : '';
-  const auditButton = run.mode === 'workflow' ? `<button class="btn-secondary" type="button" onclick="openContractAuditPackage('${esc(run.id)}')">Audit JSON</button>` : '';
-  const chatButton = App.v2.activeBlueprintId ? `<button class="btn-secondary" type="button" onclick="openV2BlueprintChat('${esc(App.v2.activeBlueprintId)}')">Chat</button>` : '';
-  return `
-    ${reviewButton}
-    ${auditButton}
-    <button class="btn-secondary" type="button" onclick="exportV2PluginRun('${esc(run.id)}')">Export</button>
-    ${chatButton}
-    <button class="danger-btn" type="button" onclick="deleteV2PluginRun('${esc(run.id)}')">Delete</button>
   `;
 }
 
@@ -836,61 +744,6 @@ function openV2BlueprintInNewTab(blueprintId) {
   if (!opened) openV2Blueprint(blueprintId);
 }
 
-function closeContractReviewRun() {
-  App.v2.activeContractRun = null;
-  App.v2.activeContractClauses = [];
-  App.v2.activeContractTrace = [];
-  App.v2.activeContractEscalations = [];
-  renderV2PluginWorkspace();
-}
-
-function renderContractPlaybookManager() {
-  const playbooks = App.v2.contractReviewPlaybooks || [];
-  const editingId = App.v2.editingContractPlaybookId;
-  const editing = playbooks.find(p => p.id === editingId);
-  const canEdit = !!editing && !editing.is_builtin;
-  return `<div class="contract-playbook-manager">
-    <div class="settings-section-desc">Playbooks</div>
-    <div class="council-form compact-playbook-form">
-      <div class="council-form-row">
-        <div class="council-field"><label for="contract-playbook-name">Name</label><input class="council-input" id="contract-playbook-name" value="${esc(editing?.name || '')}" placeholder="Workspace playbook"/></div>
-        <div class="council-field"><label for="contract-playbook-category">Category</label><input class="council-input" id="contract-playbook-category" value="${esc(editing?.contract_category || 'msa')}" placeholder="msa"/></div>
-      </div>
-      <div class="council-form-row">
-        <div class="council-field"><label for="contract-playbook-version">Version</label><input class="council-input" id="contract-playbook-version" value="${esc(editing?.version || '1.0')}"/></div>
-        <div class="council-field"><label for="contract-playbook-status">Status</label><select class="council-select" id="contract-playbook-status">${['active','draft','archived'].map(s => `<option value="${s}" ${editing?.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
-      </div>
-      <div class="council-field"><label for="contract-playbook-clauses">Clauses JSON</label><textarea class="council-textarea playbook-clauses-json" id="contract-playbook-clauses">${esc(JSON.stringify((editing?.clauses || defaultContractPlaybookClauses()), null, 2))}</textarea></div>
-      <div class="council-actions">
-        <button class="btn-primary" type="button" onclick="saveContractPlaybook()">${canEdit ? 'Update Playbook' : 'Create Playbook'}</button>
-        <button class="btn-secondary" type="button" onclick="newContractPlaybook()">New</button>
-      </div>
-    </div>
-    <div class="council-list contract-playbook-list">
-      ${playbooks.length ? playbooks.map(p => `<div class="council-row">
-        <div class="council-row-head">
-          <div>
-            <div class="council-card-title">${esc(p.name)}</div>
-            <div class="council-card-meta">${esc(p.contract_category)} · v${esc(p.version)}${p.is_builtin ? ' · built-in' : ' · workspace'}</div>
-          </div>
-          <span class="council-status ${esc(p.status || 'active')}">${esc(p.status || 'active')}</span>
-        </div>
-        <div class="council-actions">
-          <button class="btn-secondary" type="button" onclick="loadContractPlaybook('${esc(p.id)}')">${p.is_builtin ? 'Use as Draft' : 'Edit'}</button>
-        </div>
-      </div>`).join('') : '<div class="council-row"><div class="council-card-desc">No playbooks available.</div></div>'}
-    </div>
-  </div>`;
-}
-
-function defaultContractPlaybookClauses() {
-  return [
-    {clause_type:'limitation_of_liability', title:'Limitation of Liability', required:true, severity_default:'critical', prohibited_patterns:['unlimited liability']},
-    {clause_type:'indemnity', title:'Indemnity', required:true, severity_default:'high', prohibited_patterns:['uncapped indemnity']},
-    {clause_type:'governing_law', title:'Governing Law', required:true, severity_default:'high', prohibited_patterns:['missing governing law']}
-  ];
-}
-
 async function loadV2PluginData() {
   const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
   if (!blueprint) return;
@@ -903,14 +756,13 @@ async function loadV2PluginData() {
   App.v2.activeContractClauses = [];
   App.v2.activeContractTrace = [];
   App.v2.activeContractEscalations = [];
+  if (blueprint.plugin_id === 'contract_review') {
+    App.v2.pluginConfig = defaultV2PluginConfig(blueprint.plugin_id);
+    renderV2PluginWorkspace();
+    return;
+  }
   const config = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/config`);
   App.v2.pluginConfig = config?.ok ? (await config.json()).config : defaultV2PluginConfig(blueprint.plugin_id);
-  if (blueprint.plugin_id === 'contract_review') {
-    const playbooks = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/playbooks`);
-    if (playbooks?.ok) App.v2.contractReviewPlaybooks = await playbooks.json();
-    const modules = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/workflow-modules`);
-    if (modules?.ok) App.v2.contractReviewModules = (await modules.json()).items || [];
-  }
   const runs = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs?page_size=50`);
   if (runs?.ok) App.v2.pluginRuns = (await runs.json()).items || [];
   await loadV2PluginJobs(blueprint);
@@ -954,6 +806,11 @@ async function loadV2PluginJobs(blueprint) {
 async function saveV2PluginConfig() {
   const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
   if (!blueprint) return;
+  if (blueprint.plugin_id === 'contract_review') {
+    showToast('Use the standalone Contract Review page for contract review settings.', 'error');
+    switchView('contract-review');
+    return;
+  }
   let config;
   try { config = JSON.parse(document.getElementById('v2-plugin-config-json')?.value || '{}'); }
   catch(e) { showToast('Config must be valid JSON.', 'error'); return; }
@@ -970,6 +827,11 @@ async function saveV2PluginConfig() {
 async function runV2Plugin() {
   const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
   if (!blueprint) return;
+  if (blueprint.plugin_id === 'contract_review') {
+    showToast('Use the standalone Contract Review page for contract reviews.', 'error');
+    switchView('contract-review');
+    return;
+  }
   const segment = v2PluginApiSegment(blueprint.plugin_id);
   const title = document.getElementById('v2-plugin-run-title')?.value.trim() || blueprint.name;
   const body = {title};
@@ -983,16 +845,6 @@ async function runV2Plugin() {
     if (!objective) { showToast('Objective is required.', 'error'); return; }
     body.objective = objective;
   }
-  if (blueprint.plugin_id === 'contract_review') {
-    const mode = document.getElementById('v2-contract-review-mode')?.value || 'workflow';
-    const playbookId = document.getElementById('v2-contract-playbook')?.value || '';
-    const documentIds = Array.from(document.querySelectorAll('.contract-source-doc:checked')).map(input => input.value).filter(Boolean);
-    if (!documentIds.length) { showToast('Select at least one source document.', 'error'); return; }
-    body.mode = mode;
-    body.config = {...(App.v2.pluginConfig || {}), mode};
-    if (playbookId) body.config.playbook_id = playbookId;
-    body.config.document_ids = documentIds;
-  }
   try {
     const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
     if (!r?.ok) throw new Error(await apiError(r));
@@ -1004,72 +856,6 @@ async function runV2Plugin() {
     showToast('Run started.');
     await loadV2PluginData();
   } catch(e) { showToast('Run failed: ' + e.message, 'error'); }
-}
-
-async function loadContractPlaybook(playbookId) {
-  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
-  if (!blueprint) return;
-  try {
-    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/contract-review/playbooks/${encodeURIComponent(playbookId)}`);
-    if (!r?.ok) throw new Error(await apiError(r));
-    const playbook = await r.json();
-    const existingIndex = App.v2.contractReviewPlaybooks.findIndex(p => p.id === playbook.id);
-    if (existingIndex >= 0) App.v2.contractReviewPlaybooks[existingIndex] = playbook;
-    else App.v2.contractReviewPlaybooks.push(playbook);
-    App.v2.editingContractPlaybookId = playbook.is_builtin ? null : playbook.id;
-    renderV2PluginWorkspace();
-    const nameInput = document.getElementById('contract-playbook-name');
-    if (playbook.is_builtin && nameInput) nameInput.value = `${playbook.name} Copy`;
-    const categoryInput = document.getElementById('contract-playbook-category');
-    if (categoryInput) categoryInput.value = playbook.contract_category || 'msa';
-    const versionInput = document.getElementById('contract-playbook-version');
-    if (versionInput) versionInput.value = playbook.is_builtin ? '1.0' : (playbook.version || '1.0');
-    const statusInput = document.getElementById('contract-playbook-status');
-    if (statusInput) statusInput.value = 'active';
-    const clausesInput = document.getElementById('contract-playbook-clauses');
-    if (clausesInput) clausesInput.value = JSON.stringify(playbook.clauses || defaultContractPlaybookClauses(), null, 2);
-  } catch(e) { showToast('Failed to load playbook: ' + e.message, 'error'); }
-}
-
-function newContractPlaybook() {
-  App.v2.editingContractPlaybookId = null;
-  renderV2PluginWorkspace();
-}
-
-async function saveContractPlaybook() {
-  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
-  if (!blueprint) return;
-  let clauses;
-  try { clauses = JSON.parse(document.getElementById('contract-playbook-clauses')?.value || '[]'); }
-  catch(e) { showToast('Clauses JSON must be valid.', 'error'); return; }
-  if (!Array.isArray(clauses)) { showToast('Clauses JSON must be an array.', 'error'); return; }
-  const payload = {
-    name: document.getElementById('contract-playbook-name')?.value.trim() || '',
-    contract_category: document.getElementById('contract-playbook-category')?.value.trim() || '',
-    version: document.getElementById('contract-playbook-version')?.value.trim() || '1.0',
-    status: document.getElementById('contract-playbook-status')?.value || 'active',
-    rules: {review_posture:'balanced'},
-    clauses
-  };
-  if (!payload.name || !payload.contract_category) { showToast('Playbook name and category are required.', 'error'); return; }
-  const editingId = App.v2.editingContractPlaybookId;
-  const method = editingId ? 'PUT' : 'POST';
-  const path = editingId
-    ? `/blueprints/${encodeURIComponent(blueprint.id)}/contract-review/playbooks/${encodeURIComponent(editingId)}`
-    : `/blueprints/${encodeURIComponent(blueprint.id)}/contract-review/playbooks`;
-  try {
-    const r = await v2Fetch(path, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-    if (!r?.ok) throw new Error(await apiError(r));
-    const saved = await r.json();
-    App.v2.editingContractPlaybookId = saved.id;
-    const playbooks = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/contract-review/playbooks`);
-    if (playbooks?.ok) App.v2.contractReviewPlaybooks = await playbooks.json();
-    const existingIndex = App.v2.contractReviewPlaybooks.findIndex(p => p.id === saved.id);
-    if (existingIndex >= 0) App.v2.contractReviewPlaybooks[existingIndex] = saved;
-    else App.v2.contractReviewPlaybooks.push(saved);
-    renderV2PluginWorkspace();
-    showToast('Playbook saved.');
-  } catch(e) { showToast('Playbook save failed: ' + e.message, 'error'); }
 }
 
 async function deleteV2PluginRun(runId) {
@@ -1098,20 +884,6 @@ async function exportV2PluginRun(runId) {
   } catch(e) { showToast('Export failed: ' + e.message, 'error'); }
 }
 
-async function openContractAuditPackage(runId) {
-  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
-  if (!blueprint) return;
-  const segment = v2PluginApiSegment(blueprint.plugin_id);
-  try {
-    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs/${encodeURIComponent(runId)}/audit-package`);
-    if (!r?.ok) throw new Error(await apiError(r));
-    const data = await r.json();
-    const text = JSON.stringify(data, null, 2);
-    downloadTextFile(text, `${slugify(data.run?.title || 'contract-review')}-audit.json`, 'application/json');
-    showToast('Audit package downloaded.');
-  } catch(e) { showToast('Audit package failed: ' + e.message, 'error'); }
-}
-
 function downloadTextFile(text, filename, type) {
   const blob = new Blob([text], {type});
   const a = document.createElement('a');
@@ -1121,417 +893,6 @@ function downloadTextFile(text, filename, type) {
   a.click();
   URL.revokeObjectURL(a.href);
   a.remove();
-}
-
-function renderContractWorkflowModules() {
-  const modules = App.v2.contractReviewModules || [];
-  if (!modules.length) return '';
-  return `<div class="council-row contract-modules-panel">
-    <div class="council-row-head">
-      <div>
-        <div class="council-card-title">Workflow modules</div>
-        <div class="council-card-meta">Structured review stages and their JSON contracts.</div>
-      </div>
-    </div>
-    <div class="contract-module-strip">
-      ${modules.map(module => `<div class="contract-module-chip">
-        <strong>${esc(module.name || module.id)}</strong>
-        <span>${esc(module.execution || 'sequential')} · ${esc(module.output_schema || '')}</span>
-      </div>`).join('')}
-    </div>
-  </div>`;
-}
-
-function renderContractReviewWorkspace() {
-  const run = App.v2.activeContractRun;
-  if (!run) {
-    const latestWorkflow = (App.v2.pluginRuns || []).find(r => r.mode === 'workflow' && r.status === 'completed');
-    return `<div class="contract-review-workspace">
-      <div class="settings-section-desc">Structured review workspace</div>
-      <div class="council-row">
-        <div class="council-row-head">
-          <div>
-            <div class="council-card-title">Clause-by-clause review</div>
-            <div class="council-card-meta">Run a structured workflow review, then open it here.</div>
-          </div>
-          ${latestWorkflow ? `<button class="btn-secondary" type="button" onclick="openContractReviewRun('${esc(latestWorkflow.id)}')">Open Latest</button>` : ''}
-        </div>
-      </div>
-      ${renderContractWorkflowModules()}
-    </div>`;
-  }
-  const clauses = App.v2.activeContractClauses || [];
-  const trace = App.v2.activeContractTrace || [];
-  const escalations = App.v2.activeContractEscalations || [];
-  const summaries = run.summaries || [];
-  const filteredClauses = filterContractClauses(clauses);
-  const critical = clauses.filter(item => (item.risks || []).some(r => r.risk_level === 'critical')).length;
-  const high = clauses.filter(item => (item.risks || []).some(r => r.risk_level === 'high')).length;
-  const reviewNeeded = clauses.filter(item => (item.risks || []).some(r => r.requires_review)).length;
-  const openHighEscalations = escalations.filter(e => (e.status || 'open') === 'open' && ['high', 'critical'].includes(e.severity || 'high')).length;
-  const pendingClauses = clauses.filter(item => (item.clause?.review_status || 'pending') === 'pending').length;
-  const selected = filteredClauses[0]?.clause;
-  return `<div class="contract-review-workspace">
-    <div class="contract-review-page-head">
-      <div>
-        <div class="settings-section-desc">Review detail</div>
-        <div class="contract-dashboard-title">${esc(run.run?.title || 'Contract review')}</div>
-        <div class="council-card-meta">${esc(run.run?.status_detail || run.run?.status || 'pending')}${run.run?.coverage_score !== null && run.run?.coverage_score !== undefined ? ' · coverage ' + esc(String(run.run.coverage_score)) : ''}</div>
-      </div>
-      <div class="contract-detail-nav" aria-label="Contract review sections">
-        <a href="#contract-summary-section">Summary</a>
-        <a href="#contract-issues-section">Issues</a>
-        <a href="#contract-clauses-section">Clauses</a>
-        <a href="#contract-trace-section">Trace</a>
-      </div>
-    </div>
-    ${renderContractCompletionPanel(run.run, pendingClauses, openHighEscalations)}
-    <div class="contract-review-stats">
-      <div class="stat-pill"><strong>${clauses.length}</strong> clauses</div>
-      <div class="stat-pill"><strong>${reviewNeeded}</strong> need review</div>
-      <div class="stat-pill"><strong>${high}</strong> high</div>
-      <div class="stat-pill"><strong>${critical}</strong> critical</div>
-      <div class="stat-pill"><strong>${escalations.length}</strong> escalations</div>
-      <div class="stat-pill"><strong>${trace.length}</strong> trace steps</div>
-    </div>
-    <div id="contract-summary-section">${renderContractSummaries(summaries) || '<div class="contract-empty-state">No summary is available yet.</div>'}</div>
-    <div id="contract-issues-section">
-      ${renderContractRiskHeatmap(clauses)}
-      ${renderContractEscalationPanel(escalations)}
-    </div>
-    <div id="contract-clauses-section">${renderContractClauseFilters(clauses, filteredClauses)}</div>
-    <div class="contract-review-grid">
-      <div class="contract-review-list">
-        ${filteredClauses.length ? filteredClauses.map(item => renderContractClauseRow(run.run.id, item)).join('') : '<div class="council-row"><div class="council-card-desc">No clauses match the current filters.</div></div>'}
-      </div>
-      <div class="contract-review-detail" id="contract-review-detail">
-        ${selected ? renderContractClausePreview(run.run.id, filteredClauses[0]) : renderContractSummaries(summaries)}
-      </div>
-    </div>
-    <div id="contract-trace-section" class="contract-trace-panel">
-      <details>
-        <summary>Workflow trace and modules</summary>
-        ${renderContractWorkflowModules()}
-        <div class="contract-trace-list">
-          ${trace.length ? trace.map(step => `<div class="trace-step"><strong>${esc(step.step_name)}</strong><span>${esc(step.status)}${step.confidence_score ? ' · ' + esc(String(step.confidence_score)) : ''}</span></div>`).join('') : '<div class="council-card-desc">No trace records yet.</div>'}
-        </div>
-      </details>
-      </div>
-  </div>`;
-}
-
-function filterContractClauses(clauses) {
-  const filters = App.v2.contractReviewFilters || {};
-  let items = [...(clauses || [])];
-  if (filters.risk && filters.risk !== 'all') {
-    items = items.filter(item => (item.risks || []).some(r => r.risk_level === filters.risk));
-  }
-  if (filters.status && filters.status !== 'all') {
-    items = items.filter(item => (item.clause?.review_status || 'pending') === filters.status);
-  }
-  if (filters.type && filters.type !== 'all') {
-    items = items.filter(item => item.clause?.clause_type === filters.type);
-  }
-  const sort = filters.sort || 'risk';
-  items.sort((a, b) => {
-    if (sort === 'status') return String(a.clause?.review_status || 'pending').localeCompare(String(b.clause?.review_status || 'pending'));
-    if (sort === 'type') return String(a.clause?.clause_type || '').localeCompare(String(b.clause?.clause_type || ''));
-    return topContractRiskRank(b) - topContractRiskRank(a) || String(a.clause?.clause_type || '').localeCompare(String(b.clause?.clause_type || ''));
-  });
-  return items;
-}
-
-function renderContractClauseFilters(clauses, filteredClauses) {
-  const filters = App.v2.contractReviewFilters || {};
-  const types = Array.from(new Set((clauses || []).map(item => item.clause?.clause_type).filter(Boolean))).sort();
-  const statuses = Array.from(new Set((clauses || []).map(item => item.clause?.review_status || 'pending'))).sort();
-  const option = (value, label, selected) => `<option value="${esc(value)}" ${value === selected ? 'selected' : ''}>${esc(label)}</option>`;
-  return `<div class="contract-filter-panel">
-    <div>
-      <div class="council-card-title">Clause Filters</div>
-      <div class="council-card-meta">${filteredClauses.length} of ${(clauses || []).length} clauses shown</div>
-    </div>
-    <div class="contract-filter-controls">
-      <label>Risk<select class="council-input" onchange="setContractClauseFilter('risk', this.value)">
-        ${option('all', 'All risks', filters.risk || 'all')}
-        ${['critical','high','medium','low'].map(level => option(level, level, filters.risk)).join('')}
-      </select></label>
-      <label>Status<select class="council-input" onchange="setContractClauseFilter('status', this.value)">
-        ${option('all', 'All statuses', filters.status || 'all')}
-        ${statuses.map(status => option(status, status.replace(/_/g, ' '), filters.status)).join('')}
-      </select></label>
-      <label>Type<select class="council-input" onchange="setContractClauseFilter('type', this.value)">
-        ${option('all', 'All types', filters.type || 'all')}
-        ${types.map(type => option(type, type.replace(/_/g, ' '), filters.type)).join('')}
-      </select></label>
-      <label>Sort<select class="council-input" onchange="setContractClauseFilter('sort', this.value)">
-        ${option('risk', 'Risk first', filters.sort || 'risk')}
-        ${option('status', 'Status', filters.sort || 'risk')}
-        ${option('type', 'Clause type', filters.sort || 'risk')}
-      </select></label>
-      <button class="btn-secondary" type="button" onclick="resetContractClauseFilters()">Reset</button>
-    </div>
-  </div>`;
-}
-
-function setContractClauseFilter(key, value) {
-  App.v2.contractReviewFilters = {...(App.v2.contractReviewFilters || {}), [key]: value};
-  renderV2PluginWorkspace();
-}
-
-function resetContractClauseFilters() {
-  App.v2.contractReviewFilters = {risk: 'all', status: 'all', type: 'all', sort: 'risk'};
-  renderV2PluginWorkspace();
-}
-
-function renderContractCompletionPanel(run, pendingClauses, openHighEscalations) {
-  const complete = !!run?.review_complete;
-  const blockers = [];
-  if (pendingClauses) blockers.push(`${pendingClauses} pending clause${pendingClauses === 1 ? '' : 's'}`);
-  if (openHighEscalations) blockers.push(`${openHighEscalations} open high/critical escalation${openHighEscalations === 1 ? '' : 's'}`);
-  const canComplete = !complete && run?.status === 'completed' && blockers.length === 0;
-  return `<div class="contract-completion-panel">
-    <div>
-      <div class="council-card-title">Review Completion</div>
-      <div class="council-card-meta">${complete ? 'Human review has been marked complete.' : blockers.length ? esc(blockers.join(' · ')) : 'Ready for human completion.'}</div>
-    </div>
-    <div class="contract-completion-actions">
-      <span class="council-status ${complete ? 'completed' : blockers.length ? 'running' : 'pending'}">${complete ? 'complete' : blockers.length ? 'blocked' : 'ready'}</span>
-      <button class="btn-primary" type="button" onclick="completeContractReviewRun()" ${canComplete ? '' : 'disabled'}>Mark Review Complete</button>
-    </div>
-  </div>`;
-}
-
-async function completeContractReviewRun() {
-  const runId = App.v2.activeContractRun?.run?.id;
-  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
-  if (!runId || !blueprint) return;
-  const segment = v2PluginApiSegment(blueprint.plugin_id);
-  try {
-    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs/${encodeURIComponent(runId)}/complete`, {method:'PUT'});
-    if (!r?.ok) throw new Error(await apiError(r));
-    showToast('Review marked complete.', 'success');
-    await openContractReviewRun(runId);
-  } catch(e) { showToast('Review completion failed: ' + e.message, 'error'); }
-}
-
-function renderContractRiskHeatmap(clauses) {
-  const levels = ['critical', 'high', 'medium', 'low'];
-  const types = Array.from(new Set((clauses || []).map(item => item.clause?.clause_type).filter(Boolean))).sort();
-  if (!types.length) return '';
-  const count = (type, level) => clauses.filter(item => item.clause?.clause_type === type && (item.risks || []).some(r => r.risk_level === level)).length;
-  return `<div class="contract-heatmap">
-    <div class="council-card-title">Risk Heatmap</div>
-    <div class="contract-heatmap-grid" style="grid-template-columns:minmax(140px,1fr) repeat(${levels.length}, minmax(70px, 0.45fr))">
-      <div class="heatmap-head">Clause</div>${levels.map(level => `<div class="heatmap-head">${esc(level)}</div>`).join('')}
-      ${types.map(type => `<div class="heatmap-label">${esc(type.replace(/_/g, ' '))}</div>${levels.map(level => {
-        const value = count(type, level);
-        return `<button class="heatmap-cell risk-${esc(level)} ${value ? 'has-risk' : ''}" type="button" onclick="focusContractRisk('${esc(type)}','${esc(level)}')">${value || ''}</button>`;
-      }).join('')}`).join('')}
-    </div>
-  </div>`;
-}
-
-function renderContractEscalationPanel(escalations) {
-  if (!escalations?.length) return '';
-  return `<div class="contract-escalations">
-    <div class="council-row-head">
-      <div>
-        <div class="council-card-title">Escalations</div>
-        <div class="council-card-meta">Items requiring human review before external delivery</div>
-      </div>
-    </div>
-    <div class="contract-escalation-list">
-      ${escalations.map(e => `<div class="contract-escalation-item">
-        <span class="risk-badge risk-${esc(e.severity || 'high')}">${esc(e.severity || 'high')}</span>
-        <span><strong>${esc(e.reason || 'Escalation')}</strong><small>${esc(e.required_action || '')}</small></span>
-        <span class="contract-escalation-actions">
-          <span class="council-status ${esc(e.status || 'open')}">${esc(e.status || 'open')}</span>
-          ${(e.status || 'open') === 'open' ? `<button class="btn-secondary" type="button" onclick="updateContractEscalation('${esc(e.id)}','resolve')">Resolve</button><button class="btn-secondary" type="button" onclick="updateContractEscalation('${esc(e.id)}','dismiss')">Dismiss</button>` : ''}
-        </span>
-      </div>`).join('')}
-    </div>
-  </div>`;
-}
-
-async function updateContractEscalation(escalationId, action) {
-  if (!App.v2.activeContractRun?.run?.id) return;
-  if (!['resolve', 'dismiss'].includes(action)) return;
-  try {
-    const r = await v2Fetch(`/escalations/${encodeURIComponent(escalationId)}/${action}`, {method:'PUT'});
-    if (!r?.ok) throw new Error(await apiError(r));
-    showToast(action === 'resolve' ? 'Escalation resolved.' : 'Escalation dismissed.');
-    await openContractReviewRun(App.v2.activeContractRun.run.id);
-  } catch(e) { showToast('Escalation update failed: ' + e.message, 'error'); }
-}
-
-function focusContractRisk(clauseType, riskLevel) {
-  const match = (App.v2.activeContractClauses || []).find(item => item.clause?.clause_type === clauseType && (item.risks || []).some(r => r.risk_level === riskLevel));
-  if (match?.clause?.id && App.v2.activeContractRun?.run?.id) {
-    loadContractClauseDetail(App.v2.activeContractRun.run.id, match.clause.id);
-  }
-}
-
-function renderContractClauseRow(runId, item) {
-  const clause = item.clause || {};
-  const risks = item.risks || [];
-  const topRisk = risks.sort((a,b) => riskRank(b.risk_level) - riskRank(a.risk_level))[0];
-  const risk = topRisk?.risk_level || 'low';
-  return `<button class="contract-clause-row" type="button" onclick="loadContractClauseDetail('${esc(runId)}','${esc(clause.id)}')">
-    <span>
-      <strong>${esc(clause.title || clause.clause_type || 'Clause')}</strong>
-      <small>${esc(clause.source?.filename || 'source')} ${clause.source?.chunk_index !== undefined && clause.source?.chunk_index !== null ? '· chunk ' + esc(String(Number(clause.source.chunk_index) + 1)) : ''}</small>
-    </span>
-    <span class="risk-badge risk-${esc(risk)}">${esc(risk)}</span>
-    <span class="council-status ${esc(clause.review_status || 'pending')}">${esc(clause.review_status || 'pending')}</span>
-  </button>`;
-}
-
-function renderContractClausePreview(runId, item) {
-  const clause = item.clause || {};
-  const risks = item.risks || [];
-  return `<div class="contract-clause-detail-card">
-    <div class="council-row-head">
-      <div>
-        <div class="council-card-title">${esc(clause.title || clause.clause_type || 'Clause')}</div>
-        <div class="council-card-meta">${esc(clause.source?.filename || 'source')} · confidence ${esc(String(clause.confidence_score ?? 'n/a'))}</div>
-      </div>
-      <span class="council-status ${esc(clause.review_status || 'pending')}">${esc(clause.review_status || 'pending')}</span>
-    </div>
-    <div class="contract-clause-text">${esc(clause.text || '')}</div>
-    ${renderContractSourceEvidence(clause.source || {})}
-    ${risks.length ? `<div class="contract-risk-list">${risks.map(r => `<div class="contract-risk-item"><span class="risk-badge risk-${esc(r.risk_level)}">${esc(r.risk_level)}</span><span>${esc(r.reasoning || '')}</span></div>`).join('')}</div>` : ''}
-    <div class="council-actions">
-      <button class="btn-secondary" type="button" onclick="recordContractClauseDecision('${esc(runId)}','${esc(clause.id)}','approve')">Approve</button>
-      <button class="btn-secondary" type="button" onclick="recordContractClauseDecision('${esc(runId)}','${esc(clause.id)}','request_revision')">Request Revision</button>
-      <button class="danger-btn" type="button" onclick="recordContractClauseDecision('${esc(runId)}','${esc(clause.id)}','reject')">Reject</button>
-    </div>
-  </div>`;
-}
-
-function renderContractSourceEvidence(source) {
-  if (!source || !Object.keys(source).length) return '';
-  const chunk = source.chunk_index !== undefined && source.chunk_index !== null ? Number(source.chunk_index) + 1 : null;
-  const offsets = source.start_offset !== undefined && source.start_offset !== null && source.end_offset !== undefined && source.end_offset !== null
-    ? `${source.start_offset}-${source.end_offset}`
-    : '';
-  return `<div class="contract-source-evidence">
-    <div class="source-evidence-head">Source Evidence</div>
-    <div class="source-meta-grid">
-      <span><strong>File</strong>${esc(source.filename || 'source')}</span>
-      <span><strong>Chunk</strong>${chunk ? esc(String(chunk)) : 'n/a'}</span>
-      <span><strong>Page</strong>${source.page ? esc(String(source.page)) : 'n/a'}</span>
-      <span><strong>Offsets</strong>${offsets ? esc(offsets) : 'n/a'}</span>
-    </div>
-    ${source.excerpt ? `<div class="source-excerpt">${esc(source.excerpt)}</div>` : ''}
-  </div>`;
-}
-
-function renderContractSummaries(summaries) {
-  if (!summaries?.length) return '';
-  return `<div class="contract-summary-tabs">
-    ${summaries.map(s => `<div class="contract-summary-card">
-      <div class="council-card-title">${esc((s.audience || 'summary').replace(/_/g, ' '))}</div>
-      <div class="council-card-desc">${esc(s.summary_text || '')}</div>
-      ${(s.negotiation_points || []).length ? `<ul>${s.negotiation_points.slice(0,4).map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
-    </div>`).join('')}
-  </div>`;
-}
-
-function riskRank(level) {
-  return {critical:4, high:3, medium:2, low:1}[level] || 0;
-}
-
-function topContractRiskRank(item) {
-  return Math.max(0, ...(item?.risks || []).map(r => riskRank(r.risk_level)));
-}
-
-async function openContractReviewRun(runId) {
-  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
-  if (!blueprint) return;
-  const segment = v2PluginApiSegment(blueprint.plugin_id);
-  try {
-    const base = `/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs/${encodeURIComponent(runId)}`;
-    const detail = await v2Fetch(base);
-    const clauses = await v2Fetch(`${base}/clauses`);
-    const trace = await v2Fetch(`${base}/trace`);
-    const escalations = await v2Fetch(`/escalations/blueprints/${encodeURIComponent(blueprint.id)}?page_size=100`);
-    if (!detail?.ok) throw new Error(await apiError(detail));
-    if (!clauses?.ok) throw new Error(await apiError(clauses));
-    if (!trace?.ok) throw new Error(await apiError(trace));
-    App.v2.activeContractRun = await detail.json();
-    App.v2.activeContractClauses = await clauses.json();
-    App.v2.activeContractTrace = await trace.json();
-    App.v2.activeContractEscalations = escalations?.ok ? ((await escalations.json()).items || []).filter(e => e.source_id === runId) : [];
-    renderV2PluginWorkspace();
-  } catch(e) { showToast('Failed to open review: ' + e.message, 'error'); }
-}
-
-async function loadContractClauseDetail(runId, clauseId) {
-  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
-  if (!blueprint) return;
-  const segment = v2PluginApiSegment(blueprint.plugin_id);
-  try {
-    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs/${encodeURIComponent(runId)}/clauses/${encodeURIComponent(clauseId)}`);
-    if (!r?.ok) throw new Error(await apiError(r));
-    const data = await r.json();
-    const host = document.getElementById('contract-review-detail');
-    if (host) host.innerHTML = renderContractClauseFull(runId, data);
-  } catch(e) { showToast('Failed to load clause: ' + e.message, 'error'); }
-}
-
-function renderContractClauseFull(runId, data) {
-  const clause = data.clause || {};
-  const risks = data.risk_findings || [];
-  const playbook = data.playbook_findings || [];
-  const playbookClauses = data.playbook_clauses || [];
-  const redlines = data.redline_suggestions || [];
-  const decisions = data.decisions || [];
-  return `${renderContractClausePreview(runId, {clause, risks})}
-    <div class="contract-detail-sections">
-      ${renderContractComparisonView(clause, playbook, playbookClauses, redlines)}
-      <div class="contract-detail-section"><div class="council-card-title">Review History</div>${decisions.length ? decisions.map(d => `<div class="council-card-desc"><strong>${esc(d.decision)}</strong>${d.note ? ': ' + esc(d.note) : ''} · ${esc(new Date(d.created_at).toLocaleString())}</div>`).join('') : '<div class="council-card-desc">No decisions yet.</div>'}</div>
-    </div>`;
-}
-
-function renderContractComparisonView(clause, findings, playbookClauses, redlines) {
-  const finding = (findings || [])[0] || {};
-  const standard = (playbookClauses || []).find(item => item.id === finding.playbook_clause_id) || (playbookClauses || [])[0] || {};
-  const suggestion = (redlines || [])[0] || {};
-  return `<div class="contract-detail-section">
-    <div class="council-card-title">AI Suggestion vs Playbook Standard</div>
-    <div class="contract-comparison-grid">
-      <div class="comparison-pane">
-        <div class="comparison-label">Extracted Clause</div>
-        <div class="comparison-text">${esc(clause.text || '')}</div>
-      </div>
-      <div class="comparison-pane">
-        <div class="comparison-label">Playbook Standard</div>
-        ${standard.approved_text ? `<div class="comparison-text">${esc(standard.approved_text)}</div>` : '<div class="council-card-desc">No playbook standard text for this clause.</div>'}
-        ${finding.status ? `<div class="comparison-foot"><span class="council-status ${esc(finding.status)}">${esc(finding.status)}</span><span>${esc(finding.deviation_summary || '')}</span></div>` : ''}
-      </div>
-      <div class="comparison-pane">
-        <div class="comparison-label">Suggested Fallback</div>
-        ${suggestion.fallback_language ? `<div class="comparison-text">${esc(suggestion.fallback_language)}</div>` : standard.fallback_text ? `<div class="comparison-text">${esc(standard.fallback_text)}</div>` : '<div class="council-card-desc">No fallback language generated for this clause.</div>'}
-        ${suggestion.suggestion_text ? `<div class="comparison-foot">${esc(suggestion.suggestion_text)}</div>` : ''}
-      </div>
-    </div>
-    ${(findings || []).length ? `<div class="contract-finding-list">${findings.map(p => `<div class="contract-finding-item"><strong>${esc(p.status)}</strong><span>${esc(p.deviation_summary || '')}</span></div>`).join('')}</div>` : ''}
-  </div>`;
-}
-
-async function recordContractClauseDecision(runId, clauseId, decision) {
-  const blueprint = App.v2.blueprints.find(b => b.id === App.v2.activeBlueprintId);
-  if (!blueprint) return;
-  const note = decision === 'approve' ? '' : prompt('Optional review note') || '';
-  const segment = v2PluginApiSegment(blueprint.plugin_id);
-  try {
-    const r = await v2Fetch(`/blueprints/${encodeURIComponent(blueprint.id)}/${segment}/runs/${encodeURIComponent(runId)}/clauses/${encodeURIComponent(clauseId)}/decisions`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decision, note})});
-    if (!r?.ok) throw new Error(await apiError(r));
-    showToast('Decision saved.');
-    await openContractReviewRun(runId);
-    await loadContractClauseDetail(runId, clauseId);
-  } catch(e) { showToast('Decision failed: ' + e.message, 'error'); }
 }
 
 function startV2JobStream(job) {

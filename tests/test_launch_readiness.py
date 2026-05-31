@@ -37,11 +37,12 @@ from app.core.contract_agents.playbook_comparator import compare_to_playbook
 from app.core.contract_agents.redliner import suggest_redlines
 from app.core.contract_agents.risk_scorer import score_risks
 from app.core.contract_agents.schemas import RiskFindingResult
+from app.core.contract_agents.tools import run_contract_agent_tools
 from app.core.config import Settings, get_settings, validate_runtime_security
 from app.core.database import SessionLocal
 from app.core.document_indexer import _extract_chunks
 from app.api.contract_review_standalone import _select_playbook
-from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, KnowledgeChunk, KnowledgeEmbedding, User, Workspace, WorkspaceMember, utcnow
+from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, ContractReviewOutput, ContractReviewRun, ContractReviewStepOutput, KnowledgeChunk, KnowledgeEmbedding, User, Workspace, WorkspaceMember, utcnow
 from app.core.secrets import decrypt_secret
 
 
@@ -262,6 +263,9 @@ class LaunchReadinessTest(unittest.TestCase):
         )
         self.assertEqual(chat.status_code, 200, chat.text)
         self.assertEqual(chat.json()["v2_document_ids"], [upload.json()["id"]])
+        chat_activity = self.client.get("/api/v2/admin/activity?category=chat&page_size=10")
+        self.assertEqual(chat_activity.status_code, 200, chat_activity.text)
+        self.assertTrue(any(item["action"] == "chat.create" and item["workspace_id"] == workspace_id for item in chat_activity.json()["items"]))
 
         removed_plugins = self.client.get(f"/api/v2/workspaces/{workspace_id}/plugins")
         self.assertEqual(removed_plugins.status_code, 404, removed_plugins.text)
@@ -287,7 +291,13 @@ class LaunchReadinessTest(unittest.TestCase):
             },
         )
         self.assertEqual(review.status_code, 200, review.text)
-        review_json = review.json()
+        queued_review = review.json()
+        self.assertEqual(queued_review["status"], "queued")
+        review_job = self.wait_for_job(workspace_id, queued_review["job"]["id"])
+        self.assertEqual(review_job["job"]["status"], "completed", review_job)
+        review_result = self.client.get(f"/api/v2/workspaces/{workspace_id}/contract-review/runs/{queued_review['run_id']}")
+        self.assertEqual(review_result.status_code, 200, review_result.text)
+        review_json = review_result.json()
         self.assertEqual(review_json["mode"], "standalone")
         self.assertEqual(review_json["playbook"]["id"], "builtin-msa-v1")
         self.assertIn("workflow", review_json)
@@ -295,6 +305,31 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertGreaterEqual(len(review_json["workflow"]["summaries"]), 1)
         self.assertGreaterEqual(len(review_json["workflow"]["trace"]), 5)
         self.assertTrue(review_json["workflow"]["clauses"][0]["clause"]["source"].get("excerpt"))
+        self.assertIn("agentic_review", review_json)
+        self.assertIn("persisted", review_json)
+        with SessionLocal() as db:
+            stored_run = db.get(ContractReviewRun, queued_review["run_id"])
+            self.assertIsNotNone(stored_run)
+            self.assertEqual(stored_run.mode, "agentic_standalone")
+            self.assertEqual(
+                db.query(ContractReviewOutput).filter(ContractReviewOutput.run_id == queued_review["run_id"]).count(),
+                1,
+            )
+            self.assertGreaterEqual(
+                db.query(ContractClause).filter(ContractClause.run_id == queued_review["run_id"]).count(),
+                1,
+            )
+            self.assertGreaterEqual(
+                db.query(ContractReviewStepOutput).filter(ContractReviewStepOutput.run_id == queued_review["run_id"]).count(),
+                1,
+            )
+        review_activity = self.client.get("/api/v2/admin/activity?category=contract_review&page_size=10")
+        self.assertEqual(review_activity.status_code, 200, review_activity.text)
+        self.assertTrue(any(item["action"] == "contract_review_standalone.run" and item["workspace_id"] == workspace_id for item in review_activity.json()["items"]))
+        activity_export = self.client.get("/api/v2/admin/activity/export.csv?category=chat")
+        self.assertEqual(activity_export.status_code, 200, activity_export.text)
+        self.assertIn("text/csv", activity_export.headers["content-type"])
+        self.assertIn("chat.create", activity_export.text)
 
         stored_file = UPLOADS_PATH / upload.json()["storage_key"]
         self.assertTrue(stored_file.exists())
@@ -314,6 +349,49 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(chunks[0]["start_offset"], 0)
         self.assertIn("indemnity", chunks[0]["content"])
         self.assertIn("termination", chunks[1]["content"])
+
+    def test_contract_agent_tools_return_evidence_and_playbook_context(self) -> None:
+        playbook_clause = ContractPlaybookClause(
+            id=str(uuid.uuid4()),
+            playbook_id="playbook-1",
+            clause_type="indemnity",
+            title="Indemnity",
+            approved_text="Mutual indemnity only.",
+            fallback_text="Each party indemnifies the other for third-party claims caused by its breach.",
+            prohibited_patterns_json=json.dumps(["uncapped indemnity"]),
+            required=True,
+            severity_default="high",
+        )
+        workflow = {
+            "clauses": [
+                {
+                    "clause": {
+                        "id": "clause-1",
+                        "clause_type": "indemnity",
+                        "text": "Supplier provides uncapped indemnity.",
+                        "source": {"excerpt": "Supplier provides uncapped indemnity."},
+                    },
+                    "risks": [{"risk_level": "critical", "requires_review": True}],
+                }
+            ],
+            "escalations": [],
+            "trace": [],
+        }
+        result = run_contract_agent_tools(
+            requests=[
+                {"tool": "targeted_document_retrieval", "query": "uncapped indemnity"},
+                {"tool": "playbook_lookup", "clause_types": ["indemnity"]},
+                {"tool": "clause_evidence_verifier"},
+            ],
+            source_bundle=[{"content": "Supplier provides uncapped indemnity.", "filename": "contract.txt", "chunk_index": 0}],
+            workflow=workflow,
+            playbook=None,
+            playbook_clauses=[playbook_clause],
+        )
+        outputs = {item["tool"]: item["output"] for item in result["tool_results"]}
+        self.assertTrue(outputs["targeted_document_retrieval"][0]["excerpt"])
+        self.assertEqual(outputs["playbook_lookup"]["clauses"][0]["fallback_text"], playbook_clause.fallback_text)
+        self.assertTrue(outputs["clause_evidence_verifier"][0]["supported"])
 
     def test_clause_extractor_preserves_segment_offsets(self) -> None:
         text = "Intro text before clauses.\n1. Termination: Either party may terminate for breach after notice.\n2. Payment: Fees are due within 30 days."
