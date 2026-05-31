@@ -52,19 +52,17 @@ def require_system_admin(user: User = Depends(get_current_user)) -> User:
 
 
 def require_workspace_member(workspace_id: str, user: User, db: Session) -> WorkspaceMember:
-    row = db.execute(
-        select(WorkspaceMember, Workspace)
-        .join(Workspace, Workspace.id == WorkspaceMember.workspace_id)
-        .where(
+    workspace = db.get(Workspace, workspace_id)
+    if not workspace or workspace.deleted_at:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    membership = db.execute(
+        select(WorkspaceMember).where(
             WorkspaceMember.workspace_id == workspace_id,
             WorkspaceMember.user_id == user.id,
         )
-    ).first()
-    if not row:
+    ).scalar_one_or_none()
+    if not membership:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Workspace access denied")
-    membership, workspace = row
-    if workspace.deleted_at:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return membership
 
 
@@ -73,4 +71,3 @@ def require_workspace_admin(workspace_id: str, user: User, db: Session) -> Works
     if membership.role != "admin" and not user.is_system_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Workspace admin access required")
     return membership
-

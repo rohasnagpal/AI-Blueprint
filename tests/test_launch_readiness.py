@@ -46,6 +46,17 @@ from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookCl
 from app.core.secrets import decrypt_secret
 
 
+def _configure_runtime() -> None:
+    os.environ["AI_BLUEPRINT_DATABASE_URL"] = f"sqlite:///{DB_PATH}"
+    os.environ["AI_BLUEPRINT_APP_DATABASE_PATH"] = str(APP_DB_PATH)
+    os.environ["AI_BLUEPRINT_UPLOADS_DIR"] = str(UPLOADS_PATH)
+    os.environ["AI_BLUEPRINT_SECRET_KEY_FILE"] = str(SECRET_PATH)
+    os.environ["AI_BLUEPRINT_APP_SECRET_KEY_FILE"] = str(APP_SECRET_PATH)
+    os.environ["AI_BLUEPRINT_AUTH_RATE_LIMIT_ATTEMPTS"] = "100"
+    database.DB_PATH = str(APP_DB_PATH)
+    database.SECRET_KEY_FILE = str(APP_SECRET_PATH)
+
+
 def _clean_runtime() -> None:
     ROOT.mkdir(parents=True, exist_ok=True)
     for path in ROOT.glob("*"):
@@ -62,6 +73,7 @@ def _clean_runtime() -> None:
 class LaunchReadinessTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
+        _configure_runtime()
         _clean_runtime()
         cls.client_context = TestClient(app)
         cls.client = cls.client_context.__enter__()

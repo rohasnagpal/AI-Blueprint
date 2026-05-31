@@ -17,8 +17,8 @@ def assert_no_csp_errors(messages: list[str]) -> None:
         raise AssertionError("CSP violations detected:\n" + "\n".join(violations))
 
 
-def click_more(page: Page) -> None:
-    page.locator("#nav-more").click()
+def click_group(page: Page, selector: str) -> None:
+    page.locator(selector).click()
     expect(page.locator("#sidebar-more-menu")).to_be_visible()
 
 
@@ -54,15 +54,27 @@ def main() -> None:
             local_mode.click()
             expect(page.locator("#v2-auth-modal")).not_to_be_visible()
 
-        expect(page.locator("#nav-more")).to_be_visible()
         expect(page.locator("#nav-settings")).to_be_visible()
+        expect(page.locator("#nav-prep")).to_be_visible()
+        expect(page.locator("#nav-workflows")).to_be_visible()
         if page.locator("#more-workspaces").count():
             raise AssertionError("Workspaces should not appear in the More menu")
 
         page.locator("#nav-settings").click()
         expect_active(page, "#view-settings")
 
-        click_more(page)
+        page.locator("#more-add-doc").click()
+        expect_active(page, "#view-add-doc")
+        expect(page.locator("#upload-zone")).to_be_visible()
+
+        click_group(page, "#nav-workflows")
+        page.locator("#more-contract-review").click()
+        expect_active(page, "#view-contract-review")
+
+        click_group(page, "#nav-prep")
+        page.locator("#more-arbitration-prep").click()
+        expect_active(page, "#view-arbitration-prep")
+
         page.locator("#more-add-doc").click()
         expect_active(page, "#view-add-doc")
         expect(page.locator("#upload-zone")).to_be_visible()
