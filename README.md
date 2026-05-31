@@ -7,11 +7,11 @@
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](https://github.com/rohasnagpal/AI-Blueprint/blob/main/Dockerfile)
 [![License](https://img.shields.io/github/license/rohasnagpal/AI-Blueprint)](https://github.com/rohasnagpal/AI-Blueprint/blob/main/LICENSE)
 
-A local-first legal AI workspace for document-grounded chat, legal drafting, contract review, legal research, translation, email drafting, and multi-agent legal workflows.
+A local-first legal AI workspace for document-grounded chat, live voice assistance, legal drafting, contract review, preparation workflows, translation, email drafting, and matter document management.
 
 AI Blueprint is built for lawyers, firms, legal teams, and legal operations teams that need AI to work with confidential documents, matter context, source grounding, review workflows, and auditability.
 
-The goal is not to replace legal judgment. The goal is to give lawyers a structured workspace for reviewing documents, preparing arguments, drafting work product, testing positions, translating legal material, and organizing matter knowledge with stronger control over data, models, and retrieval scope.
+The goal is not to replace legal judgment. The goal is to give lawyers a structured workspace for reviewing documents, preparing disputes and negotiations, drafting work product, translating legal material, and organizing matter knowledge with stronger control over data, models, and retrieval scope.
 
 ## Core Capabilities
 
@@ -22,13 +22,13 @@ The goal is not to replace legal judgment. The goal is to give lawyers a structu
   Generate legal notices, agreements, replies, board documents, clauses, client-facing drafts, and other legal work product from facts, parties, terms, instructions, jurisdiction, tone, and optional source documents. Drafts include printable HTML, plain text, assumptions, missing information, review warnings, source usage, progress events, and saved draft history.
 
 - **Contract review workflows**  
-  Review contracts against playbooks, extract clauses, identify risks, compare fallback positions, generate redline suggestions, create negotiation points, produce summaries, record human review decisions, and export audit packages.
+  Review indexed contracts directly from a workspace and matter. Use review depth, playbooks, selected source contracts, and review instructions to produce clause analysis, risks, redline suggestions, summaries, warnings, source references, and downloadable Markdown output.
 
-- **Legal research workflows**  
-  Create research memos, authority matrices, legal tests, citation packs, limitation analysis, assumptions, and exportable research outputs.
+- **Preparation workflows**
+  Prepare structured arbitration, litigation, mediation, and negotiation work product from indexed matter documents. Prep runs can produce case snapshots, issue maps, chronologies, evidence matrices, procedural tasks, witness or participant preparation, damages and remedies analysis, risks, gaps, trace data, warnings, and source basis.
 
-- **Multi-agent councils and arbitration preparation**  
-  Run configurable multi-agent workflows for adversarial review, evidence checking, issue mapping, arbitration prep, litigation strategy, settlement analysis, and partner review.
+- **Legal research support**
+  Use Chat, Documents mode, Draft, and Prep workflows to research legal questions, analyze uploaded authorities, produce research memos, and test arguments. Current primary navigation does not expose a separate Legal Research screen.
 
 - **Email and client communication drafting**  
   Poll IMAP inboxes, generate AI-assisted replies using personas and document context, review drafts, and send approved replies through SMTP.
@@ -40,10 +40,10 @@ The goal is not to replace legal judgment. The goal is to give lawyers a structu
   Use OpenAI Realtime voice for spoken legal assistance, matter walkthroughs, document questions, and workflow guidance, including document search in Documents mode.
 
 - **Workspaces, matters, users, and permissions**  
-  Organize documents, blueprints, plugins, members, roles, outputs, and access by workspace and matter.
+  Organize documents, runs, members, roles, outputs, and access by workspace and matter.
 
-- **Blueprints and plugins**  
-  Enable repeatable workflows through blueprint plugins, currently Contract Review, AI Council, and Legal Research.
+- **Current navigation**
+  Work from New Chat, Add Document, View Documents, Prep, Workflows, Personas, and Settings. The Prep menu includes Arbitration Prep, Litigation Prep, Mediation Prep, and Negotiation Prep. The Workflows menu includes Contract Review, Draft, Email, and Translate.
 
 - **Document management**  
   Upload files, ingest URLs, connect local folders, sync folder sources, index documents, search document libraries, and manage deletion.
@@ -60,21 +60,22 @@ The goal is not to replace legal judgment. The goal is to give lawyers a structu
 ## Example Workflows
 
 - Draft a legal notice from facts, parties, jurisdiction, tone, and selected source documents.
-- Review a contract against a playbook and produce risks, fallback language, summaries, and an audit package.
-- Prepare for arbitration by mapping facts, claims, evidence, counterarguments, and procedural risks.
-- Build a litigation chronology from pleadings, exhibits, emails, and notes.
-- Draft a legal research memo with authorities, limitations, and uncertainty clearly marked.
+- Review a contract against a playbook and produce risks, fallback language, summaries, warnings, and source references.
+- Prepare for arbitration by mapping issues, chronology, evidence, witnesses, damages, and procedural risks.
+- Build a litigation preparation package from pleadings, exhibits, emails, and notes.
+- Prepare mediation or negotiation strategy with positions, interests, information gaps, talking points, concessions, and settlement options.
+- Draft a legal research memo from a precise question, jurisdiction, facts, and uploaded source materials.
 - Translate a legal document into another language with preserved terms and review warnings.
 - Generate and approve a document-grounded client email reply.
 - Compare clauses across versions of an agreement.
-- Run a partner-review council before sending work product.
+- Use a Partner Reviewer persona before sending work product.
 
 ## Local and Network Versions
 
 AI Blueprint can be used in two ways:
 
 - **Local version:** run AI Blueprint privately on one machine for solo lawyers, experiments, document review, drafting, research, translation, and local-first workflows.
-- **Network/server version:** run AI Blueprint for a firm, team, or legal department with shared workspaces, matter access, permissions, audit trails, reusable blueprints, and centralized configuration.
+- **Network/server version:** run AI Blueprint for a firm, team, or legal department with shared workspaces, matter access, permissions, audit trails, reusable workflows, and centralized configuration.
 
 The local version is the fastest way to start. The network version is the direction for multi-user legal practice.
 
@@ -119,7 +120,7 @@ The fastest successful path is:
 4. Add provider API keys in Settings.
 5. Upload or ingest relevant documents.
 6. Wait until documents are indexed.
-7. Use Chat, Draft, Translate, Email, Voice, or a Blueprint workflow.
+7. Use Chat, Voice, Prep, Contract Review, Draft, Translate, or Email.
 8. Review all outputs before using them in client, court, regulatory, or transaction work.
 
 ## Built With
@@ -136,13 +137,13 @@ The fastest successful path is:
 
 ## Configuration
 
-AI Blueprint supports configurable model providers, document retrieval settings, personas, councils, email settings, workspaces, upload limits, app branding, and deployment controls from inside the app and through environment variables.
+AI Blueprint supports configurable model providers, document retrieval settings, personas, email settings, workspaces, matters, upload limits, app branding, users, activity logs, and deployment controls from inside the app and through environment variables.
 
 For legal use, configure the system around the matter:
 
 - which documents are available
 - which sources are approved
-- which persona, draft settings, or workflow should be used
+- which persona, draft settings, prep workflow, or contract review settings should be used
 - which users can access the matter
 - which outputs need review before use
 - which model providers may receive prompts, document snippets, embeddings, and outputs
@@ -196,7 +197,7 @@ See [Contributing](CONTRIBUTING.md) for contribution expectations.
 
 AI Blueprint is an evolving open-source platform being shaped into a practical legal AI workspace for lawyers, firms, and legal teams.
 
-The current project includes document-grounded chat, live voice, legal drafting, translation, email drafting, personas, document management, workspaces and matters, contract review, legal research, multi-agent councils, permissions, jobs, audit events, encrypted secrets, and deployment controls.
+The current project includes document-grounded chat, live voice, legal drafting, translation, email drafting, personas, document management, workspaces and matters, standalone contract review, arbitration prep, litigation prep, mediation prep, negotiation prep, permissions, jobs, audit events, encrypted secrets, and deployment controls.
 
 ## License
 
