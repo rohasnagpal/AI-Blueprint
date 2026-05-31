@@ -1,36 +1,52 @@
-# Legal Research Blueprint
+# Legal Research
 
-The Legal Research blueprint creates structured research outputs for a legal question.
+The current primary UI does not expose a dedicated Legal Research workflow screen. Use Chat, Documents mode, Draft, and Prep workflows for legal research tasks. Older database records may still mention a Legal Research plugin, but users should follow the current visible screens.
 
-## When to Use It
+## When to Use Chat
 
-Use Legal Research when the main task is:
+Use Chat for:
 
-- Answering a legal question.
-- Building a research memo.
-- Identifying legal tests.
-- Creating an authority matrix.
-- Preparing citation packs.
-- Tracking limitations and uncertainty.
+- Quick legal issue spotting.
+- Explaining legal tests.
+- Comparing possible arguments.
+- Preparing a research plan.
+- Asking document-grounded questions about uploaded authorities or matter files.
 
-Use AI Council when the task is broader strategy or multi-role analysis. Use Chat for quick informal research questions.
+Use Documents mode when the answer should rely on uploaded cases, statutes, pleadings, contracts, correspondence, or research materials.
 
-## Configuration
+## When to Use Draft
 
-Default configuration may include:
+Use Draft when the research should become structured work product, such as:
 
-- Jurisdiction
-- Memo format, such as IRAC
-- Whether authorities are required
+- Research memo.
+- Client update.
+- Internal note.
+- Argument outline.
+- Case summary.
+- Authority table narrative.
 
-Set jurisdiction whenever possible. A research answer without jurisdiction may be incomplete or misleading.
+Provide jurisdiction, audience, legal question, facts, and formatting instructions.
 
-## Starting a Run
+## When to Use Prep
 
-1. Open the Legal Research blueprint.
-2. Enter a run title.
-3. Enter a precise legal question.
-4. Run Legal Research.
+Use Prep workflows when research is part of a dispute or negotiation preparation package:
+
+- Arbitration Prep for arbitral procedure, jurisdiction, limitation, evidence, damages, and hearing preparation.
+- Litigation Prep for pleadings, discovery, motions, trial prep, and procedural deadlines.
+- Mediation Prep for settlement posture, interests, mediator briefs, and information gaps.
+- Negotiation Prep for bargaining positions, legal leverage, concessions, and fallback options.
+
+## Research Inputs
+
+Good research inputs include:
+
+- Jurisdiction.
+- Procedural posture.
+- Facts that matter to the legal test.
+- Exact legal question.
+- Relevant dates.
+- Uploaded source authorities or documents.
+- Whether the output needs citations, adverse authorities, or a practical recommendation.
 
 Good legal research questions:
 
@@ -45,31 +61,17 @@ Weak questions:
 - "Find law."
 - "What should we do?"
 
-## Outputs
-
-Legal Research runs may produce:
-
-- Research memo
-- Authority matrix
-- Legal tests
-- Citation pack
-- Limitations
-- Sources and metadata
-
 ## Reviewing Research
 
 Always verify:
 
-- Jurisdiction
-- Currency of authorities
-- Binding versus persuasive status
-- Procedural posture
-- Factual assumptions
-- Adverse authorities
-- Missing statutes or regulations
+- Jurisdiction.
+- Currency of authorities.
+- Binding versus persuasive status.
+- Procedural posture.
+- Factual assumptions.
+- Adverse authorities.
+- Missing statutes or regulations.
+- Quotations and citations against primary sources.
 
-AI Blueprint can draft legal research, but it does not replace lawyer verification.
-
-## Exports
-
-Export research runs for internal review, work papers, or memo drafting. Before external use, confirm citations and quotations against primary sources.
+AI Blueprint can help draft legal research, but it does not replace lawyer verification.

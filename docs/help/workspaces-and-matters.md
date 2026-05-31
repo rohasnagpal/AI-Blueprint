@@ -1,23 +1,33 @@
 # Workspaces and Matters
 
-Workspaces and matters organize access, documents, blueprints, and work product.
+Workspaces and matters organize access, documents, workflow runs, and legal work product.
 
 ## Workspaces
 
-A workspace is the top-level container for a user, firm, team, department, client group, or project. It contains matters, documents, plugins, blueprints, settings, and members.
+A workspace is the top-level container for a user, firm, team, department, client group, or project. It contains matters, documents, settings, personas, runs, and members.
 
 Use separate workspaces when:
 
 - Access should be separated.
 - Different teams or clients should not share documents.
-- Different plugin settings or model settings are needed.
+- Different model or RAG settings are needed.
 - A deployment needs clear administrative boundaries.
 
 ## Workspace Selection
 
-Many screens include a workspace selector. Changing the workspace changes the available matters, documents, plugins, and blueprints shown in that screen.
+Most major screens include a workspace selector or inherit the active workspace:
 
-If expected documents or blueprints are missing, check the selected workspace first.
+- Chat document scope
+- Add Document
+- View Documents
+- Contract Review
+- Arbitration, Litigation, Mediation, and Negotiation Prep
+- Draft
+- Email document context
+- Translate history and workspace outputs where applicable
+- Settings administration tabs
+
+Changing the workspace changes the available matters, documents, and run history. If expected documents or runs are missing, check the selected workspace first.
 
 ## Matters
 
@@ -27,6 +37,8 @@ Use matters to keep related material together:
 
 - Client dispute
 - Arbitration
+- Litigation
+- Mediation
 - Contract negotiation
 - Regulatory question
 - Research assignment
@@ -36,16 +48,25 @@ Use matters to keep related material together:
 
 To create a matter:
 
-1. Open **Matters** from the More menu.
-2. Select the workspace.
-3. Enter the matter name.
-4. Add the client name if useful.
-5. Add a description if useful.
+1. Open **Settings**.
+2. Open the **Matters** tab if it is visible for your role.
+3. Select the workspace.
+4. Enter the matter name.
+5. Add the client name and description if useful.
 6. Create the matter.
 
-## Opening a Matter
+If the Matters tab is not visible, the current user may not have the required workspace or admin permissions.
 
-Open a matter to focus blueprint lists and document context. When a matter is active, blueprint and document workflows should use that matter's documents.
+## Using Matters in Workflows
+
+Select the matter before uploading documents or running a workflow. Contract Review and Prep workflows require the selected source documents to belong to the selected matter.
+
+Matter selection affects:
+
+- Which source documents are listed.
+- Which documents are searched in Documents mode.
+- Which run history is shown.
+- Whether workflow APIs accept the selected documents.
 
 ## Matter Status
 
@@ -53,12 +74,12 @@ Matters can be active or closed. Status helps users understand whether the matte
 
 ## Deleting a Matter
 
-Deleting a matter can unassign linked blueprints and documents from that matter. Review before deleting.
+Deleting a matter can affect linked documents and workflow history. Review the matter before deleting it, especially if it has indexed documents or completed runs.
 
 ## Best Practices
 
 - Create the matter before uploading documents.
 - Upload documents to the correct matter.
-- Create blueprints inside the same matter when the workflow is matter-specific.
+- Run Contract Review and Prep workflows inside the matching matter.
 - Use clear matter names that include client, opposing party, transaction, or project.
 - Keep unrelated client files in separate matters.

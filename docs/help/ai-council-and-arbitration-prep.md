@@ -1,109 +1,125 @@
-# AI Council and Arbitration Prep
+# Prep Workflows
 
-The AI Council blueprint runs a configurable multi-agent workflow. It is useful when legal work benefits from multiple roles, structured disagreement, evidence checking, and synthesis.
+The current Prep menu contains four structured preparation workflows:
 
-## AI Council Basics
+- Arbitration Prep
+- Litigation Prep
+- Mediation Prep
+- Negotiation Prep
 
-An AI Council configuration contains:
+Each workflow creates a preparation package from indexed matter documents and structured user inputs. Recent runs are persisted, and outputs can be copied or downloaded as Markdown.
 
-- Agents: role-specific participants with instructions.
-- Phases: ordered stages that call one or more agents.
-- Objective: the issue, decision, or analysis the council should perform.
-- Retrieval query: how the council should search documents for each phase.
+## Common Prep Inputs
 
-The default council has one Reviewer agent and one Review phase. Users can customize this for complex work.
+All Prep workflows use:
 
-## When to Use AI Council
+- Workspace
+- Matter
+- Run title
+- Party role
+- Stage or procedural posture
+- Dates or deadlines
+- Indexed source documents
+- Prep instructions
 
-Use AI Council for:
+Select only relevant source documents. If the source list is empty, confirm documents are uploaded, indexed, and assigned to the selected matter.
 
-- Arbitration preparation
-- Litigation strategy
-- Mediation planning
-- Settlement analysis
-- Partner review
-- Evidence review
-- Risk analysis
-- Position testing
-- Multi-sided legal reasoning
+## Arbitration Prep
 
-Use Legal Research when the core task is finding and analyzing legal authorities. Use Contract Review when the core task is reviewing contract terms.
+Use Arbitration Prep for issue mapping, procedural risk, evidence analysis, witness planning, damages review, and hearing preparation.
 
-## Arbitration Preparation Workflow
+Inputs include:
 
-For arbitration prep, create an AI Council blueprint named for the dispute or matter.
+- Party role: Claimant, Respondent, Third party, or Neutral analysis.
+- Forum or rules: ICC, LCIA, SIAC, UNCITRAL, AAA/ICDR, ad hoc, or other.
+- Seat or jurisdiction.
+- Procedural stage.
+- Hearing or deadline dates.
+- Prep instructions.
 
-Recommended documents:
+Useful source documents include arbitration agreement, claim statement, defense, counterclaim, contract, correspondence, notices, witness statements, expert reports, procedural orders, and chronology.
 
-- Arbitration agreement or dispute resolution clause
-- Claim statement
-- Statement of defense or response
-- Counterclaim and reply, if any
-- Key contract
-- Correspondence
-- Notices
-- Evidence bundles
-- Witness statements
-- Expert reports
-- Procedural orders
-- Chronology or timeline
-- Prior settlement communications if appropriate and permitted
+Outputs can include case snapshot, issues, chronology, evidence matrix, witnesses, procedural tasks, damages and remedies, risks and gaps, trace, warnings, and source basis.
 
-Recommended council roles:
+## Litigation Prep
 
-- Claimant Advocate: strongest claimant case.
-- Respondent Advocate: strongest defense and counterarguments.
-- Evidence Analyst: maps claims to documents and identifies gaps.
-- Procedure Analyst: checks deadlines, tribunal directions, jurisdiction, admissibility, and procedural risks.
-- Damages Analyst: reviews quantum, causation, mitigation, and proof.
-- Settlement Strategist: evaluates negotiation leverage and realistic resolution paths.
-- Chair or Partner Reviewer: synthesizes into a final prep memo.
+Use Litigation Prep for pleadings, discovery, depositions, motions, trial preparation, damages, and deadline planning.
 
-Recommended phases:
+Inputs include:
 
-1. Issue Map: identify claims, defenses, admissions, disputed facts, and relief.
-2. Evidence Matrix: map each issue to documents, witnesses, and gaps.
-3. Merits Analysis: test claimant and respondent positions.
-4. Procedural Risk: check jurisdiction, limitation, notice, admissibility, and procedural orders.
-5. Damages and Remedies: assess quantum, causation, mitigation, interest, and costs.
-6. Cross-Examination Prep: propose witness themes and questions.
-7. Settlement Posture: assess leverage and settlement ranges if appropriate.
-8. Final Prep Memo: produce a concise action-oriented memo.
+- Party role: Plaintiff, Defendant, Third party, or Neutral analysis.
+- Court.
+- Jurisdiction.
+- Venue.
+- Procedural stage.
+- Litigation focus: full prep, pleadings, discovery, depositions, motion practice, trial prep, or damages.
+- Hearing, deadline, or trial dates.
 
-## Good Arbitration Objectives
+Outputs can include claims and defenses, issues, chronology, evidence matrix, discovery analysis, witnesses, deposition prep, motion strategy, trial prep, procedural tasks, damages and remedies, risks and gaps, trace, warnings, and source basis.
 
-- "Prepare an arbitration issue map from the claim, defense, contract, and correspondence."
-- "Identify the strongest claimant arguments and the best respondent counterarguments."
-- "Build an evidence matrix for breach, causation, damages, and limitation."
-- "Prepare cross-examination themes for the claimant's main witness."
-- "Find procedural risks before the preliminary hearing."
-- "Prepare a partner-review memo on merits, evidence gaps, and next steps."
+## Mediation Prep
 
-## Voice in Arbitration Prep
+Use Mediation Prep for position analysis, interests, information gaps, participant preparation, mediator briefs, session planning, settlement options, and damages.
 
-Voice can help users talk through arbitration prep when the composer is in Documents mode and the active scope is the arbitration blueprint or matter.
+Inputs include:
+
+- Party role: Requesting party, Responding party, Third party, or Neutral analysis.
+- Mediator, provider, or court.
+- Jurisdiction.
+- Venue.
+- Procedural stage.
+- Mediation focus: full prep, positions, information gaps, participant prep, mediator brief, session plan, or damages.
+- Mediation or deadline dates.
+
+Outputs can include positions, issues, chronology, evidence matrix, participant preparation, procedural tasks, damages and remedies, settlement-oriented risks and gaps, trace, warnings, and source basis.
+
+## Negotiation Prep
+
+Use Negotiation Prep for commercial deals, settlements, renewals, collections, counteroffers, talking points, concessions, and fallback positions.
+
+Inputs include:
+
+- Party role: Requesting party, Responding party, Third party, or Neutral analysis.
+- Counterparty or forum.
+- Jurisdiction or market.
+- Deal or dispute context.
+- Negotiation stage.
+- Negotiation focus: full prep, positions, information gaps, participant prep, talking points, session plan, or damages.
+- Negotiation or deadline dates.
+
+Outputs can include positions, interests, chronology, evidence or support matrix, information gaps, talking points, concessions, settlement options, damages and remedies, risks and gaps, trace, warnings, and source basis.
+
+## Good Prep Instructions
+
+Useful instructions are specific:
+
+- "Focus on limitation, notice defects, and quantum evidence."
+- "Prepare cross-examination themes for the claimant's operations witness."
+- "Identify discovery gaps before depositions."
+- "Prepare mediator brief themes and settlement range considerations."
+- "Create negotiation talking points, must-haves, concessions, and walk-away risks."
+
+Weak instructions are vague:
+
+- "Analyze this."
+- "Help me prepare."
+- "Find issues."
+
+## Voice and Prep
+
+Voice can help users talk through preparation when the composer is in Documents mode and the active scope is the relevant matter.
 
 Useful voice questions:
 
 - "What documents should I upload next?"
-- "Search the arbitration documents for limitation issues."
+- "Search the matter documents for limitation issues."
 - "What are our strongest points?"
 - "What are the weaknesses in our evidence?"
-- "Give me cross-examination themes for the respondent's witness."
-- "Walk me through the next step in this blueprint."
+- "Give me cross-examination themes."
+- "Walk me through the next step before running prep."
 
-Voice can search documents and explain findings. It does not yet run the full council workflow or change blueprint configuration by speech.
+Voice can search documents and explain findings. It does not yet run the Prep workflow or change settings by speech.
 
-## Outputs to Review
+## Review Before Use
 
-AI Council outputs are analytical drafts. Lawyers should review:
-
-- Source grounding
-- Missing documents
-- Unsupported assertions
-- Incorrect chronology
-- Overstated confidence
-- Privilege and confidentiality issues
-- Procedural assumptions
-
-Do not file or send council outputs without professional review.
+Prep outputs are analytical drafts. Lawyers should review source grounding, missing documents, unsupported assertions, chronology, confidence level, privilege and confidentiality issues, procedural assumptions, and client instructions before external use.

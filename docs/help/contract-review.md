@@ -1,6 +1,6 @@
-# Contract Review Blueprint
+# Contract Review
 
-The Contract Review blueprint analyzes contracts against a review mode, selected documents, and optional playbooks.
+Contract Review analyzes indexed contracts directly from a workspace and matter. It uses selected source contracts, review depth, optional playbooks, and review instructions.
 
 ## When to Use It
 
@@ -15,7 +15,7 @@ Use Contract Review for:
 - Amendments and addenda
 - Commercial terms documents
 
-Do not force the workflow on documents that are not contracts. If the document is a pleading, email chain, memo, or evidence bundle, use Chat, AI Council, or Legal Research instead.
+Do not force the workflow on documents that are not contracts. If the document is a pleading, email chain, memo, or evidence bundle, use Chat, Draft, or the relevant Prep workflow instead.
 
 ## Before Running
 
@@ -23,47 +23,45 @@ Prepare:
 
 - The contract document.
 - Relevant schedules, amendments, side letters, or exhibits.
-- The correct matter.
+- The correct workspace and matter.
 - Any internal playbook or fallback language.
-- The desired risk tolerance.
-- The jurisdiction if important.
+- The desired review depth.
+- Review instructions such as jurisdiction, negotiation posture, clause concerns, or client position.
 
-Make sure the source documents are indexed.
+Make sure the source documents are indexed and assigned to the selected matter.
 
-## Review Modes
+## Review Depth
 
-Structured workflow is better when users want extracted clauses, risk findings, redline suggestions, playbook comparison, escalation review, summaries, and a human review screen.
+The screen supports:
+
+- **Standard**: balanced clause, risk, and summary review.
+- **Detailed**: deeper review for important contracts or complex issues.
+- **Red-flag only**: focused review for high-risk issues and fast triage.
 
 ## Playbooks
 
 Playbooks define expected clause positions, required clauses, prohibited patterns, approved text, fallback text, and default severity.
 
-Use Auto-select playbook when unsure. Select a specific playbook when reviewing a known contract type or workspace standard.
-
-Workspace users can create playbooks with:
-
-- Name
-- Contract category
-- Jurisdiction
-- Version
-- Rules
-- Clauses
+Use the default or auto-selected playbook when unsure. Select a specific playbook when reviewing a known contract type or workspace standard.
 
 Built-in playbooks should be treated as starting points, not final firm policy.
 
-## Starting a Run
+## Starting a Review
 
-1. Open the Contract Review blueprint.
-2. Expand New review and settings.
-3. Enter a run title.
-4. Choose review mode.
-5. Choose a playbook or Auto-select.
-6. Select source documents.
-7. Run Contract Review.
+1. Open **Workflows**.
+2. Choose **Contract Review**.
+3. Select the workspace.
+4. Select the matter.
+5. Enter a review title.
+6. Choose review depth.
+7. Choose a playbook.
+8. Select indexed source contracts.
+9. Add review instructions if needed.
+10. Click **Review Contract**.
 
 ## Reviewing Outputs
 
-Structured review may include:
+Contract Review may include:
 
 - Clause extraction
 - Playbook findings
@@ -71,14 +69,15 @@ Structured review may include:
 - Redline suggestions
 - Client summary
 - Negotiation points
-- Escalations
-- Audit JSON
+- Review warnings
+- Source references
+- Recent review history
 
-Use Open Review to inspect clauses and decisions. Use Audit JSON when you need a machine-readable trace of the run.
+The result can be copied or downloaded as Markdown.
 
 ## Human Review
 
-The workflow supports human review decisions. Users should confirm important findings, especially high-risk items, missing clauses, unusual terms, and proposed fallback language.
+The workflow supports legal review, but it does not replace legal judgment. Users should confirm important findings, especially high-risk items, missing clauses, unusual terms, proposed fallback language, deadlines, defined terms, and governing law.
 
 ## Common Problems
 
@@ -86,14 +85,14 @@ If no source documents are selectable:
 
 - Upload documents.
 - Confirm they are indexed.
-- Confirm they belong to the same matter as the blueprint.
+- Confirm they belong to the selected matter.
 
 If the review is too generic:
 
 - Select the right playbook.
-- Add jurisdiction.
+- Add jurisdiction and client position in review instructions.
 - Narrow source documents.
-- Use Structured workflow.
+- Use Detailed depth.
 
 If the review misses clauses:
 

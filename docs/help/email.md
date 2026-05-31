@@ -20,12 +20,12 @@ The Email feature is designed for assisted drafting and review. It should not se
 
 ## Where to Find Email
 
-Open the sidebar More menu and choose **Email**.
+Open **Workflows** and choose **Email**.
 
 The Email screen contains:
 
 - Email settings.
-- A check/poll action for incoming mail.
+- A check or poll action for incoming mail.
 - A list of imported messages.
 - Persona and document context controls for drafting.
 - A draft text area.
@@ -68,7 +68,7 @@ To import unread messages:
 3. Click the email check or poll control.
 4. AI Blueprint imports recent unread messages from the configured IMAP folder.
 
-The app imports up to a recent set of unread messages and avoids duplicate imports using message IDs.
+The app imports a recent set of unread messages and avoids duplicate imports using message IDs.
 
 ## Generating a Draft Reply
 
@@ -77,7 +77,7 @@ To draft a reply:
 1. Open Email.
 2. Find the imported message.
 3. Choose the persona if needed.
-4. Choose the RAG/document scope if the reply should use uploaded documents.
+4. Choose the RAG or document scope if the reply should use uploaded documents.
 5. Add drafting instructions if the UI provides an instruction field.
 6. Click **Generate Draft**.
 7. Review the generated draft in the draft text area.

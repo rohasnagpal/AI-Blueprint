@@ -15,7 +15,7 @@ Personas can be used in:
 - Typed chat
 - Live voice
 - Email draft replies
-- Some blueprint workflows
+- Some workflow prompts and workflow-adjacent analysis
 
 Select the persona before starting the chat, voice session, email draft, or workflow. The standalone Draft screen uses its own drafting inputs such as tone, audience, facts, terms, and instructions.
 
@@ -45,6 +45,7 @@ Useful legal personas include:
 - Plain-English Explainer
 - Client Email Drafter
 - Legal Researcher
+- Negotiation Strategist
 
 ## Personas in Live Voice
 

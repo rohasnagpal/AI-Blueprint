@@ -1,57 +1,71 @@
 # Start Here
 
-AI Blueprint is a legal AI workspace for document-grounded chat, legal drafting, translation, live voice assistance, reusable personas, matter organization, and plugin-backed workflows called blueprints.
+AI Blueprint is a legal AI workspace for document-grounded chat, live voice assistance, reusable personas, legal drafting, translation, email replies, contract review, and structured preparation workflows.
 
 The fastest successful path is:
 
-1. Sign in or complete first-run setup.
+1. Sign in or complete first-run admin setup.
 2. Create or select a workspace.
 3. Create a matter for the client, dispute, transaction, or project.
-4. Upload relevant documents.
+4. Upload or connect the relevant documents.
 5. Wait until documents are indexed.
-6. Choose Chat, Draft, Translate, Email, Voice, or a Blueprint workflow.
+6. Choose Chat, a Prep workflow, Contract Review, Draft, Email, Translate, or Voice.
 7. Use Documents mode whenever answers should be grounded in uploaded files.
 
 ## First-Time Setup
 
-Open the app in a browser and complete the sign-in or first-run admin setup. Workspace and plugin features require signing in. If the app is used in a local single-user deployment, the same user may be both system admin and workspace user.
+Open the app in a browser and complete sign-in or first-run admin setup. Workspace, matter, document, and workflow features require an authenticated user. In a local single-user deployment, the same person may be both system admin and workspace user.
 
 After sign-in, confirm:
 
 - A workspace exists.
+- The current user has workspace access.
 - The correct model provider API keys are configured in Settings.
-- The plugins needed for the workspace are enabled.
-- Documents are uploaded to the right workspace, matter, or blueprint.
+- Documents are uploaded, ingested from URL, or connected from a folder into the right workspace and matter.
+- Documents show an indexed status before relying on document search.
+
+## Main Navigation
+
+The primary sidebar includes:
+
+- **New Chat**: typed chat, document Q&A, web search toggle, and live voice.
+- **Add Document**: upload files, ingest URLs, connect browser-selected folders, and sync local folders.
+- **View Documents**: browse, search, inspect status, and delete documents.
+- **Prep**: Arbitration Prep, Litigation Prep, Mediation Prep, and Negotiation Prep.
+- **Workflows**: Contract Review, Draft, Email, and Translate.
+- **Personas**: create and manage role-based assistant behavior.
+- **Settings**: API keys, models, RAG, document settings, workspaces, matters, appearance, users, and activity.
 
 ## Choosing the Right Area
 
-Use **Chat** for quick questions, summaries, explanations, and document Q&A.
+Use **Chat** for quick questions, summaries, explanations, document Q&A, and exploratory legal analysis.
 
-Use **Voice** for live spoken conversation. Voice can use selected personas and, in Documents mode, can search the current document scope.
+Use **Voice** for live spoken conversation. Voice can use the selected persona and, in Documents mode, can search the current document scope.
 
-Use **Draft** to generate legal notices, agreements, replies, clauses, board documents, client-facing drafts, and other legal work product from structured facts, terms, instructions, and optional source documents.
+Use **Prep** for structured preparation packages:
 
-Use **Blueprints** for structured legal workflows such as Contract Review, AI Council, and Legal Research.
+- Arbitration Prep
+- Litigation Prep
+- Mediation Prep
+- Negotiation Prep
 
-Use the **AI Council** blueprint plugin for configurable multi-agent analysis.
+Use **Contract Review** to review indexed contracts with a playbook, review depth, and optional review instructions.
 
-Use **Settings** to configure model providers, API keys, RAG settings, app branding, and user/admin options.
+Use **Draft** to generate legal notices, agreements, replies, clauses, board documents, client-facing drafts, and other legal work product from structured facts and optional source documents.
 
 Use **Email** to poll an inbox, generate AI-assisted draft replies, review them, and send approved replies through SMTP.
 
-Use **Personas** to create or select role-based assistant behavior.
+Use **Translate** to translate pasted text or one uploaded document with review warnings and HTML output.
 
-Use **Translate** to translate pasted text or one document with review warnings and HTML output.
-
-Use **Add Document** and **View Documents** to upload, connect, sync, search, and manage knowledge-base files.
+Use **Settings** to configure provider keys, models, RAG behavior, document limits, workspace and matter administration, appearance, users, and activity logs.
 
 ## Good First Prompts
 
 For general chat:
 
 - "Explain what this app can do."
-- "Help me choose the right workflow for a contract review."
-- "What should I upload before arbitration prep?"
+- "Help me choose the right workflow for this matter."
+- "What should I upload before mediation prep?"
 
 For document chat:
 
@@ -63,7 +77,7 @@ For voice:
 
 - "Help me prepare this matter."
 - "Search the documents for termination provisions."
-- "Walk me through this arbitration blueprint."
+- "Walk me through what to do before arbitration prep."
 
 For drafting:
 
@@ -71,8 +85,8 @@ For drafting:
 - "Prepare a client-friendly summary letter using this matter background."
 - "Draft a board resolution with these key terms."
 
-For blueprints:
+For workflows:
 
-- "Create a contract review run for the selected agreement."
-- "Run legal research on limitation for this claim."
-- "Use an AI Council to test both sides of this arbitration position."
+- "Review this contract using the standard playbook."
+- "Prepare an arbitration issue map from these documents."
+- "Prepare negotiation talking points and fallback positions."

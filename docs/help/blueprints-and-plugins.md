@@ -1,67 +1,53 @@
 # Blueprints and Plugins
 
-Blueprints turn repeatable legal work into structured workflows. A blueprint is created from a plugin. The current blueprint plugins are Contract Review, AI Council, and Legal Research.
+The current AI Blueprint UI uses direct screens instead of asking users to create blueprint instances manually. The visible workflow areas are:
 
-## Enable a Plugin
+- **Prep**: Arbitration Prep, Litigation Prep, Mediation Prep, Negotiation Prep.
+- **Workflows**: Contract Review, Draft, Email, Translate.
 
-To use a plugin in a workspace:
+Older versions exposed **Blueprints** and **Plugins** as primary screens. Some backend records still use plugin and blueprint tables so workflow runs can be persisted, audited, and related to matters. In normal use, users do not need to create or configure blueprint records directly.
 
-1. Sign in.
-2. Open Plugins.
-3. Select the workspace.
-4. Enable the plugin needed for that workspace.
+## Current User Workflow
 
-If a plugin is not enabled, it may not appear as a blueprint option.
+To run a structured workflow:
 
-## Create a Blueprint
-
-To create a blueprint:
-
-1. Open Blueprints.
+1. Open the relevant Prep or Workflow screen.
 2. Select the workspace.
-3. Choose the matter filter if relevant.
-4. Enter a blueprint name.
-5. Select the plugin.
-6. Choose the matter if the workflow belongs to a matter.
-7. Add an optional description.
-8. Create the blueprint.
+3. Select the matter when the workflow requires one.
+4. Select indexed source documents if the workflow uses documents.
+5. Fill in the structured fields.
+6. Run the workflow.
+7. Review the output, source list, warnings, and history.
 
-Use clear blueprint names:
+## Prep Screens
 
-- `ABC v XYZ - Arbitration Prep`
-- `Vendor MSA Review`
-- `Limitation Research - Consumer Claim`
+Prep workflows produce structured preparation packages from indexed matter documents:
 
-## Open a Blueprint
+- Arbitration Prep
+- Litigation Prep
+- Mediation Prep
+- Negotiation Prep
 
-Open a blueprint from the Blueprints list. The blueprint workspace shows plugin configuration, new run fields, previous runs, exports, and plugin-specific review screens.
+They persist recent runs and expose copy and Markdown download actions.
 
-Many blueprint cards also include a Chat button. Blueprint chat opens chat with the active blueprint as context so document search can be limited to that blueprint.
+## Workflow Screens
 
-## Blueprint Scope
+Contract Review analyzes indexed contracts using review depth, playbooks, selected documents, and instructions.
 
-Blueprint scope matters. Documents and outputs should usually stay within the same matter. If a blueprint belongs to a matter, use matter documents or blueprint-linked documents that match the matter.
+Draft generates legal work product from structured inputs and optional source documents.
 
-## Plugin Configuration
+Email imports unread messages through IMAP, drafts replies, and sends approved replies through SMTP.
 
-Each plugin has a JSON configuration area. Users can keep defaults or edit configuration when they understand the plugin schema.
+Translate translates pasted text or one uploaded document into HTML output with notes and warnings.
 
-Common defaults:
+## Hidden Blueprint Records
 
-- Contract Review: review standard, jurisdiction, risk tolerance, and mode.
-- AI Council: agents, phases, instructions, and retrieval query.
-- Legal Research: jurisdiction, memo format, and whether authorities are required.
+When a Prep workflow runs, the backend may create or reuse a hidden system blueprint for that matter and workflow type. This is an implementation detail used for persistence and auditability.
 
-Do not edit plugin JSON casually. Invalid configuration can produce weak or failed runs.
+Users should manage work from the visible Prep and Workflow screens, not by editing hidden blueprint records.
 
-## New Runs
+## Legacy References
 
-A run is a single execution of a blueprint. Runs may take time. Watch the run status and progress indicator.
+If older documentation, exports, or database records mention AI Council, Legal Research, blueprint instances, plugin enablement, or blueprint membership, treat those as legacy concepts unless a current screen exposes them.
 
-After completion, review outputs before relying on them. Legal outputs should be treated as drafts and analysis aids, not final professional judgment.
-
-## Exports
-
-Most blueprint runs can be exported. Exports are useful for work papers, client updates, internal review, and audit packages.
-
-Do not send exported work product externally without lawyer review.
+For current structured multi-role analysis, use the Prep workflows and Documents mode in Chat.

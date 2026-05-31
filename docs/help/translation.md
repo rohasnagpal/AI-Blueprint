@@ -4,7 +4,7 @@ The Translate feature translates pasted text or a single uploaded document and r
 
 ## Where to Find Translate
 
-Open **Translate** from the More menu.
+Open **Workflows** and choose **Translate**.
 
 ## Source Options
 
@@ -13,7 +13,7 @@ Translate supports:
 - Pasted text
 - One uploaded document
 
-Supported upload types include PDF, TXT, CSV, Markdown, JSON, and HTML.
+Supported upload types include PDF, TXT, CSV, Markdown, JSON, HTML, and HTM. For DOCX or XLSX content, add the file to Documents first or extract text if the Translate upload path does not accept that file type.
 
 ## Translate Documents
 
@@ -23,8 +23,8 @@ Use Upload document when the source is a single file rather than pasted text. Th
 
 Choose:
 
-- Source language, or Auto-detect
-- Target language
+- Source language, or Auto-detect.
+- Target language.
 
 The target language is required.
 
@@ -60,7 +60,7 @@ Good context improves terminology and tone.
 
 To translate text:
 
-1. Open Translate.
+1. Open Translate from Workflows.
 2. Choose Paste text.
 3. Select source and target languages.
 4. Choose mode.
@@ -70,7 +70,7 @@ To translate text:
 
 To translate a file:
 
-1. Open Translate.
+1. Open Translate from Workflows.
 2. Choose Upload document.
 3. Select one supported file.
 4. Select source and target languages.

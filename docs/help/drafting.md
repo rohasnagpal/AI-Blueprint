@@ -1,12 +1,12 @@
 # Drafting
 
-The Draft feature generates legal work product from structured drafting inputs. It is useful when the user needs a document, clause, notice, letter, resolution, reply, or other legal draft rather than a conversational answer.
+The Draft feature generates legal work product from structured drafting inputs. It is useful when the user needs a document, clause, notice, letter, resolution, reply, memo, or other legal draft rather than a conversational answer.
 
 Drafting is an assistance workflow. It produces reviewable work product with assumptions, missing information, source usage, and review warnings. A lawyer should review and revise every draft before use.
 
 ## Where to Find Draft
 
-Open **Draft** from the More menu.
+Open **Workflows** and choose **Draft**.
 
 The Draft screen contains:
 
@@ -51,7 +51,7 @@ Only select documents that are relevant to the draft. If a matter is selected, s
 
 To generate a draft:
 
-1. Open Draft.
+1. Open Draft from Workflows.
 2. Select the workspace and matter if relevant.
 3. Enter the document type.
 4. Choose tone and jurisdiction.
@@ -104,7 +104,7 @@ Use Chat when:
 - The user wants to ask follow-up questions before drafting.
 - The task is exploratory and not yet ready for a document.
 
-Use Email when the output is a reply to an imported email. Use Contract Review when the core task is analyzing contract risk rather than preparing a new document. Use Legal Research when the core task is legal authority analysis.
+Use Email when the output is a reply to an imported email. Use Contract Review when the core task is analyzing contract risk rather than preparing a new document. Use Prep when the core task is structured dispute, mediation, or negotiation preparation.
 
 ## Best Practices
 

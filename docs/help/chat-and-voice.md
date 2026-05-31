@@ -4,7 +4,20 @@
 
 Typed chat is best for precise questions, longer drafting, summaries, document Q&A, and outputs that users may copy into work product.
 
-Typed chat uses the configured Chat Model provider and model in Settings. For example, it may use Groq with `openai/gpt-oss-120b`, OpenAI, Anthropic, Gemini, OpenRouter, xAI, or Ollama depending on configuration.
+Typed chat uses the configured Chat Model provider and model in Settings. Supported providers can include OpenAI, Anthropic, Groq, OpenRouter, Gemini, xAI, and Ollama depending on configured keys and installed dependencies.
+
+## Chat Modes
+
+Chat supports:
+
+- **General**: no document search.
+- **Documents**: retrieves excerpts from the selected workspace, matter, or document set.
+
+Use Documents mode when the answer should be grounded in uploaded files. Use General mode for product questions, brainstorming, strategy discussion, or early drafting.
+
+## Web Search
+
+The chat interface can expose a web search toggle when configured. Use web search for current external information. Use Documents mode for the user's uploaded matter materials. When both current law and uploaded facts matter, verify important sources before relying on the answer.
 
 ## Live Voice
 
@@ -27,8 +40,9 @@ Select a persona before sending a typed message or starting voice. Personas can 
 Examples:
 
 - Contract Reviewer for structured contract analysis.
-- Socratic persona for guided questioning.
-- Plain-English explainer for client-friendly summaries.
+- Litigation Associate for case preparation.
+- Arbitration Prep Analyst for dispute preparation.
+- Plain-English Explainer for client-friendly summaries.
 - Partner Reviewer for critique before delivery.
 
 For voice, changing persona during an active session does not alter the session. Stop and restart voice after changing persona.
@@ -56,12 +70,12 @@ Use typed chat when:
 Use live voice when:
 
 - You want a conversational walkthrough.
-- You are preparing orally for a meeting, hearing, or client call.
+- You are preparing orally for a meeting, hearing, negotiation, mediation, or client call.
 - You want to ask follow-ups quickly.
 - You want the app to guide you through what to do next.
 
 ## Limits
 
-Voice can search documents and follow personas, but it does not yet operate every blueprint action by speech. For example, it can explain how to run a Contract Review blueprint, but it cannot safely click Run Contract Review or delete outputs unless app-action tools are added later.
+Voice can search documents and follow personas, but it does not operate every app action by speech. For example, it can explain how to run Contract Review or Arbitration Prep, but it should not click Run, delete outputs, send email, or change settings unless app-action tools are added later.
 
-Typed chat can guide users through workflows, but it also needs app-help context to answer product-use questions reliably.
+Typed chat can guide users through workflows, but product-use answers should be grounded in this help pack.

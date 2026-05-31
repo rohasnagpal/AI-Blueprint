@@ -1,8 +1,10 @@
 # Troubleshooting
 
-## Voice Button Is Missing or Looks Blank
+## A Screen Is Missing From the Sidebar
 
 Refresh the page. Static JS/CSS assets may be cached. If the server was recently updated, restart the backend and refresh again.
+
+The current primary navigation is New Chat, Add Document, View Documents, Prep, Workflows, Personas, and Settings. Some admin tabs are only visible to users with the required permissions.
 
 ## Live Voice Says Method Not Allowed
 
@@ -24,13 +26,13 @@ Live voice instructions tell the assistant to use feminine first-person forms in
 Check:
 
 - The composer is in Documents mode.
-- The active workspace, matter, blueprint, or selected documents are correct.
+- The active workspace, matter, or selected documents are correct.
 - Documents are indexed.
 - The spoken question clearly asks about uploaded documents or document-grounded facts.
 
 If the composer is in General mode, voice should not search documents.
 
-## Typed Chat Uses Groq but Voice Still Needs OpenAI
+## Typed Chat Uses One Provider but Voice Still Needs OpenAI
 
 This is expected. Typed chat uses the Chat Model provider in Settings. Live voice uses OpenAI Realtime.
 
@@ -38,10 +40,16 @@ This is expected. Typed chat uses the Chat Model provider in Settings. Live voic
 
 Check:
 
-- Documents were uploaded to the correct workspace or matter.
+- Documents were uploaded, URL-ingested, or synced to the correct workspace or matter.
 - Documents are indexed.
-- The blueprint belongs to the same matter as the documents.
 - The document scope is not accidentally narrowed to unrelated files.
+- The selected workflow is using the same matter as the documents.
+
+## Connected Folder Sync Fails
+
+Check that the folder path exists, the app has permission to read it, and the files are supported. Reconnect the folder if the path changed.
+
+For browser-selected folders, keep the folder selection active until sync completes.
 
 ## Contract Review Has No Source Documents
 
@@ -49,26 +57,36 @@ Confirm:
 
 - Documents are uploaded.
 - Documents are indexed.
-- Documents match the blueprint matter.
-- You selected the correct source documents in New review and settings.
+- Documents belong to the selected matter.
+- You selected the correct workspace and matter.
 
-## Legal Research Output Is Too Vague
+## Contract Review Output Is Too Generic
 
-Improve the question:
+Improve the review:
 
-- Add jurisdiction.
-- Add legal issue.
-- Add factual setting.
-- Ask for legal tests, authorities, limitations, and adverse points.
+- Select a better playbook.
+- Use Detailed depth.
+- Add jurisdiction, client position, negotiation posture, and clause concerns in review instructions.
+- Narrow source documents to the actual contract and relevant attachments.
 
-## AI Council Output Is Too Generic
+## Prep Workflow Has No Source Documents
 
-Improve the objective and council design:
+Confirm:
 
-- Add specific roles.
-- Add phases.
-- Use Documents mode or attach relevant documents.
-- Ask for issue maps, evidence matrices, risks, and next steps.
+- Documents are uploaded or synced.
+- Documents are indexed.
+- Documents belong to the selected matter.
+- The selected workspace and matter are correct.
+
+## Prep Output Is Too Generic
+
+Improve the run:
+
+- Add specific prep instructions.
+- Select the right focus value.
+- Add forum, court, jurisdiction, stage, and dates.
+- Select documents that directly support the task.
+- Ask for issue maps, evidence matrices, risks, next steps, talking points, or procedural tasks.
 
 ## Chat or Workflow Fails With Missing Key
 
@@ -100,7 +118,7 @@ Check:
 
 - The correct workspace is selected.
 - The correct matter is selected.
-- Documents were uploaded or ingested successfully.
+- Documents were uploaded, ingested, or synced successfully.
 - Documents are indexed.
 - The documents belong to the selected matter or workspace scope.
 
@@ -116,18 +134,10 @@ Check that a target language is selected, source text or one supported upload is
 
 Try a smaller source text, add context, or use a more precise mode such as Legal or Literal. For scanned documents, extract text with OCR before uploading if the app cannot read the file contents.
 
-## Connected Folder Sync Fails
-
-Check that the folder path exists, the app has permission to read it, and the files are supported. Reconnect the folder if the path changed.
-
 ## Persona Does Not Affect Voice
 
 Stop the current voice session and start a new one after changing persona. Voice reads the selected persona only when the Realtime session starts.
 
-## Council Output Is Missing Evidence
-
-Check that the council run has document context, documents are indexed, and the objective includes searchable facts or issues.
-
 ## Output Should Not Be Used Directly
 
-AI Blueprint outputs require professional review. Verify facts, citations, legal authorities, deadlines, procedural rules, privilege issues, and client instructions before external use.
+AI Blueprint outputs require professional review. Verify facts, citations, legal authorities, deadlines, procedural rules, privilege issues, confidentiality issues, and client instructions before external use.
