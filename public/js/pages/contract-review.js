@@ -1,9 +1,7 @@
 // ── STANDALONE CONTRACT REVIEW ───────────────────────────────────────────
 function contractReviewWorkspaceId() {
   const selectValue = document.getElementById('contract-review-workspace-select')?.value || '';
-  const workspaces = App.v2.workspaces || [];
-  if (selectValue && workspaces.some(w => w.workspace_id === selectValue)) return selectValue;
-  return App.v2.workspaceId || workspaces[0]?.workspace_id || null;
+  return v2ExistingWorkspaceId(selectValue);
 }
 
 function selectedContractReviewMatterId() {
@@ -12,6 +10,7 @@ function selectedContractReviewMatterId() {
 }
 
 async function renderStandaloneContractReview() {
+  if (!App.v2.user) await initV2();
   renderContractReviewScopeSelector();
   await loadStandaloneContractPlaybooks();
   renderContractReviewSourceDocuments();
@@ -39,6 +38,8 @@ function renderContractReviewScopeSelector() {
 }
 
 async function onContractReviewWorkspaceChange() {
+  const workspaceId = contractReviewWorkspaceId();
+  if (workspaceId && workspaceId !== App.v2.workspaceId) await setV2Workspace(workspaceId);
   const matterSelect = document.getElementById('contract-review-matter-select');
   if (matterSelect) matterSelect.value = '';
   renderContractReviewScopeSelector();
@@ -62,15 +63,18 @@ async function loadStandaloneContractReviewHistory() {
     const data = await r.json();
     App.contractReview.history = data.items || [];
     card.style.display = App.contractReview.history.length ? 'block' : 'none';
-    list.innerHTML = App.contractReview.history.map(run => `<div class="council-row">
-      <div class="council-row-head">
-        <div>
+    list.innerHTML = App.contractReview.history.map(run => `<div class="council-row contract-review-history-row">
+      <div class="contract-review-history-main">
+        <div class="contract-review-history-copy">
           <div class="council-card-title">${esc(run.title || 'Contract review')}</div>
           <div class="council-card-meta">${esc(run.completed_at ? new Date(run.completed_at).toLocaleString() : run.status || 'queued')}${run.review_depth ? ' · ' + esc(run.review_depth) : ''}</div>
         </div>
         <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
       </div>
-      <div class="council-actions"><button class="btn-secondary" type="button" onclick="openStandaloneContractReviewRun('${esc(run.id)}')">Open</button></div>
+      <div class="council-actions contract-review-history-actions">
+        <button class="btn-secondary" type="button" onclick="openStandaloneContractReviewRun('${esc(run.id)}')">Open</button>
+        <button class="danger-btn" type="button" onclick="deleteStandaloneContractReviewRun('${esc(run.id)}')">Delete</button>
+      </div>
     </div>`).join('');
   } catch(e) {
     card.style.display = 'none';
@@ -88,6 +92,25 @@ async function openStandaloneContractReviewRun(runId) {
     showToast('Contract review loaded.');
   } catch(e) {
     showToast('Failed to load review: ' + e.message, 'error');
+  }
+}
+
+async function deleteStandaloneContractReviewRun(runId) {
+  const workspaceId = contractReviewWorkspaceId();
+  if (!workspaceId || !runId) return;
+  if (!confirm('Delete this contract review? This cannot be undone.')) return;
+  try {
+    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/contract-review/runs/${encodeURIComponent(runId)}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    if (App.contractReview.result?.id === runId) {
+      App.contractReview.result = null;
+      const grid = document.getElementById('contract-review-result-grid');
+      if (grid) grid.style.display = 'none';
+    }
+    await loadStandaloneContractReviewHistory();
+    showToast('Contract review deleted.');
+  } catch(e) {
+    showToast('Failed to delete review: ' + e.message, 'error');
   }
 }
 
@@ -305,6 +328,25 @@ function renderStandaloneRiskHeatmap(clauses) {
         return `<div class="heatmap-cell risk-${esc(level)} ${value ? 'has-risk' : ''}">${value || ''}</div>`;
       }).join('')}`).join('')}
     </div>
+  </div>`;
+}
+
+function renderContractSummaries(summaries) {
+  const items = summaries || [];
+  if (!items.length) return '';
+  return `<div class="contract-summary-grid">
+    ${items.map(summary => {
+      const audience = summary.audience || summary.summary_type || 'summary';
+      const text = summary.summary_text || summary.summary || summary.text || summary.content || '';
+      const bullets = Array.isArray(summary.negotiation_points || summary.key_points || summary.bullets) ? (summary.negotiation_points || summary.key_points || summary.bullets) : [];
+      const unusualTerms = Array.isArray(summary.unusual_terms) ? summary.unusual_terms : [];
+      return `<div class="contract-summary-card">
+        <div class="council-card-title">${esc(String(audience).replace(/_/g, ' '))}</div>
+        ${text ? `<div class="council-card-desc">${esc(contractReviewDisplayValue(text)).replace(/\n/g, '<br>')}</div>` : ''}
+        ${bullets.length ? `<ul>${bullets.map(item => `<li>${esc(contractReviewDisplayValue(item))}</li>`).join('')}</ul>` : ''}
+        ${unusualTerms.length ? `<div class="council-card-meta">${esc(unusualTerms.length)} unusual term${unusualTerms.length === 1 ? '' : 's'}</div>` : ''}
+      </div>`;
+    }).join('')}
   </div>`;
 }
 

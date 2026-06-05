@@ -1,9 +1,7 @@
 // ── MEDIATION PREP ─────────────────────────────────────────────────────
 function mediationPrepWorkspaceId() {
   const selectValue = document.getElementById('mediation-prep-workspace-select')?.value || '';
-  const workspaces = App.v2.workspaces || [];
-  if (selectValue && workspaces.some(w => w.workspace_id === selectValue)) return selectValue;
-  return App.v2.workspaceId || workspaces[0]?.workspace_id || null;
+  return v2ExistingWorkspaceId(selectValue);
 }
 
 function selectedMediationPrepMatterId() {

@@ -7,9 +7,17 @@ def run_intake(text: str) -> IntakeResult:
     lower = text.lower()
     category = "general"
     contract_type = "Contract"
-    if "non-disclosure" in lower or "confidentiality agreement" in lower or "nda" in lower:
-        category = "nda"
-        contract_type = "Non-Disclosure Agreement"
+    if (
+        "master services" in lower
+        or "services agreement" in lower
+        or "supply agreement" in lower
+        or "supplier agreement" in lower
+        or "vendor agreement" in lower
+        or "purchase agreement" in lower
+        or "purchase order terms" in lower
+    ):
+        category = "msa"
+        contract_type = "Supply/Vendor Agreement" if "supply" in lower or "supplier" in lower else "MSA/Vendor Agreement"
     elif "data processing agreement" in lower or "data protection addendum" in lower or ("processor" in lower and "controller" in lower):
         category = "dpa"
         contract_type = "Data Processing Agreement"
@@ -25,9 +33,9 @@ def run_intake(text: str) -> IntakeResult:
     elif "reseller agreement" in lower or "channel partner" in lower or "authorized reseller" in lower:
         category = "reseller"
         contract_type = "Reseller Agreement"
-    elif "master services" in lower or "services agreement" in lower:
-        category = "msa"
-        contract_type = "MSA/Vendor Agreement"
+    elif "non-disclosure" in lower or "confidentiality agreement" in lower or "nda" in lower:
+        category = "nda"
+        contract_type = "Non-Disclosure Agreement"
 
     parties = _extract_parties(text)
     dates = re.findall(r"\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|[A-Z][a-z]+ \d{1,2}, \d{4})\b", text)[:8]

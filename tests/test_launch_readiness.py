@@ -552,6 +552,24 @@ class LaunchReadinessTest(unittest.TestCase):
             self.assertIsNone(selected.workspace_id)
             self.assertEqual(selected.contract_category, "nda")
 
+    def test_contract_intake_routes_supply_agreement_to_vendor_playbook(self) -> None:
+        intake = run_intake(
+            "Supply Agreement between Acme Buyer and Widget Supplier. "
+            "Supplier will deliver products under purchase order terms with fees, warranties, and termination rights. "
+            "The parties also agree to non-disclosure obligations for confidential information."
+        )
+        self.assertEqual(intake.contract_category, "msa")
+        self.assertEqual(intake.contract_type, "Supply/Vendor Agreement")
+        with SessionLocal() as db:
+            selected = _select_playbook(db, "missing-workspace-for-builtins", None, intake.contract_category)
+            self.assertIsNotNone(selected)
+            self.assertEqual(selected.id, "builtin-msa-v1")
+
+    def test_auto_select_does_not_fall_back_to_unrelated_playbook(self) -> None:
+        with SessionLocal() as db:
+            selected = _select_playbook(db, "missing-workspace-for-builtins", None, "general")
+            self.assertIsNone(selected)
+
     def test_conflict_detector_flags_duplicate_governing_law(self) -> None:
         clauses = [
             ContractClause(id="clause-1", clause_type="governing_law", text="This agreement is governed by New York law.", review_status="pending"),

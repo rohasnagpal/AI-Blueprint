@@ -1,9 +1,7 @@
 // ── NEGOTIATION PREP ─────────────────────────────────────────────────────
 function negotiationPrepWorkspaceId() {
   const selectValue = document.getElementById('negotiation-prep-workspace-select')?.value || '';
-  const workspaces = App.v2.workspaces || [];
-  if (selectValue && workspaces.some(w => w.workspace_id === selectValue)) return selectValue;
-  return App.v2.workspaceId || workspaces[0]?.workspace_id || null;
+  return v2ExistingWorkspaceId(selectValue);
 }
 
 function selectedNegotiationPrepMatterId() {

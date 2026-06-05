@@ -55,15 +55,19 @@ def _unique_workspace_slug(db: Session, base_slug: str) -> str:
     return slug
 
 
+def _isoformat_or_none(value) -> str | None:
+    return value.isoformat() if value else None
+
+
 def _format_workspace(workspace: Workspace, role: str | None = None) -> dict:
     data = {
         "id": workspace.id,
         "name": workspace.name,
         "slug": workspace.slug,
         "created_by_user_id": workspace.created_by_user_id,
-        "created_at": workspace.created_at.isoformat(),
-        "updated_at": workspace.updated_at.isoformat(),
-        "deleted_at": workspace.deleted_at.isoformat() if workspace.deleted_at else None,
+        "created_at": _isoformat_or_none(workspace.created_at),
+        "updated_at": _isoformat_or_none(workspace.updated_at),
+        "deleted_at": _isoformat_or_none(workspace.deleted_at),
     }
     if role:
         data["role"] = role
@@ -79,8 +83,8 @@ def _format_matter(matter: Matter) -> dict:
         "description": matter.description,
         "status": matter.status,
         "created_by_user_id": matter.created_by_user_id,
-        "created_at": matter.created_at.isoformat(),
-        "updated_at": matter.updated_at.isoformat(),
+        "created_at": _isoformat_or_none(matter.created_at),
+        "updated_at": _isoformat_or_none(matter.updated_at),
     }
 
 
@@ -123,7 +127,7 @@ def _format_workspace_member(membership: WorkspaceMember, member: User) -> dict:
         "role": membership.role,
         "is_active": member.is_active,
         "is_system_admin": member.is_system_admin,
-        "created_at": membership.created_at.isoformat(),
+        "created_at": _isoformat_or_none(membership.created_at),
     }
 
 
@@ -334,7 +338,7 @@ async def list_matters(workspace_id: str, page: int = Query(default=1, ge=1), pa
     workspace = db.get(Workspace, workspace_id)
     if not workspace or workspace.deleted_at:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
-    first_matter = db.execute(select(Matter.id).where(Matter.workspace_id == workspace_id)).scalar_one_or_none()
+    first_matter = db.execute(select(Matter.id).where(Matter.workspace_id == workspace_id).limit(1)).scalar_one_or_none()
     if not first_matter:
         _create_default_matter(db, workspace, user)
         db.commit()

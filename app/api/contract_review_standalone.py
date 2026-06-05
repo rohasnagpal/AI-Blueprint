@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.contract_agents.clause_extractor import extract_clauses
@@ -30,6 +30,7 @@ from app.core.models import (
     BlueprintInstance,
     BlueprintMember,
     ContractClause,
+    ContractClauseReviewDecision,
     ContractPlaybook,
     ContractPlaybookClause,
     ContractPlaybookFinding,
@@ -186,7 +187,7 @@ def _select_playbook(db: Session, workspace_id: str, playbook_id: str | None, ca
         playbook = _first_playbook_for_category(db, candidate, workspace_id)
         if playbook:
             return playbook
-    return _first_playbook_for_category(db, None, workspace_id)
+    return None
 
 
 def _standalone_clause(workspace_id: str, run_id: str, item) -> ContractClause:
@@ -682,6 +683,55 @@ async def get_standalone_run(
 ):
     require_workspace_member(workspace_id, user, db)
     return _format_persisted_run(db, workspace_id, run_id)
+
+
+@router.delete("/runs/{run_id}")
+async def delete_standalone_run(
+    workspace_id: str,
+    run_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_workspace_member(workspace_id, user, db)
+    run = db.execute(
+        select(ContractReviewRun).where(
+            ContractReviewRun.workspace_id == workspace_id,
+            ContractReviewRun.id == run_id,
+            ContractReviewRun.mode == "agentic_standalone",
+        )
+    ).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract review run not found")
+    for model in (
+        ContractClauseReviewDecision,
+        ContractRedlineSuggestion,
+        ContractRiskFinding,
+        ContractPlaybookFinding,
+        ContractReviewSummary,
+        ContractReviewStepOutput,
+        ContractReviewOutput,
+        ContractClause,
+    ):
+        db.execute(delete(model).where(model.workspace_id == workspace_id, model.run_id == run_id))
+    db.execute(
+        delete(Escalation).where(
+            Escalation.workspace_id == workspace_id,
+            Escalation.source_type == "contract_review_run",
+            Escalation.source_id == run_id,
+        )
+    )
+    db.delete(run)
+    record_audit_event(
+        db,
+        action="contract_review_standalone.delete",
+        resource_type="contract_review_standalone",
+        resource_id=run_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        metadata={"title": run.title},
+    )
+    db.commit()
+    return {"deleted": True, "id": run_id}
 
 
 def _execute_standalone_contract_review(

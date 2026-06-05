@@ -31,6 +31,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -45,13 +50,15 @@ jobs:
       - name: Smoke test v2 foundation
         env:
           AI_BLUEPRINT_DATABASE_URL: sqlite:////tmp/ai_blueprint_v2_ci.db
-          AI_BLUEPRINT_LEGACY_DATABASE_PATH: /tmp/ai_blueprint_legacy_ci.db
+          AI_BLUEPRINT_APP_DATABASE_PATH: /tmp/ai_blueprint_app_ci.db
           AI_BLUEPRINT_UPLOADS_DIR: /tmp/ai_blueprint_v2_uploads
           AI_BLUEPRINT_SECRET_KEY_FILE: /tmp/ai_blueprint_v2_secret.key
-          AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE: /tmp/ai_blueprint_legacy_secret.key
+          AI_BLUEPRINT_APP_SECRET_KEY_FILE: /tmp/ai_blueprint_app_secret.key
         run: |
           rm -f /tmp/ai_blueprint_v2_ci.db*
+          rm -f /tmp/ai_blueprint_app_ci.db*
           rm -f /tmp/ai_blueprint_v2_secret.key
+          rm -f /tmp/ai_blueprint_app_secret.key
           rm -rf /tmp/ai_blueprint_v2_uploads
           python - <<'PY'
           from alembic.config import Config
@@ -556,12 +563,9 @@ jobs:
       - name: Smoke test v2 hardening
         env:
           AI_BLUEPRINT_DATABASE_URL: sqlite:////tmp/ai_blueprint_v2_hardening_ci.db
-          AI_BLUEPRINT_LEGACY_DATABASE_PATH: /tmp/ai_blueprint_legacy_hardening_ci.db
+          AI_BLUEPRINT_APP_DATABASE_PATH: /tmp/ai_blueprint_app_hardening_ci.db
           AI_BLUEPRINT_UPLOADS_DIR: /tmp/ai_blueprint_v2_hardening_uploads
           AI_BLUEPRINT_SECRET_KEY_FILE: /tmp/ai_blueprint_v2_hardening_secret.key
-          AI_BLUEPRINT_LEGACY_SECRET_KEY_FILE: /tmp/ai_blueprint_legacy_hardening_secret.key
+          AI_BLUEPRINT_APP_SECRET_KEY_FILE: /tmp/ai_blueprint_app_hardening_secret.key
         run: |
-          rm -f /tmp/ai_blueprint_v2_hardening_ci.db*
-          rm -f /tmp/ai_blueprint_v2_hardening_secret.key
-          rm -rf /tmp/ai_blueprint_v2_hardening_uploads
           python scripts/v2_hardening_smoke.py

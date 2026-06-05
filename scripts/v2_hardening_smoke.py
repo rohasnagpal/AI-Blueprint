@@ -1,3 +1,4 @@
+import os
 import time
 import sys
 from pathlib import Path
@@ -9,6 +10,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import database
 from app.core.database import run_migrations
 from main import app
+
+
+def clean_runtime() -> None:
+    paths = [
+        "AI_BLUEPRINT_DATABASE_URL",
+        "AI_BLUEPRINT_APP_DATABASE_PATH",
+        "AI_BLUEPRINT_UPLOADS_DIR",
+        "AI_BLUEPRINT_SECRET_KEY_FILE",
+        "AI_BLUEPRINT_APP_SECRET_KEY_FILE",
+    ]
+    for name in paths:
+        value = os.environ.get(name)
+        if not value:
+            continue
+        path = Path(value.removeprefix("sqlite:///"))
+        resolved = path.resolve()
+        if not str(resolved).startswith(("/tmp/", "/private/tmp/")):
+            raise RuntimeError(f"{name} must point under /tmp for the hardening smoke cleanup: {path}")
+        if name.endswith("DATABASE_URL"):
+            for candidate in [path, Path(f"{path}-wal"), Path(f"{path}-shm")]:
+                if candidate.exists():
+                    candidate.unlink()
+        elif path.is_dir():
+            for child in sorted(path.rglob("*"), reverse=True):
+                if child.is_file():
+                    child.unlink()
+                elif child.is_dir():
+                    child.rmdir()
+            path.rmdir()
+        else:
+            for candidate in [path, Path(f"{path}-wal"), Path(f"{path}-shm")]:
+                if candidate.exists():
+                    candidate.unlink()
 
 
 def assert_ok(response, status_code=200):
@@ -29,6 +63,7 @@ def wait_job(client: TestClient, workspace_id: str, job_id: str) -> dict:
 
 
 def main() -> None:
+    clean_runtime()
     run_migrations()
     database.init_db()
 

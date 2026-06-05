@@ -7,23 +7,55 @@ function workspaceManagerSelected() {
   return App.workspaceManager.workspaces.find(w => w.id === App.workspaceManager.selectedId) || null;
 }
 
+function firstAvailableWorkspaceId() {
+  const workspaces = App.workspaceManager.workspaces || [];
+  if (App.v2.workspaceId && workspaces.some(w => w.id === App.v2.workspaceId)) {
+    return App.v2.workspaceId;
+  }
+  return workspaces[0]?.id || null;
+}
+
+async function loadWorkspaceManagerFallback() {
+  const r = await fetch('/api/v2/me/navigation?page_size=200');
+  if (!r.ok) throw new Error(await apiError(r));
+  const data = await r.json();
+  App.workspaceManager.workspaces = (data.items || []).map(w => ({
+    id: w.workspace_id,
+    name: w.workspace_name || 'Workspace',
+    slug: null,
+    role: w.role || 'member'
+  }));
+}
+
 async function loadWorkspaceManager() {
   if (!App.v2.user) {
     renderWorkspaceManagerSignedOut();
     return;
   }
+  let primaryError = null;
   try {
     const r = await fetch('/api/v2/workspaces?page_size=200');
     if (!r.ok) throw new Error(await apiError(r));
     const data = await r.json();
     App.workspaceManager.workspaces = data.items || [];
+  } catch(e) {
+    primaryError = e;
+    try {
+      await loadWorkspaceManagerFallback();
+    } catch(fallbackError) {
+      showToast('Failed to load workspaces: ' + fallbackError.message, 'error');
+      return;
+    }
+  }
+  try {
     if (!App.workspaceManager.workspaces.some(w => w.id === App.workspaceManager.selectedId)) {
-      App.workspaceManager.selectedId = App.v2.workspaceId || App.workspaceManager.workspaces[0]?.id || null;
+      App.workspaceManager.selectedId = firstAvailableWorkspaceId();
     }
     await loadWorkspaceManagerMatters();
     renderWorkspaceManager();
+    if (primaryError) showToast('Loaded workspaces with limited details.', 'error');
   } catch(e) {
-    showToast('Failed to load workspaces: ' + e.message, 'error');
+    showToast('Failed to load workspace matters: ' + e.message, 'error');
   }
 }
 
@@ -209,16 +241,26 @@ async function createWorkspaceManagerMatter() {
     showToast('Matter name is required.', 'error');
     return;
   }
+  let matter = null;
   try {
     const r = await fetch(workspaceApi(workspaceId, '/matters'), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     if (!r.ok) throw new Error(await apiError(r));
+    matter = await r.json();
     ['matter-name','matter-client','matter-description'].forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
+    const status = document.getElementById('matter-status');
+    if (status) status.value = 'active';
+  } catch(e) {
+    showToast('Failed to create matter: ' + e.message, 'error');
+    return;
+  }
+  try {
     await loadWorkspaceManagerMatters();
+    if (matter?.id) App.v2.activeMatterId = matter.id;
     if (workspaceId === App.v2.workspaceId) await loadV2ShellData();
     renderWorkspaceManager();
     showToast('Matter created.');
   } catch(e) {
-    showToast('Failed to create matter: ' + e.message, 'error');
+    showToast('Matter created, but refresh failed: ' + e.message, 'error');
   }
 }
 
@@ -242,12 +284,17 @@ async function updateWorkspaceManagerMatter(matterId) {
   try {
     const r = await fetch(workspaceApi(workspaceId, `/matters/${encodeURIComponent(matterId)}`), {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     if (!r.ok) throw new Error(await apiError(r));
+  } catch(e) {
+    showToast('Failed to save matter: ' + e.message, 'error');
+    return;
+  }
+  try {
     await loadWorkspaceManagerMatters();
     if (workspaceId === App.v2.workspaceId) await loadV2ShellData();
     renderWorkspaceManager();
     showToast('Matter saved.');
   } catch(e) {
-    showToast('Failed to save matter: ' + e.message, 'error');
+    showToast('Matter saved, but refresh failed: ' + e.message, 'error');
   }
 }
 
@@ -258,11 +305,16 @@ async function deleteWorkspaceManagerMatter(matterId) {
   try {
     const r = await fetch(workspaceApi(workspaceId, `/matters/${encodeURIComponent(matterId)}`), {method:'DELETE'});
     if (!r.ok) throw new Error(await apiError(r));
+  } catch(e) {
+    showToast('Failed to delete matter: ' + e.message, 'error');
+    return;
+  }
+  try {
     await loadWorkspaceManagerMatters();
     if (workspaceId === App.v2.workspaceId) await loadV2ShellData();
     renderWorkspaceManager();
     showToast('Matter deleted.');
   } catch(e) {
-    showToast('Failed to delete matter: ' + e.message, 'error');
+    showToast('Matter deleted, but refresh failed: ' + e.message, 'error');
   }
 }

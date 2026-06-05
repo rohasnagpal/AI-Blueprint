@@ -2665,6 +2665,46 @@
     align-items: start;
   }
 
+  .contract-review-history-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 16px;
+  }
+
+  .contract-review-history-main {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .contract-review-history-copy {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+
+  .contract-review-history-copy .council-card-title,
+  .contract-review-history-copy .council-card-meta {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .contract-review-history-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+
+  .contract-review-history-actions .btn-secondary,
+  .contract-review-history-actions .danger-btn {
+    min-height: 34px;
+    padding: 6px 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
   .contract-review-list,
   .contract-review-detail,
   .contract-trace-panel,
@@ -3141,6 +3181,17 @@
 
     .contract-review-grid {
       grid-template-columns: 1fr;
+    }
+
+    .contract-review-history-row,
+    .contract-review-history-main {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    .contract-review-history-actions {
+      justify-content: flex-start;
+      flex-wrap: wrap;
     }
 
     .contract-clause-row {

@@ -44,10 +44,13 @@ async function refreshV2Workspace(autoCreate = true) {
         if (navAgain.ok) workspaces = (await navAgain.json()).items || [];
       }
     }
+    const currentWorkspaceId = workspaces.some(w => w.workspace_id === App.v2.workspaceId)
+      ? App.v2.workspaceId
+      : workspaces[0]?.workspace_id || null;
     App.v2 = {
       ...App.v2,
       enabled: !!workspaces.length,
-      workspaceId: workspaces[0]?.workspace_id || null,
+      workspaceId: currentWorkspaceId,
       workspaces
     };
     if (App.v2.enabled) await loadV2ShellData();
@@ -275,6 +278,13 @@ function v2WorkspacePath(path) {
   return `/api/v2/workspaces/${encodeURIComponent(App.v2.workspaceId)}${path}`;
 }
 
+function v2ExistingWorkspaceId(selectValue = '') {
+  const workspaces = App.v2.workspaces || [];
+  if (selectValue && workspaces.some(w => w.workspace_id === selectValue)) return selectValue;
+  if (App.v2.workspaceId && workspaces.some(w => w.workspace_id === App.v2.workspaceId)) return App.v2.workspaceId;
+  return workspaces[0]?.workspace_id || null;
+}
+
 async function v2Fetch(path, options = {}) {
   if (!App.v2.enabled) return null;
   const url = path.startsWith('/api/v2/') ? path : v2WorkspacePath(path);
@@ -359,9 +369,7 @@ function renderUploadMatterSelector() {
 
 function uploadWorkspaceId() {
   const selectValue = document.getElementById('upload-workspace-select')?.value || '';
-  const workspaces = App.v2.workspaces || [];
-  if (selectValue && workspaces.some(w => w.workspace_id === selectValue)) return selectValue;
-  return App.v2.workspaceId || workspaces[0]?.workspace_id || null;
+  return v2ExistingWorkspaceId(selectValue);
 }
 
 function uploadMattersForWorkspace(workspaceId) {
@@ -415,9 +423,7 @@ function renderTranslateScopeSelector() {
 
 function translateWorkspaceId() {
   const selectValue = document.getElementById('translate-workspace-select')?.value || '';
-  const workspaces = App.v2.workspaces || [];
-  if (selectValue && workspaces.some(w => w.workspace_id === selectValue)) return selectValue;
-  return App.v2.workspaceId || workspaces[0]?.workspace_id || null;
+  return v2ExistingWorkspaceId(selectValue);
 }
 
 function onTranslateWorkspaceChange() {
