@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.api import admin, arbitration_prep, audit, auth, contract_review_standalone, documents, drafting, escalations, jobs, litigation_prep, mediation_prep, navigation, negotiation_prep, personas, realtime, secrets, settings, skills, translation, workspaces
 from app.core.config import get_settings
 from app.core.database import get_engine
+from app.core.build_info import __version__
 
 router = APIRouter(prefix="/api/v2")
 
@@ -32,10 +33,9 @@ async def health():
     secret_key_present = settings.secret_key_file.exists() or bool(os.getenv("AI_BLUEPRINT_SECRET_KEY"))
     return {
         "ok": db_ok,
-        "version": "v2",
+        "version": __version__,
         "database": {"ok": db_ok, "migration_revision": migration_revision},
         "storage": {
-            "uploads_dir": str(settings.uploads_dir),
             "free_bytes": disk.free,
             "total_bytes": disk.total,
         },

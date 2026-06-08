@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from sqlalchemy import text
 
 ROOT = Path("/tmp/ai_blueprint_launch_tests")
 DB_PATH = ROOT / "v2.db"
@@ -43,9 +44,12 @@ from app.core.contract_agents.tools import run_contract_agent_tools
 from app.core.config import Settings, get_settings, validate_runtime_security
 from app.core.database import SessionLocal
 from app.core.document_indexer import _extract_chunks
-from app.api.contract_review_standalone import _deterministic_agentic_review_fallback, _is_agent_invalid_json_error, _select_playbook
-from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, ContractReviewOutput, ContractReviewRun, ContractReviewStepOutput, KnowledgeChunk, KnowledgeEmbedding, User, Workspace, WorkspaceMember, utcnow
-from app.core.secrets import decrypt_secret
+from app.core.error_sanitizer import sanitize_provider_error
+from app.api.contract_review_standalone import _deterministic_agentic_review_fallback, _is_agent_invalid_json_error, _runtime_settings_for_workspace, _select_playbook
+from app.api.auth import _check_auth_rate_limit
+from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, ContractReviewOutput, ContractReviewRun, ContractReviewStepOutput, KnowledgeChunk, KnowledgeEmbedding, Secret, User, Workspace, WorkspaceMember, utcnow
+from app.core.secrets import decrypt_secret, encrypt_secret
+from app.core.build_info import __version__
 
 
 def _configure_runtime() -> None:
@@ -98,9 +102,11 @@ class LaunchReadinessTest(unittest.TestCase):
     def test_public_launch_flow_and_guardrails(self) -> None:
         health = self.client.get("/api/v2/health")
         self.assertEqual(health.status_code, 200, health.text)
+        self.assertEqual(health.json()["version"], __version__)
         expected_head = ScriptDirectory.from_config(Config("alembic.ini")).get_current_head()
         self.assertEqual(health.json()["database"]["migration_revision"], expected_head)
         self.assertTrue(health.json()["secrets"]["key_configured"])
+        self.assertNotIn("uploads_dir", health.json()["storage"])
         self.assertEqual(health.headers["x-content-type-options"], "nosniff")
         self.assertEqual(health.headers["x-frame-options"], "DENY")
         csp = health.headers["content-security-policy"]
@@ -294,20 +300,21 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertTrue(any(item["contract_category"] == "saas" for item in playbooks.json()))
         self.assertTrue(any(item["contract_category"] == "consulting" for item in playbooks.json()))
         self.assertTrue(any(item["contract_category"] == "reseller" for item in playbooks.json()))
-        review = self.client.post(
-            f"/api/v2/workspaces/{workspace_id}/contract-review",
-            json={
-                "title": "Standalone Contract Review",
-                "matter_id": matter_id,
-                "document_ids": [upload.json()["id"]],
-                "playbook_id": "builtin-msa-v1",
-                "review_depth": "detailed",
-            },
-        )
-        self.assertEqual(review.status_code, 200, review.text)
-        queued_review = review.json()
-        self.assertEqual(queued_review["status"], "queued")
-        review_job = self.wait_for_job(workspace_id, queued_review["job"]["id"])
+        with patch("app.core.contract_agents.agentic_review.complete_with_configured_llm", return_value="not json"):
+            review = self.client.post(
+                f"/api/v2/workspaces/{workspace_id}/contract-review",
+                json={
+                    "title": "Standalone Contract Review",
+                    "matter_id": matter_id,
+                    "document_ids": [upload.json()["id"]],
+                    "playbook_id": "builtin-msa-v1",
+                    "review_depth": "detailed",
+                },
+            )
+            self.assertEqual(review.status_code, 200, review.text)
+            queued_review = review.json()
+            self.assertEqual(queued_review["status"], "queued")
+            review_job = self.wait_for_job(workspace_id, queued_review["job"]["id"])
         self.assertEqual(review_job["job"]["status"], "completed", review_job)
         review_result = self.client.get(f"/api/v2/workspaces/{workspace_id}/contract-review/runs/{queued_review['run_id']}")
         self.assertEqual(review_result.status_code, 200, review_result.text)
@@ -871,6 +878,80 @@ class LaunchReadinessTest(unittest.TestCase):
     def test_runtime_security_rejects_insecure_production_cookies(self) -> None:
         with self.assertRaises(RuntimeError):
             validate_runtime_security(Settings(environment="production", secure_cookies=False))
+
+    def test_packaged_runtime_rejects_lan_bind_with_insecure_cookies(self) -> None:
+        with patch("app.core.config.sys.frozen", True, create=True):
+            with self.assertRaisesRegex(RuntimeError, "cannot listen on all interfaces"):
+                validate_runtime_security(Settings(host="0.0.0.0", secure_cookies=False))
+
+    def test_local_binary_defaults_to_loopback_host(self) -> None:
+        previous_host = os.environ.get("AI_BLUEPRINT_HOST")
+        try:
+            os.environ.pop("AI_BLUEPRINT_HOST", None)
+            get_settings.cache_clear()
+            self.assertEqual(get_settings().host, "127.0.0.1")
+        finally:
+            if previous_host is None:
+                os.environ.pop("AI_BLUEPRINT_HOST", None)
+            else:
+                os.environ["AI_BLUEPRINT_HOST"] = previous_host
+            get_settings.cache_clear()
+
+    def test_auth_rate_limit_uses_epoch_timestamps(self) -> None:
+        class Client:
+            host = "127.0.0.1"
+
+        class Request:
+            headers = {}
+            client = Client()
+
+        with SessionLocal() as db:
+            _check_auth_rate_limit(db, Request(), "epoch-check")
+            attempted_at = db.execute(
+                text("SELECT attempted_at FROM auth_rate_limit_attempts WHERE client_key LIKE :key ORDER BY attempted_at DESC LIMIT 1"),
+                {"key": "%epoch-check"},
+            ).scalar_one()
+        self.assertGreater(attempted_at, 1_700_000_000)
+
+    def test_provider_errors_are_sanitized_before_user_display(self) -> None:
+        error = "AuthenticationError: api_key=sk-testsecret123456789 account acct_123"
+        sanitized = sanitize_provider_error(error)
+        self.assertNotIn("sk-testsecret", sanitized)
+        self.assertIn("Check your API key", sanitized)
+
+    def test_contract_review_runtime_reads_workspace_api_key_secret(self) -> None:
+        user_id = str(uuid.uuid4())
+        workspace_id = str(uuid.uuid4())
+        with SessionLocal() as db:
+            user = User(
+                id=user_id,
+                username=f"secret-user-{user_id}@example.com",
+                email=f"secret-user-{user_id}@example.com",
+                display_name="Secret User",
+                password_hash="test",
+                is_system_admin=True,
+            )
+            workspace = Workspace(id=workspace_id, name="Secret Workspace", slug=f"secret-{workspace_id}", created_by_user_id=user.id)
+            db.add(user)
+            db.add(workspace)
+            db.flush()
+            db.add(WorkspaceMember(id=str(uuid.uuid4()), workspace_id=workspace.id, user_id=user.id, role="admin"))
+            db.add(
+                Secret(
+                    id=str(uuid.uuid4()),
+                    workspace_id=workspace.id,
+                    owner_user_id=None,
+                    name="OPENAI_API_KEY",
+                    encrypted_value=encrypt_secret("sk-workspace-secret-test"),
+                    scope="workspace",
+                    status="active",
+                    created_by_user_id=user.id,
+                )
+            )
+            db.flush()
+            settings = _runtime_settings_for_workspace(db, workspace.id, user)
+            db.rollback()
+        self.assertEqual(settings["openai_api_key"], "sk-workspace-secret-test")
 
     def test_runtime_security_requires_bootstrap_password(self) -> None:
         with self.assertRaises(RuntimeError):

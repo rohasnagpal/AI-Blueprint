@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+import database
 from app.core.contract_agents.clause_extractor import extract_clauses
 from app.core.contract_agents.conflict_detector import detect_conflicts
 from app.core.contract_agents.escalation_detector import detect_escalations
@@ -21,10 +22,12 @@ from app.core.audit import record_audit_event
 from app.core.contract_review_utils import client_summary, extract_fields, negotiation_memo, risk_matrix
 from app.core.database import SessionLocal, get_db
 from app.core.deps import get_current_user, require_workspace_member
+from app.core.error_sanitizer import sanitize_provider_error
 from app.core.jobs import add_job_event, create_job, format_job, update_job_status
 from app.core.json_utils import json_loads
 from app.core.llm import configured_llm_provider, get_runtime_settings_with_secrets
 from app.core.pagination import page_query_response
+from app.core.secrets import decrypt_secret
 from app.core.task_control import run_background_job
 from app.core.models import (
     BlueprintInstance,
@@ -45,6 +48,7 @@ from app.core.models import (
     KnowledgeChunk,
     KnowledgeDocument,
     Matter,
+    Secret,
     User,
     utcnow,
 )
@@ -773,7 +777,7 @@ def _execute_standalone_contract_review(
     sources = _sources(chunks)
     deterministic_negotiation_memo = negotiation_memo(extraction, risks)
     deterministic_client_summary = client_summary(extraction, risks)
-    settings = get_runtime_settings_with_secrets()
+    settings = _runtime_settings_for_workspace(db, workspace_id, user)
 
     def agent_progress(message: str, progress: int) -> None:
         if not job:
@@ -878,6 +882,28 @@ def _execute_standalone_contract_review(
     return payload
 
 
+def _runtime_settings_for_workspace(db: Session, workspace_id: str, user: User) -> dict:
+    settings = get_runtime_settings_with_secrets()
+    secret_rows = db.execute(
+        select(Secret).where(
+            Secret.workspace_id == workspace_id,
+            Secret.status == "active",
+            (
+                (Secret.scope.in_(("workspace", "admin")))
+                | ((Secret.scope == "user") & (Secret.owner_user_id == user.id))
+            ),
+        )
+    ).scalars()
+    for secret in secret_rows:
+        setting_key = secret.name.strip().lower()
+        if setting_key not in database.API_KEY_FIELDS:
+            continue
+        value = decrypt_secret(secret.encrypted_value)
+        if value:
+            settings[setting_key] = value
+    return settings
+
+
 def _is_agent_invalid_json_error(error: str) -> bool:
     return _is_recoverable_agent_output_error(error)
 
@@ -943,7 +969,14 @@ def _run_standalone_contract_review_job(job_id: str, workspace_id: str, user_id:
             add_job_event(db, job=job, event_type="result", message="Contract review result ready", metadata={"run_id": run_id, "title": payload["title"]})
             db.commit()
         except Exception as exc:
-            update_job_status(db, job=job, status="failed", progress=job.progress, message="Contract review failed", error=str(exc))
+            update_job_status(
+                db,
+                job=job,
+                status="failed",
+                progress=job.progress,
+                message="Contract review failed",
+                error=sanitize_provider_error(exc),
+            )
             db.commit()
 
 

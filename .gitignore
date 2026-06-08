@@ -9,6 +9,7 @@ __pycache__/
 dist/
 build/
 .eggs/
+app/core/version.py
 
 council-feature-plan.html
 

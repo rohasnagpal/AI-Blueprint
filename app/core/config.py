@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -17,6 +18,8 @@ class Settings(BaseModel):
     bootstrap_admin_username: str | None = None
     bootstrap_admin_password: str | None = None
     cors_origins: list[str] = ["http://localhost:8000", "http://127.0.0.1:8000"]
+    host: str = "127.0.0.1"
+    port: int = 8000
     max_upload_bytes: int = 25 * 1024 * 1024
     auth_rate_limit_attempts: int = 10
     auth_rate_limit_window_seconds: int = 60
@@ -51,6 +54,8 @@ def get_settings() -> Settings:
         bootstrap_admin_username=os.getenv("AI_BLUEPRINT_BOOTSTRAP_ADMIN_USERNAME"),
         bootstrap_admin_password=os.getenv("AI_BLUEPRINT_BOOTSTRAP_ADMIN_PASSWORD"),
         cors_origins=_csv_env("AI_BLUEPRINT_CORS_ORIGINS", ["http://localhost:8000", "http://127.0.0.1:8000"]),
+        host=os.getenv("AI_BLUEPRINT_HOST", "127.0.0.1").strip() or "127.0.0.1",
+        port=int(os.getenv("AI_BLUEPRINT_PORT", "8000")),
         max_upload_bytes=int(os.getenv("AI_BLUEPRINT_MAX_UPLOAD_BYTES", str(25 * 1024 * 1024))),
         auth_rate_limit_attempts=int(os.getenv("AI_BLUEPRINT_AUTH_RATE_LIMIT_ATTEMPTS", "10")),
         auth_rate_limit_window_seconds=int(os.getenv("AI_BLUEPRINT_AUTH_RATE_LIMIT_WINDOW_SECONDS", "60")),
@@ -63,6 +68,11 @@ def get_settings() -> Settings:
 
 
 def validate_runtime_security(settings: Settings) -> None:
+    if getattr(sys, "frozen", False) and settings.host in {"0.0.0.0", "::"} and not settings.secure_cookies:
+        raise RuntimeError(
+            "Packaged AI Blueprint cannot listen on all interfaces with insecure cookies. "
+            "Set AI_BLUEPRINT_HOST=127.0.0.1 for local use, or serve HTTPS with AI_BLUEPRINT_SECURE_COOKIES=true."
+        )
     if settings.environment not in {"dev", "development", "local", "test"} and not settings.secure_cookies:
         raise RuntimeError("AI_BLUEPRINT_SECURE_COOKIES=true is required outside local development")
     if settings.environment not in {"dev", "development", "local", "test"} and settings.single_user_mode:

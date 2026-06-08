@@ -59,6 +59,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pyinstaller
 
+      - name: Write build version
+        shell: bash
+        run: |
+          printf '__version__ = "%s"\n' "${{ inputs.release_tag || github.event.release.tag_name || github.ref_name }}" > app/core/version.py
+
       - name: Build executable
         run: >
           pyinstaller
@@ -66,12 +71,8 @@ jobs:
           --onefile
           --name ai-blueprint
           --add-data "${{ matrix.add-data }}"
-          --hidden-import rag.openai_rag
-          --hidden-import rag.llamaindex_rag
           --hidden-import routes.chats
-          --hidden-import routes.documents
           --hidden-import routes.email
-          --hidden-import routes.councils
           --hidden-import routes.personas
           --hidden-import routes.settings
           main.py

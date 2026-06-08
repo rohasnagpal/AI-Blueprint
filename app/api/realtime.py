@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 import database
 from app.core.deps import get_current_user
+from app.core.error_sanitizer import sanitize_provider_error
 from app.core.models import User
 
 router = APIRouter(prefix="/realtime", tags=["realtime"])
@@ -111,8 +112,11 @@ async def create_realtime_session(body: RealtimeSessionRequest, _user: User = De
             )
             response.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        detail = exc.response.text or "Realtime session creation failed."
-        raise HTTPException(status_code=exc.response.status_code, detail=detail[:1000]) from exc
+        detail = sanitize_provider_error(
+            exc.response.text,
+            fallback="Realtime session creation failed. Check your OpenAI API key, billing, quota, and model settings.",
+        )
+        raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Realtime session creation failed: {exc}") from exc
 

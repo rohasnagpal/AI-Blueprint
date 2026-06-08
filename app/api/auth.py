@@ -1,5 +1,5 @@
 import uuid
-from time import monotonic
+from time import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
@@ -137,7 +137,7 @@ def _check_auth_rate_limit(db: Session, request: Request, identifier: str = "") 
     settings = get_settings()
     if settings.auth_rate_limit_attempts <= 0:
         return
-    now = monotonic()
+    now = time()
     window_start = now - settings.auth_rate_limit_window_seconds
     client_key = _client_key(request, identifier)
     _ensure_auth_rate_limit_table(db)
