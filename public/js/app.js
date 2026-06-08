@@ -229,7 +229,10 @@ function switchView(name, options = {}) {
   document.getElementById('doc-selector').style.display = name === 'chat' ? 'flex' : 'none';
   if (name === 'view-docs') loadDocuments();
   if (name === 'personas') renderPersonas();
-  if (name === 'add-doc') renderUploadMatterSelector();
+  if (name === 'add-doc') {
+    renderUploadMatterSelector();
+    if (!App.v2.user) initV2().then(renderUploadMatterSelector).catch(() => renderUploadMatterSelector());
+  }
   if (name === 'translate') { renderTranslateScopeSelector(); setTranslateSourceType(App.translation.sourceType); renderTranslationFile(); }
   if (name === 'contract-review') loadV2ShellData().then(renderStandaloneContractReview).catch(() => renderStandaloneContractReview());
   if (name === 'arbitration-prep') loadV2ShellData().then(renderArbitrationPrep).catch(() => renderArbitrationPrep());
@@ -238,10 +241,17 @@ function switchView(name, options = {}) {
   if (name === 'negotiation-prep') loadV2ShellData().then(renderNegotiationPrep).catch(() => renderNegotiationPrep());
   if (name === 'draft') { renderDraftScopeSelector(); loadDraftHistory(); }
   if (name === 'email') { renderEmailControls(); loadEmailMessages(); }
+  if (name === 'settings' && !App.v2.user) {
+    initV2().then(() => {
+      updateV2AuthSidebar();
+      renderUploadMatterSelector();
+    }).catch(() => {});
+  }
   if (name === 'workspaces') {
     const workspaceNav = document.getElementById('settings-nav-workspaces');
     if (workspaceNav) switchSettingsTab('workspaces', workspaceNav);
-    if (!App.v2.user) initV2().then(loadWorkspaceManager).catch(() => {});
+    if (!App.v2.user) initV2().then(loadWorkspaceManager).catch(() => renderWorkspaceManagerSignedOut());
+    else loadWorkspaceManager();
   }
   if (name === 'admin-users') {
     const usersNav = document.getElementById('settings-nav-users');

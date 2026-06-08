@@ -351,8 +351,11 @@ function switchSettingsTab(tab, el) {
   document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.settings-nav-item').forEach(s => s.classList.remove('active'));
   document.getElementById('stab-' + tab)?.classList.add('active');
-  el.classList.add('active');
-  if (tab === 'workspaces' || tab === 'matters') loadWorkspaceManager();
+  el?.classList.add('active');
+  if (tab === 'workspaces' || tab === 'matters') {
+    if (!App.v2.user) initV2().then(loadWorkspaceManager).catch(() => renderWorkspaceManagerSignedOut());
+    else loadWorkspaceManager();
+  }
   if (tab === 'users') loadAdminUsers();
   if (tab === 'activity') loadAdminActivity();
 }

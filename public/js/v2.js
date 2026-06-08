@@ -190,7 +190,7 @@ async function submitV2Auth() {
 
 function updateAdminNav() {
   const show = App.v2.user?.is_system_admin ? 'flex' : 'none';
-  const workspaceShow = App.v2.user ? 'flex' : 'none';
+  const workspaceShow = 'flex';
   const workspaceNav = document.getElementById('settings-nav-workspaces');
   const mattersNav = document.getElementById('settings-nav-matters');
   const settingsNav = document.getElementById('settings-nav-users');
@@ -353,16 +353,32 @@ function renderUploadMatterSelector() {
   const card = document.getElementById('upload-matter-card');
   if (!workspaceSelect || !matterSelect || !card) return;
   const workspaces = App.v2.workspaces || [];
-  if (!App.v2.enabled || !workspaces.length) {
-    card.style.display = 'none';
+  card.style.display = 'grid';
+  workspaceSelect.disabled = false;
+  matterSelect.disabled = false;
+  if (!App.v2.user) {
+    workspaceSelect.innerHTML = '<option value="">Sign in to use workspaces</option>';
+    matterSelect.innerHTML = '<option value="">Sign in to choose a matter</option>';
+    workspaceSelect.disabled = true;
+    matterSelect.disabled = true;
     return;
   }
-  card.style.display = 'grid';
+  if (!App.v2.enabled || !workspaces.length) {
+    workspaceSelect.innerHTML = '<option value="">No workspaces available</option>';
+    matterSelect.innerHTML = '<option value="">Create a workspace first</option>';
+    workspaceSelect.disabled = true;
+    matterSelect.disabled = true;
+    return;
+  }
   const currentWorkspaceId = uploadWorkspaceId();
   workspaceSelect.innerHTML = workspaces.map(w => `<option value="${esc(w.workspace_id)}" ${w.workspace_id === currentWorkspaceId ? 'selected' : ''}>${esc(w.workspace_name || 'Workspace')}</option>`).join('');
   const selectedMatter = matterSelect.value || (App.v2.activeMatterId && App.v2.activeMatterId !== 'all' ? App.v2.activeMatterId : '');
   const matters = uploadMattersForWorkspace(currentWorkspaceId);
   matterSelect.innerHTML = matters.map(m => `<option value="${esc(m.id)}" ${m.id === selectedMatter ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  if (!matters.length) {
+    matterSelect.innerHTML = '<option value="">Create a matter first</option>';
+    matterSelect.disabled = true;
+  }
   if (!matterSelect.value && matters.length) matterSelect.value = matters[0].id;
   if (!matters.length && currentWorkspaceId) loadUploadMattersForWorkspace(currentWorkspaceId);
 }
