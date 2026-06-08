@@ -90,7 +90,7 @@ Requirements:
 Run locally:
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/rohasnagpal/AI-Blueprint.git
 cd AIBlueprint
 
 python3 -m venv .venv
