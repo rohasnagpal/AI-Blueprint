@@ -12,6 +12,7 @@ class Settings(BaseModel):
     session_cookie_name: str = "ai_blueprint_session"
     session_days: int = 14
     secure_cookies: bool = False
+    single_user_mode: bool = True
     bootstrap_default_admin: bool = False
     bootstrap_admin_username: str | None = None
     bootstrap_admin_password: str | None = None
@@ -45,6 +46,7 @@ def get_settings() -> Settings:
         session_cookie_name=os.getenv("AI_BLUEPRINT_SESSION_COOKIE", "ai_blueprint_session"),
         session_days=int(os.getenv("AI_BLUEPRINT_SESSION_DAYS", "14")),
         secure_cookies=os.getenv("AI_BLUEPRINT_SECURE_COOKIES", secure_cookies_default).lower() == "true",
+        single_user_mode=os.getenv("AI_BLUEPRINT_SINGLE_USER_MODE", "true").lower() == "true",
         bootstrap_default_admin=os.getenv("AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN", "false").lower() == "true",
         bootstrap_admin_username=os.getenv("AI_BLUEPRINT_BOOTSTRAP_ADMIN_USERNAME"),
         bootstrap_admin_password=os.getenv("AI_BLUEPRINT_BOOTSTRAP_ADMIN_PASSWORD"),
@@ -63,6 +65,8 @@ def get_settings() -> Settings:
 def validate_runtime_security(settings: Settings) -> None:
     if settings.environment not in {"dev", "development", "local", "test"} and not settings.secure_cookies:
         raise RuntimeError("AI_BLUEPRINT_SECURE_COOKIES=true is required outside local development")
+    if settings.environment not in {"dev", "development", "local", "test"} and settings.single_user_mode:
+        raise RuntimeError("AI_BLUEPRINT_SINGLE_USER_MODE=false is required outside local development")
     if not settings.bootstrap_default_admin:
         return
     if settings.bootstrap_admin_password:

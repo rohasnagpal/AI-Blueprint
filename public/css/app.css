@@ -1592,9 +1592,15 @@
     flex-wrap: wrap;
   }
 
+  #view-contract-review .translate-actions {
+    margin-bottom: 18px;
+  }
+
   .translate-status {
     color: var(--text-muted);
     font-size: 13px;
+    line-height: 1.35;
+    min-width: 0;
   }
 
   .translate-status.error {
@@ -2676,7 +2682,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
     align-items: center;
-    padding: 14px 16px;
+    padding: 18px 28px;
   }
 
   .contract-review-history-main {

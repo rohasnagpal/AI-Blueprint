@@ -984,6 +984,31 @@ async function setV2Workspace(workspaceId) {
   await loadV2ShellData();
 }
 
+async function syncV2WorkspaceMatterDocuments(workspaceId, matterId = '', matterSelect = null, options = {}) {
+  if (!App.v2.enabled || !App.v2.user || !workspaceId) return;
+  if (workspaceId !== App.v2.workspaceId) await setV2Workspace(workspaceId);
+  let matters = uploadMattersForWorkspace(workspaceId);
+  if (!matters.length) {
+    await loadUploadMattersForWorkspace(workspaceId);
+    matters = uploadMattersForWorkspace(workspaceId);
+  }
+  const requestedMatter = options.resetMatter ? '' : matterId;
+  const selectedMatter = matters.some(m => m.id === requestedMatter) ? requestedMatter : '';
+  const activeMatter = matters.some(m => m.id === App.v2.activeMatterId) ? App.v2.activeMatterId : '';
+  const nextMatter = selectedMatter || activeMatter || matters[0]?.id || '';
+  if (matterSelect && nextMatter) matterSelect.value = nextMatter;
+  if (!nextMatter) {
+    App.v2.documents = [];
+    if (typeof normalizeV2Document === 'function') App.documents = [];
+    return;
+  }
+  if (App.v2.activeMatterId !== nextMatter) {
+    App.v2.activeMatterId = nextMatter;
+    App.v2.activeBlueprintId = null;
+  }
+  await loadV2Documents();
+}
+
 function setV2MatterFilter(matterId) {
   App.v2.activeMatterId = matterId;
   App.v2.activeBlueprintId = null;

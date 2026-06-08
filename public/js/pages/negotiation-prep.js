@@ -10,9 +10,19 @@ function selectedNegotiationPrepMatterId() {
 }
 
 async function renderNegotiationPrep() {
+  if (!App.v2.user && typeof initV2 === 'function') {
+    await initV2().catch(() => {});
+  }
+  renderNegotiationPrepScopeSelector();
+  await syncNegotiationPrepScope();
   renderNegotiationPrepScopeSelector();
   renderNegotiationPrepSourceDocuments();
   await loadNegotiationPrepHistory();
+}
+
+async function syncNegotiationPrepScope(options = {}) {
+  const matterSelect = document.getElementById('negotiation-prep-matter-select');
+  await syncV2WorkspaceMatterDocuments(negotiationPrepWorkspaceId(), matterSelect?.value || '', matterSelect, options);
 }
 
 function renderNegotiationPrepScopeSelector() {
@@ -38,9 +48,15 @@ function renderNegotiationPrepScopeSelector() {
 async function onNegotiationPrepWorkspaceChange() {
   const matterSelect = document.getElementById('negotiation-prep-matter-select');
   if (matterSelect) matterSelect.value = '';
+  await syncNegotiationPrepScope({resetMatter: true});
   renderNegotiationPrepScopeSelector();
   renderNegotiationPrepSourceDocuments();
   await loadNegotiationPrepHistory();
+}
+
+async function onNegotiationPrepMatterChange() {
+  await syncNegotiationPrepScope();
+  renderNegotiationPrepSourceDocuments();
 }
 
 function renderNegotiationPrepSourceDocuments() {

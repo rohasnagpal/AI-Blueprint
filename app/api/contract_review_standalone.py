@@ -774,23 +774,46 @@ def _execute_standalone_contract_review(
     deterministic_negotiation_memo = negotiation_memo(extraction, risks)
     deterministic_client_summary = client_summary(extraction, risks)
     settings = get_runtime_settings_with_secrets()
-    agentic_review = run_agentic_contract_review(
-        text=full_text,
-        sources=sources,
-        config=config,
-        workflow=workflow,
-        deterministic_extraction=extraction,
-        deterministic_risks=risks,
-        deterministic_negotiation_memo=deterministic_negotiation_memo,
-        deterministic_client_summary=deterministic_client_summary,
-        settings=settings,
-        tool_context={
-            "source_bundle": source_bundle,
-            "playbook": selected_playbook,
-            "playbook_clauses": playbook_clauses,
-            "supported_tools": sorted(SUPPORTED_TOOLS),
-        },
-    )
+
+    def agent_progress(message: str, progress: int) -> None:
+        if not job:
+            return
+        job.progress = max(job.progress or 0, progress)
+        add_job_event(db, job=job, event_type="progress", message=message, metadata={"progress": job.progress, "run_id": run_id})
+        db.commit()
+
+    try:
+        agentic_review = run_agentic_contract_review(
+            text=full_text,
+            sources=sources,
+            config=config,
+            workflow=workflow,
+            deterministic_extraction=extraction,
+            deterministic_risks=risks,
+            deterministic_negotiation_memo=deterministic_negotiation_memo,
+            deterministic_client_summary=deterministic_client_summary,
+            settings=settings,
+            tool_context={
+                "source_bundle": source_bundle,
+                "playbook": selected_playbook,
+                "playbook_clauses": playbook_clauses,
+                "supported_tools": sorted(SUPPORTED_TOOLS),
+            },
+            progress_callback=agent_progress,
+        )
+    except ContractReviewAgentError as exc:
+        if not _is_recoverable_agent_output_error(str(exc)):
+            raise
+        agent_progress("Specialist agents returned malformed JSON; using deterministic review output", 84)
+        agentic_review = _deterministic_agentic_review_fallback(
+            provider=configured_llm_provider(settings),
+            model=settings.get("chat_model"),
+            error=str(exc),
+            extraction=extraction,
+            risks=risks,
+            negotiation_memo_text=deterministic_negotiation_memo,
+            client_summary_text=deterministic_client_summary,
+        )
     extraction = agentic_review.get("extraction", extraction)
     risks = agentic_review.get("risk_matrix", risks)
     negotiation_memo_text = agentic_review.get("negotiation_memo") or deterministic_negotiation_memo
@@ -853,6 +876,55 @@ def _execute_standalone_contract_review(
         metadata={"document_count": len({doc.id for _chunk, doc in chunks}), "playbook_id": body.playbook_id},
     )
     return payload
+
+
+def _is_agent_invalid_json_error(error: str) -> bool:
+    return _is_recoverable_agent_output_error(error)
+
+
+def _is_recoverable_agent_output_error(error: str) -> bool:
+    lower = (error or "").lower()
+    return "invalid json" in lower or "did not return required" in lower or "incomplete json" in lower
+
+
+def _deterministic_agentic_review_fallback(
+    *,
+    provider: str | None,
+    model: str | None,
+    error: str,
+    extraction: dict[str, Any],
+    risks: list[dict[str, Any]],
+    negotiation_memo_text: str,
+    client_summary_text: str,
+) -> dict[str, Any]:
+    return {
+        "extraction": extraction,
+        "risk_matrix": risks,
+        "negotiation_memo": negotiation_memo_text,
+        "client_summary": client_summary_text,
+        "agentic_enabled": True,
+        "quality_control": {
+            "approved": True,
+            "issues": [{"issue": "Specialist agents returned malformed JSON; deterministic outputs require human review."}],
+            "corrections": {},
+        },
+        "agent_trace": [
+            {
+                "step_name": "agentic_contract_review",
+                "status": "fallback",
+                "provider": provider,
+                "model": model,
+                "duration_ms": None,
+                "error": error,
+            }
+        ],
+        "agent_outputs": {
+            "deterministic_fallback": {
+                "reason": "invalid_agent_json",
+                "error": error,
+            }
+        },
+    }
 
 
 def _run_standalone_contract_review_job(job_id: str, workspace_id: str, user_id: str, body_data: dict[str, Any], run_id: str) -> None:

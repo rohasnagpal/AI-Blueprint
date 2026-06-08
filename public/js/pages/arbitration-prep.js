@@ -10,9 +10,19 @@ function selectedArbitrationPrepMatterId() {
 }
 
 async function renderArbitrationPrep() {
+  if (!App.v2.user && typeof initV2 === 'function') {
+    await initV2().catch(() => {});
+  }
+  renderArbitrationPrepScopeSelector();
+  await syncArbitrationPrepScope();
   renderArbitrationPrepScopeSelector();
   renderArbitrationPrepSourceDocuments();
   await loadArbitrationPrepHistory();
+}
+
+async function syncArbitrationPrepScope(options = {}) {
+  const matterSelect = document.getElementById('arbitration-prep-matter-select');
+  await syncV2WorkspaceMatterDocuments(arbitrationPrepWorkspaceId(), matterSelect?.value || '', matterSelect, options);
 }
 
 function renderArbitrationPrepScopeSelector() {
@@ -38,9 +48,15 @@ function renderArbitrationPrepScopeSelector() {
 async function onArbitrationPrepWorkspaceChange() {
   const matterSelect = document.getElementById('arbitration-prep-matter-select');
   if (matterSelect) matterSelect.value = '';
+  await syncArbitrationPrepScope({resetMatter: true});
   renderArbitrationPrepScopeSelector();
   renderArbitrationPrepSourceDocuments();
   await loadArbitrationPrepHistory();
+}
+
+async function onArbitrationPrepMatterChange() {
+  await syncArbitrationPrepScope();
+  renderArbitrationPrepSourceDocuments();
 }
 
 function renderArbitrationPrepSourceDocuments() {

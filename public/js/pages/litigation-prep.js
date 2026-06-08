@@ -10,9 +10,19 @@ function selectedLitigationPrepMatterId() {
 }
 
 async function renderLitigationPrep() {
+  if (!App.v2.user && typeof initV2 === 'function') {
+    await initV2().catch(() => {});
+  }
+  renderLitigationPrepScopeSelector();
+  await syncLitigationPrepScope();
   renderLitigationPrepScopeSelector();
   renderLitigationPrepSourceDocuments();
   await loadLitigationPrepHistory();
+}
+
+async function syncLitigationPrepScope(options = {}) {
+  const matterSelect = document.getElementById('litigation-prep-matter-select');
+  await syncV2WorkspaceMatterDocuments(litigationPrepWorkspaceId(), matterSelect?.value || '', matterSelect, options);
 }
 
 function renderLitigationPrepScopeSelector() {
@@ -38,9 +48,15 @@ function renderLitigationPrepScopeSelector() {
 async function onLitigationPrepWorkspaceChange() {
   const matterSelect = document.getElementById('litigation-prep-matter-select');
   if (matterSelect) matterSelect.value = '';
+  await syncLitigationPrepScope({resetMatter: true});
   renderLitigationPrepScopeSelector();
   renderLitigationPrepSourceDocuments();
   await loadLitigationPrepHistory();
+}
+
+async function onLitigationPrepMatterChange() {
+  await syncLitigationPrepScope();
+  renderLitigationPrepSourceDocuments();
 }
 
 function renderLitigationPrepSourceDocuments() {

@@ -7,7 +7,7 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_event
-from app.core.bootstrap import DEFAULT_ADMIN_USERNAME
+from app.core.bootstrap import DEFAULT_ADMIN_USERNAME, _ensure_default_workspace_and_matter
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
@@ -76,6 +76,35 @@ def _issue_session(db: Session, response: Response, user: User) -> None:
         max_age=settings.session_days * 24 * 60 * 60,
         path="/",
     )
+
+
+def _single_user_admin(db: Session) -> User:
+    username = (get_settings().bootstrap_admin_username or DEFAULT_ADMIN_USERNAME).strip().lower()
+    user = db.execute(
+        select(User).where(User.is_system_admin == True, User.is_active == True).order_by(User.created_at.asc())
+    ).scalars().first()
+    if not user:
+        user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+    if user:
+        user.is_system_admin = True
+        user.is_active = True
+        user.must_change_credentials = False
+        _ensure_default_workspace_and_matter(db, user)
+        return user
+    user = User(
+        id=str(uuid.uuid4()),
+        username=username,
+        email=username,
+        display_name="Local User",
+        password_hash=hash_password(uuid.uuid4().hex + uuid.uuid4().hex),
+        is_system_admin=True,
+        must_change_credentials=False,
+    )
+    db.add(user)
+    db.flush()
+    record_audit_event(db, action="auth.single_user_bootstrap", resource_type="user", resource_id=user.id, user_id=user.id)
+    _ensure_default_workspace_and_matter(db, user)
+    return user
 
 
 def _client_key(request: Request, identifier: str = "") -> str:
@@ -219,7 +248,16 @@ async def logout(
 
 
 @router.get("/me")
-async def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def me(request: Request, response: Response, db: Session = Depends(get_db)):
+    try:
+        user = get_current_user(request, db)
+    except HTTPException as exc:
+        if exc.status_code not in {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN} or not get_settings().single_user_mode:
+            raise
+        user = _single_user_admin(db)
+        _issue_session(db, response, user)
+        record_audit_event(db, action="auth.single_user_login", resource_type="user", resource_id=user.id, user_id=user.id)
+        db.commit()
     memberships = db.execute(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id)).scalars().all()
     return {
         "user": _format_user(user),

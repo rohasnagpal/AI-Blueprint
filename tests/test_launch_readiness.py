@@ -34,7 +34,7 @@ from main import app
 from app.core.contract_agents.clause_extractor import extract_clauses
 from app.core.contract_agents.conflict_detector import detect_conflicts
 from app.core.contract_agents.intake import run_intake
-from app.core.contract_agents.agentic_review import ContractReviewAgentError, run_agentic_contract_review
+from app.core.contract_agents.agentic_review import ContractReviewAgentError, _parse_agent_json, run_agentic_contract_review
 from app.core.contract_agents.playbook_comparator import compare_to_playbook
 from app.core.contract_agents.redliner import suggest_redlines
 from app.core.contract_agents.risk_scorer import score_risks
@@ -43,7 +43,7 @@ from app.core.contract_agents.tools import run_contract_agent_tools
 from app.core.config import Settings, get_settings, validate_runtime_security
 from app.core.database import SessionLocal
 from app.core.document_indexer import _extract_chunks
-from app.api.contract_review_standalone import _select_playbook
+from app.api.contract_review_standalone import _deterministic_agentic_review_fallback, _is_agent_invalid_json_error, _select_playbook
 from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, ContractReviewOutput, ContractReviewRun, ContractReviewStepOutput, KnowledgeChunk, KnowledgeEmbedding, User, Workspace, WorkspaceMember, utcnow
 from app.core.secrets import decrypt_secret
 
@@ -606,6 +606,94 @@ class LaunchReadinessTest(unittest.TestCase):
                     settings={"local_llm_provider": "groq", "groq_api_key": "test", "chat_model": "openai/gpt-oss-120b"},
                 )
 
+    def test_contract_review_agent_json_parser_handles_common_model_wrappers(self) -> None:
+        self.assertEqual(_parse_agent_json('```json\n{"strategy":"targeted"}\n```'), {"strategy": "targeted"})
+        self.assertEqual(_parse_agent_json('Here is the JSON:\n{"strategy":"targeted","tool_requests":[]}\nDone.'), {"strategy": "targeted", "tool_requests": []})
+        self.assertEqual(_parse_agent_json('{"strategy":"targeted","tool_requests":[],}'), {"strategy": "targeted", "tool_requests": []})
+
+    def test_contract_review_uses_deterministic_fallback_when_agents_return_invalid_json(self) -> None:
+        progress_events: list[tuple[str, int]] = []
+        with patch("app.core.contract_agents.agentic_review.complete_with_configured_llm", return_value="I cannot return JSON for this request."):
+            result = run_agentic_contract_review(
+                text="termination liability indemnity",
+                sources=[],
+                config={},
+                workflow={},
+                deterministic_extraction={"parties": {"value": "Acme and Vendor", "supported": True}},
+                deterministic_risks=[{"issue": "Liability", "severity": "medium"}],
+                deterministic_negotiation_memo="fallback memo",
+                deterministic_client_summary="fallback summary",
+                settings={"local_llm_provider": "openai", "openai_api_key": "test", "chat_model": "gpt-test"},
+                progress_callback=lambda message, progress: progress_events.append((message, progress)),
+            )
+
+        self.assertEqual(result["extraction"], {"parties": {"value": "Acme and Vendor", "supported": True}})
+        self.assertEqual(result["risk_matrix"], [{"issue": "Liability", "severity": "medium"}])
+        self.assertEqual(result["negotiation_memo"], "fallback memo")
+        self.assertEqual(result["client_summary"], "fallback summary")
+        self.assertTrue(any(step["status"] == "fallback" for step in result["agent_trace"]))
+        self.assertTrue(any("malformed JSON" in message for message, _progress in progress_events))
+        self.assertGreaterEqual(max(progress for _message, progress in progress_events), 84)
+
+    def test_contract_review_runner_classifies_provider_invalid_json_as_fallback(self) -> None:
+        error = "Contract review could not run because Anthropic returned an agent error: Agent returned invalid JSON."
+        self.assertTrue(_is_agent_invalid_json_error(error))
+        self.assertTrue(_is_agent_invalid_json_error("Contract review agent `risk_analysis_agent` did not return required list `risk_matrix`."))
+        fallback = _deterministic_agentic_review_fallback(
+            provider="anthropic",
+            model="claude-test",
+            error=error,
+            extraction={"parties": {"value": "Acme and Vendor"}},
+            risks=[{"issue": "Termination", "severity": "medium"}],
+            negotiation_memo_text="fallback memo",
+            client_summary_text="fallback summary",
+        )
+        self.assertEqual(fallback["negotiation_memo"], "fallback memo")
+        self.assertEqual(fallback["agent_trace"][0]["status"], "fallback")
+        self.assertEqual(fallback["agent_trace"][0]["provider"], "anthropic")
+
+    def test_contract_review_uses_fallback_when_agents_return_wrong_json_shape(self) -> None:
+        progress_events: list[tuple[str, int]] = []
+
+        def fake_complete(_settings, system, _user, **_kwargs):
+            if "review_planner_agent" in system:
+                return json.dumps({"plan": "targeted"})
+            if "intake_and_extraction_agent" in system:
+                return json.dumps({"fields": "not an object"})
+            if "risk_analysis_agent" in system:
+                return json.dumps({"risk_matrix": {"items": "not a list"}, "risks": "also wrong"})
+            if "negotiation_agent" in system:
+                return json.dumps({"negotiation_memo": ["not", "text"]})
+            if "client_summary_agent" in system:
+                return json.dumps({"client_summary": {"text": "not plain text"}})
+            if "quality_control_agent" in system:
+                return json.dumps({"approved": "yes", "issues": {}, "corrections": []})
+            return json.dumps({"revision_notes": "none"})
+
+        with patch("app.core.contract_agents.agentic_review.complete_with_configured_llm", side_effect=fake_complete):
+            result = run_agentic_contract_review(
+                text="termination liability indemnity",
+                sources=[],
+                config={},
+                workflow={},
+                deterministic_extraction={"parties": {"value": "Acme and Vendor", "supported": True}},
+                deterministic_risks=[{"issue": "Liability", "severity": "medium"}],
+                deterministic_negotiation_memo="fallback memo",
+                deterministic_client_summary="fallback summary",
+                settings={"local_llm_provider": "openai", "openai_api_key": "test", "chat_model": "gpt-test"},
+                progress_callback=lambda message, progress: progress_events.append((message, progress)),
+            )
+
+        self.assertEqual(result["extraction"], {"parties": {"value": "Acme and Vendor", "supported": True}})
+        self.assertEqual(result["risk_matrix"], [{"issue": "Liability", "severity": "medium"}])
+        self.assertEqual(result["negotiation_memo"], "fallback memo")
+        self.assertEqual(result["client_summary"], "fallback summary")
+        fallback_steps = [step["step_name"] for step in result["agent_trace"] if step["status"] == "fallback"]
+        self.assertIn("risk_analysis_agent", fallback_steps)
+        self.assertIn("negotiation_agent", fallback_steps)
+        self.assertIn("client_summary_agent", fallback_steps)
+        self.assertTrue(any("incomplete JSON" in message for message, _progress in progress_events))
+
     def test_contract_review_agent_payloads_are_task_scoped(self) -> None:
         captured_payloads: list[dict] = []
 
@@ -625,7 +713,15 @@ class LaunchReadinessTest(unittest.TestCase):
                     }
                 )
             if "intake_and_extraction_agent" in system:
-                return json.dumps({"extraction": {"parties": {"value": "Supplier and Purchaser", "supported": True, "confidence_score": 0.9}}})
+                return json.dumps(
+                    {
+                        "extraction": {
+                            "parties": {"value": "Supplier and Purchaser", "supported": True, "confidence_score": 0.9},
+                            "renewal_term": {"value": "automatic renewal", "supported": True, "confidence_score": 0.2},
+                            "governing_law": {"value": "New York", "supported": False, "confidence_score": 0.7},
+                        }
+                    }
+                )
             if "risk_analysis_agent" in system:
                 return json.dumps({"risk_matrix": [{"issue": "Payment timing", "severity": "medium", "finding": "Review payment timing.", "requires_review": True}]})
             if "negotiation_agent" in system:
@@ -685,8 +781,14 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertTrue(all("text_excerpt" not in payload for payload in serialized_payloads))
         self.assertTrue(all("Bundle content payment termination" not in payload for payload in serialized_payloads))
         risk_payload = next(payload for payload in captured_payloads if payload.get("task", {}).get("clauses"))
-        self.assertLessEqual(len(risk_payload["task"]["clauses"]), 8)
+        self.assertLessEqual(len(risk_payload["task"]["clauses"]), 12)
         self.assertLessEqual(len(risk_payload["task"]["clauses"][0]["text"]), 503)
+        self.assertNotIn("renewal_term", risk_payload["task"]["extraction"])
+        self.assertNotIn("governing_law", risk_payload["task"]["extraction"])
+        self.assertEqual({item["field"] for item in risk_payload["task"]["uncertain_extraction_fields"]}, {"renewal_term", "governing_law"})
+        negotiation_payload = next(payload for payload in captured_payloads if payload.get("task", {}).get("fallback_language") is not None)
+        self.assertLessEqual(len(negotiation_payload["source_excerpts"]), 3)
+        self.assertTrue(negotiation_payload["task"]["grounding_clause_excerpts"])
 
     def test_conflict_detector_flags_duplicate_governing_law(self) -> None:
         clauses = [

@@ -10,9 +10,19 @@ function selectedMediationPrepMatterId() {
 }
 
 async function renderMediationPrep() {
+  if (!App.v2.user && typeof initV2 === 'function') {
+    await initV2().catch(() => {});
+  }
+  renderMediationPrepScopeSelector();
+  await syncMediationPrepScope();
   renderMediationPrepScopeSelector();
   renderMediationPrepSourceDocuments();
   await loadMediationPrepHistory();
+}
+
+async function syncMediationPrepScope(options = {}) {
+  const matterSelect = document.getElementById('mediation-prep-matter-select');
+  await syncV2WorkspaceMatterDocuments(mediationPrepWorkspaceId(), matterSelect?.value || '', matterSelect, options);
 }
 
 function renderMediationPrepScopeSelector() {
@@ -38,9 +48,15 @@ function renderMediationPrepScopeSelector() {
 async function onMediationPrepWorkspaceChange() {
   const matterSelect = document.getElementById('mediation-prep-matter-select');
   if (matterSelect) matterSelect.value = '';
+  await syncMediationPrepScope({resetMatter: true});
   renderMediationPrepScopeSelector();
   renderMediationPrepSourceDocuments();
   await loadMediationPrepHistory();
+}
+
+async function onMediationPrepMatterChange() {
+  await syncMediationPrepScope();
+  renderMediationPrepSourceDocuments();
 }
 
 function renderMediationPrepSourceDocuments() {

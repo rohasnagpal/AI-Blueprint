@@ -1,6 +1,7 @@
 import json
+import re
 import time
-from typing import Any
+from typing import Any, Callable
 
 from app.core.contract_agents.tools import run_contract_agent_tools
 from app.core.json_utils import json_loads
@@ -23,6 +24,7 @@ def run_agentic_contract_review(
     deterministic_client_summary: str,
     settings: dict[str, Any],
     tool_context: dict[str, Any] | None = None,
+    progress_callback: Callable[[str, int], None] | None = None,
 ) -> dict[str, Any]:
     provider = configured_llm_provider(settings)
     model = config.get("model") or settings.get("chat_model")
@@ -51,14 +53,41 @@ def run_agentic_contract_review(
         model=model,
         max_tokens=1200,
     )
+    planner_data = _normalize_agent_output("review_planner_agent", planner_data)
+    planner_shape_error = None if planner_error else _agent_output_validation_error("review_planner_agent", planner_data)
     if planner_error:
-        trace.append(_trace("review_planner_agent", "failed", planner_error, provider, model, None))
-        _raise_agent_error(provider, planner_error)
+        if _is_invalid_json_error(planner_error):
+            planner_data = _fallback_agent_output(
+                "review_planner_agent",
+                deterministic_extraction=deterministic_extraction,
+                deterministic_risks=deterministic_risks,
+                deterministic_negotiation_memo=deterministic_negotiation_memo,
+                deterministic_client_summary=deterministic_client_summary,
+            )
+            outputs["review_planner_agent"] = planner_data
+            trace.append(_trace("review_planner_agent", "fallback", planner_error, provider, model, None))
+            _emit_progress(progress_callback, "Planner returned malformed JSON; using deterministic review plan", 48)
+        else:
+            trace.append(_trace("review_planner_agent", "failed", planner_error, provider, model, None))
+            _raise_agent_error(provider, planner_error)
+    elif planner_shape_error:
+        planner_data = _fallback_agent_output(
+            "review_planner_agent",
+            deterministic_extraction=deterministic_extraction,
+            deterministic_risks=deterministic_risks,
+            deterministic_negotiation_memo=deterministic_negotiation_memo,
+            deterministic_client_summary=deterministic_client_summary,
+        )
+        outputs["review_planner_agent"] = planner_data
+        trace.append(_trace("review_planner_agent", "fallback", planner_shape_error, provider, model, None))
+        _emit_progress(progress_callback, "Planner returned incomplete JSON; using deterministic review plan", 48)
     else:
         outputs["review_planner_agent"] = planner_data
         trace.append(_trace("review_planner_agent", "completed", None, provider, model, None))
+        _emit_progress(progress_callback, "Review planner completed", 48)
 
     if tool_context:
+        _emit_progress(progress_callback, "Running contract review tools", 50)
         started = time.perf_counter()
         tool_results = run_contract_agent_tools(
             requests=outputs.get("review_planner_agent", {}).get("tool_requests"),
@@ -70,24 +99,25 @@ def run_agentic_contract_review(
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         outputs["agent_tool_controller"] = tool_results
         trace.append(_trace("agent_tool_controller", "completed", None, "internal", "contract_agent_tools_v1", elapsed_ms))
+        _emit_progress(progress_callback, "Contract review tools completed", 52)
 
     agent_specs = [
         (
             "intake_and_extraction_agent",
             "Extract commercially relevant contract facts and correct unsupported deterministic extraction fields.",
             "Return JSON with key extraction only. extraction must be an object keyed by field name. Each value should include value, supported, evidence, and confidence_score.",
-            2200,
+            3000,
         ),
         (
             "risk_analysis_agent",
             "Assess clause, playbook, business, and legal risk from the workflow outputs and source evidence.",
-            "Return JSON with key risk_matrix only. risk_matrix must be an array. Each item should include issue, severity, finding, evidence, requires_review, and confidence_score.",
-            2600,
+            "Return JSON with key risk_matrix only. risk_matrix must be an array. Each item must include issue, severity, clause_id, clause_type, finding, evidence, requires_review, confidence_score, and recommended_action.",
+            3200,
         ),
         (
             "negotiation_agent",
             "Turn the extraction and risk analysis into practical negotiation priorities and fallback positions.",
-            "Return JSON with key negotiation_memo only. The value must be a concise markdown string for a lawyer.",
+            "Return JSON with key negotiation_memo only. The value must be a markdown string with sections ## Priority Issues, ## Fallback Positions, ## Walk-Away Conditions, and ## Open Questions.",
             1800,
         ),
         (
@@ -100,21 +130,55 @@ def run_agentic_contract_review(
             "quality_control_agent",
             "Review the draft outputs for unsupported claims, legal-advice overreach, missing evidence, and internal contradictions.",
             "Return JSON with keys approved, issues, corrections. approved is boolean; issues is an array; corrections is an object that may contain extraction, risk_matrix, negotiation_memo, or client_summary.",
-            1800,
+            2400,
         ),
     ]
+    agent_progress = {
+        "intake_and_extraction_agent": (54, 60, "Extracting contract facts"),
+        "risk_analysis_agent": (62, 68, "Analyzing contract risks"),
+        "negotiation_agent": (70, 74, "Drafting negotiation positions"),
+        "client_summary_agent": (76, 78, "Drafting client summary"),
+        "quality_control_agent": (80, 84, "Running quality control"),
+    }
 
     for agent_id, role, contract, max_tokens in agent_specs:
+        start_progress, done_progress, message = agent_progress.get(agent_id, (54, 60, f"Running {agent_id}"))
+        _emit_progress(progress_callback, message, start_progress)
         extra = _task_payload(agent_id, workflow, sources, text, deterministic_extraction, outputs)
         agent_input = _agent_payload(base_payload, agent_id, extra)
         started = time.perf_counter()
         data, error = _run_agent(agent_id, role, contract, agent_input, settings, model=model, max_tokens=max_tokens)
+        data = _normalize_agent_output(agent_id, data)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
+        shape_error = None if error else _agent_output_validation_error(agent_id, data)
         if error:
-            trace.append(_trace(agent_id, "failed", error, provider, model, elapsed_ms))
-            _raise_agent_error(provider, error)
+            if _is_invalid_json_error(error):
+                data = _fallback_agent_output(
+                    agent_id,
+                    deterministic_extraction=deterministic_extraction,
+                    deterministic_risks=deterministic_risks,
+                    deterministic_negotiation_memo=deterministic_negotiation_memo,
+                    deterministic_client_summary=deterministic_client_summary,
+                )
+                trace.append(_trace(agent_id, "fallback", error, provider, model, elapsed_ms))
+                _emit_progress(progress_callback, f"{_agent_label(agent_id)} returned malformed JSON; using deterministic fallback", done_progress)
+            else:
+                trace.append(_trace(agent_id, "failed", error, provider, model, elapsed_ms))
+                _raise_agent_error(provider, error)
+        elif shape_error:
+            data = _fallback_agent_output(
+                agent_id,
+                deterministic_extraction=deterministic_extraction,
+                deterministic_risks=deterministic_risks,
+                deterministic_negotiation_memo=deterministic_negotiation_memo,
+                deterministic_client_summary=deterministic_client_summary,
+            )
+            trace.append(_trace(agent_id, "fallback", shape_error, provider, model, elapsed_ms))
+            _emit_progress(progress_callback, f"{_agent_label(agent_id)} returned incomplete JSON; using deterministic fallback", done_progress)
         outputs[agent_id] = data
-        trace.append(_trace(agent_id, "completed", None, provider, model, elapsed_ms))
+        if not error and not shape_error:
+            trace.append(_trace(agent_id, "completed", None, provider, model, elapsed_ms))
+            _emit_progress(progress_callback, f"{_agent_label(agent_id)} completed", done_progress)
 
     extraction = _dict_output(outputs, "intake_and_extraction_agent", "extraction")
     risk_output = _list_output(outputs, "risk_analysis_agent", "risk_matrix")
@@ -124,6 +188,7 @@ def run_agentic_contract_review(
     qc = outputs.get("quality_control_agent", {})
     corrections = qc.get("corrections") if isinstance(qc.get("corrections"), dict) else {}
     if qc and qc.get("approved") is False:
+        _emit_progress(progress_callback, "Applying quality control revisions", 86)
         revision_input = {
             **base_payload,
             "quality_control": qc,
@@ -146,12 +211,17 @@ def run_agentic_contract_review(
         )
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         if revision_error:
-            trace.append(_trace("revision_controller_agent", "failed", revision_error, provider, model, elapsed_ms))
-            _raise_agent_error(provider, revision_error)
+            if _is_invalid_json_error(revision_error):
+                trace.append(_trace("revision_controller_agent", "fallback", revision_error, provider, model, elapsed_ms))
+                _emit_progress(progress_callback, "Revision agent returned malformed JSON; keeping reviewed draft", 88)
+            else:
+                trace.append(_trace("revision_controller_agent", "failed", revision_error, provider, model, elapsed_ms))
+                _raise_agent_error(provider, revision_error)
         else:
             outputs["revision_controller_agent"] = revision_data
             trace.append(_trace("revision_controller_agent", "completed", None, provider, model, elapsed_ms))
             corrections = {**corrections, **revision_data}
+            _emit_progress(progress_callback, "Quality control revisions completed", 88)
     if isinstance(corrections.get("extraction"), dict):
         extraction = corrections["extraction"]
     if isinstance(corrections.get("risk_matrix"), list):
@@ -173,14 +243,25 @@ def run_agentic_contract_review(
     }
 
 
+def _emit_progress(progress_callback: Callable[[str, int], None] | None, message: str, progress: int) -> None:
+    if progress_callback:
+        progress_callback(message, progress)
+
+
+def _agent_label(agent_id: str) -> str:
+    return agent_id.replace("_", " ").replace(" agent", "").title()
+
+
 def _agent_payload(base: dict[str, Any], agent_id: str, task_payload: dict[str, Any]) -> dict[str, Any]:
     payload = {
         "config": base.get("config", {}),
         "workflow": base.get("workflow", {}),
         "task": task_payload,
     }
-    if agent_id in {"intake_and_extraction_agent", "quality_control_agent"}:
-        payload["source_excerpts"] = base.get("source_excerpts", [])
+    if agent_id in {"intake_and_extraction_agent", "negotiation_agent", "quality_control_agent"}:
+        excerpt_limit = 3 if agent_id == "negotiation_agent" else 6
+        excerpt_chars = 400 if agent_id == "negotiation_agent" else 700
+        payload["source_excerpts"] = _source_excerpts(base.get("source_excerpts", []), limit=excerpt_limit, excerpt_chars=excerpt_chars)
     return payload
 
 
@@ -199,11 +280,14 @@ def _task_payload(
             "evidence": _intake_evidence(text, sources),
         }
     if agent_id == "risk_analysis_agent":
+        extraction = _optional_dict_output(outputs, "intake_and_extraction_agent", "extraction", deterministic_extraction)
+        extraction_view, uncertain_extraction_fields = _risk_extraction_view(extraction)
         return {
-            "extraction": _optional_dict_output(outputs, "intake_and_extraction_agent", "extraction", deterministic_extraction),
+            "extraction": extraction_view,
+            "uncertain_extraction_fields": uncertain_extraction_fields,
             "clauses": _selected_workflow_clauses(workflow),
             "unattached_risks": _compact_risks(workflow.get("unattached_risk_findings", []), limit=12),
-            "escalations": _compact_escalations(workflow.get("escalations", []), limit=8),
+            "escalations": _compact_escalations(workflow.get("escalations", []), limit=12),
             "tool_results": _tool_digest(
                 outputs.get("agent_tool_controller", {}),
                 include=("risk_scoring", "missing_clause_detector", "conflict_scan", "escalation_candidates", "playbook_lookup"),
@@ -215,6 +299,7 @@ def _task_payload(
             "risk_matrix": _list_output(outputs, "risk_analysis_agent", "risk_matrix"),
             "escalations": _compact_escalations(workflow.get("escalations", []), limit=8),
             "fallback_language": _tool_digest(outputs.get("agent_tool_controller", {}), include=("redline_fallback_lookup", "missing_clause_detector")),
+            "grounding_clause_excerpts": _selected_workflow_clauses(workflow, limit=5),
         }
     if agent_id == "client_summary_agent":
         return {
@@ -265,7 +350,7 @@ def _priority_clause_types(workflow: dict[str, Any], *, limit: int = 12) -> list
     return [item[0] for item in sorted(scores.items(), key=lambda item: (-item[1], item[0]))[:limit]]
 
 
-def _selected_workflow_clauses(workflow: dict[str, Any], *, limit: int = 8) -> list[dict[str, Any]]:
+def _selected_workflow_clauses(workflow: dict[str, Any], *, limit: int = 12) -> list[dict[str, Any]]:
     items = list(workflow.get("clauses", []) or [])
 
     def rank(item: dict[str, Any]) -> tuple[int, float, str]:
@@ -301,6 +386,35 @@ def _source_excerpts(sources: list[dict[str, Any]], *, limit: int = 6, excerpt_c
         }
         for source in (sources or [])[:limit]
     ]
+
+
+def _risk_extraction_view(extraction: dict[str, Any], *, confidence_floor: float = 0.4) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    reliable: dict[str, Any] = {}
+    uncertain: list[dict[str, Any]] = []
+    for key, value in (extraction or {}).items():
+        if not isinstance(value, dict):
+            reliable[key] = value
+            continue
+        confidence = _confidence_score(value)
+        supported = value.get("supported")
+        if confidence is not None and confidence < confidence_floor:
+            uncertain.append({"field": key, "reason": "low_confidence", "confidence_score": confidence, "value": _truncate(value.get("value"), 300)})
+            continue
+        if supported is False:
+            uncertain.append({"field": key, "reason": "unsupported", "confidence_score": confidence, "value": _truncate(value.get("value"), 300)})
+            continue
+        reliable[key] = value
+    return reliable, uncertain
+
+
+def _confidence_score(value: dict[str, Any]) -> float | None:
+    raw = value.get("confidence_score")
+    if raw is None:
+        raw = value.get("confidence")
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 def _intake_evidence(text: str, sources: list[dict[str, Any]]) -> dict[str, Any]:
@@ -412,6 +526,138 @@ def _truncate(value: Any, limit: int) -> str:
     return text if len(text) <= limit else text[:limit].rstrip() + "..."
 
 
+def _specialist_instructions(agent_id: str) -> str:
+    instructions = {
+        "review_planner_agent": (
+            "Choose a focused review strategy based on document type, user instructions, coverage gaps, and available tools. "
+            "Tool requests should be specific and justified by the supplied workflow facts."
+        ),
+        "intake_and_extraction_agent": (
+            "Extract only facts supported by the supplied contract evidence. Keep unsupported or ambiguous fields but mark supported false and set a low confidence_score. "
+            "Use field names that are stable across commercial contracts, such as parties, effective_date, term, payment_terms, termination_rights, liability_cap, indemnity, confidentiality, ip_ownership, governing_law, and dispute_resolution."
+        ),
+        "risk_analysis_agent": (
+            "Severity definitions: critical means an issue may defeat the commercial purpose, create uncapped or existential exposure, block enforceability, or require immediate lawyer escalation; "
+            "high means material financial, operational, IP, confidentiality, termination, compliance, or dispute risk; "
+            "medium means negotiable ambiguity, imbalance, missing detail, or process risk that should be corrected before signing; "
+            "low means drafting cleanup, minor inconsistency, or monitoring point. "
+            "Every finding must cite clause_id when available, identify clause_type, quote or paraphrase evidence, avoid severity inflation, and explain why human review is or is not required. "
+            "Do not rely on uncertain_extraction_fields as true facts; use them only to flag open questions."
+        ),
+        "negotiation_agent": (
+            "Write for a lawyer preparing negotiation positions. Use the required markdown section headings exactly. "
+            "Tie each priority issue and fallback position to a cited risk, clause_id, or provided source excerpt. "
+            "Fallback positions should be practical contract language or negotiating asks, not generic advice. "
+            "Walk-away conditions should be reserved for critical or unresolved high risks."
+        ),
+        "client_summary_agent": (
+            "Write in plain English for a client or internal business stakeholder. Be cautious, avoid legal advice, avoid predicting outcomes, and separate business risk from legal risk. "
+            "Mention that lawyer review is required for material points."
+        ),
+        "quality_control_agent": (
+            "Check whether each risk has a clause_id or evidence citation, whether severities match the definitions, whether any output treats uncertain extraction fields as proven, "
+            "whether the negotiation memo contradicts the risk matrix, whether the client summary overstates advice or omits material high risks, and whether any finding lacks support. "
+            "If corrections are needed, return corrected objects or strings only for the affected output keys."
+        ),
+        "revision_controller_agent": (
+            "Apply only the requested quality-control corrections. Preserve supported findings, keep citations, and do not introduce new uncited issues."
+        ),
+    }
+    return instructions.get(agent_id, "")
+
+
+def _normalize_agent_output(agent_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        return {}
+    normalized = dict(data)
+    if agent_id == "review_planner_agent":
+        normalized.setdefault("strategy", data.get("plan") or data.get("review_strategy") or "targeted")
+        normalized["tool_requests"] = _first_list(data, "tool_requests", "tools", "requests", "recommended_tools") or []
+        normalized["required_agents"] = _first_list(data, "required_agents", "agents") or []
+        normalized["evidence_gaps"] = _first_list(data, "evidence_gaps", "gaps", "open_questions") or []
+        normalized["stop_conditions"] = _first_list(data, "stop_conditions", "stopping_conditions") or []
+        return normalized
+    if agent_id == "intake_and_extraction_agent":
+        extraction = _first_dict(data, "extraction", "extracted_fields", "fields", "contract_facts", "facts")
+        if extraction is not None:
+            normalized["extraction"] = extraction
+        return normalized
+    if agent_id == "risk_analysis_agent":
+        risk_matrix = _first_list(data, "risk_matrix", "risks", "risk_findings", "findings", "issues")
+        if risk_matrix is None:
+            nested = _first_dict(data, "risk_analysis", "analysis")
+            if nested is not None:
+                risk_matrix = _first_list(nested, "risk_matrix", "risks", "risk_findings", "findings", "issues")
+        if risk_matrix is not None:
+            normalized["risk_matrix"] = risk_matrix
+        return normalized
+    if agent_id == "negotiation_agent":
+        memo = _first_str(data, "negotiation_memo", "memo", "markdown", "negotiation_strategy", "summary")
+        if memo is not None:
+            normalized["negotiation_memo"] = memo
+        return normalized
+    if agent_id == "client_summary_agent":
+        summary = _first_str(data, "client_summary", "summary", "plain_english_summary", "client_memo")
+        if summary is not None:
+            normalized["client_summary"] = summary
+        return normalized
+    if agent_id == "quality_control_agent":
+        normalized["approved"] = data.get("approved") if isinstance(data.get("approved"), bool) else not bool(data.get("issues"))
+        normalized["issues"] = _first_list(data, "issues", "qc_issues", "findings", "flags") or []
+        corrections = _first_dict(data, "corrections", "recommended_corrections", "revisions") or {}
+        normalized["corrections"] = corrections
+        return normalized
+    return normalized
+
+
+def _agent_output_validation_error(agent_id: str, data: dict[str, Any]) -> str | None:
+    if agent_id == "review_planner_agent":
+        if not isinstance(data.get("strategy"), str) or not isinstance(data.get("tool_requests"), list):
+            return "Agent returned incomplete JSON: review planner output must include strategy and tool_requests."
+    if agent_id == "intake_and_extraction_agent" and not isinstance(data.get("extraction"), dict):
+        return "Agent returned incomplete JSON: intake output must include object extraction."
+    if agent_id == "risk_analysis_agent" and not isinstance(data.get("risk_matrix"), list):
+        return "Agent returned incomplete JSON: risk analysis output must include list risk_matrix."
+    if agent_id == "negotiation_agent" and not _nonempty_str(data.get("negotiation_memo")):
+        return "Agent returned incomplete JSON: negotiation output must include text negotiation_memo."
+    if agent_id == "client_summary_agent" and not _nonempty_str(data.get("client_summary")):
+        return "Agent returned incomplete JSON: client summary output must include text client_summary."
+    if agent_id == "quality_control_agent":
+        if not isinstance(data.get("approved"), bool) or not isinstance(data.get("issues"), list) or not isinstance(data.get("corrections"), dict):
+            return "Agent returned incomplete JSON: quality control output must include approved, issues, and corrections."
+    return None
+
+
+def _first_list(data: dict[str, Any], *keys: str) -> list[Any] | None:
+    for key in keys:
+        value = data.get(key)
+        if isinstance(value, list):
+            return value
+        if isinstance(value, dict) and isinstance(value.get("items"), list):
+            return value["items"]
+    return None
+
+
+def _first_dict(data: dict[str, Any], *keys: str) -> dict[str, Any] | None:
+    for key in keys:
+        value = data.get(key)
+        if isinstance(value, dict):
+            return value
+    return None
+
+
+def _first_str(data: dict[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        value = data.get(key)
+        if _nonempty_str(value):
+            return value.strip()
+    return None
+
+
+def _nonempty_str(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
 def _run_agent(
     agent_id: str,
     role: str,
@@ -425,7 +671,7 @@ def _run_agent(
     system = (
         f"You are {agent_id}, one specialist in a multi-agent contract review system. "
         f"{role} Ground every conclusion in supplied evidence. Do not recommend signing. "
-        f"{contract} Return only valid JSON."
+        f"{_specialist_instructions(agent_id)} {contract} Return only valid JSON."
     )
     user = json.dumps(_compact(payload), sort_keys=True)
     try:
@@ -439,7 +685,32 @@ def _run_agent(
         )
     except Exception as exc:
         return {}, str(exc)
-    data = json_loads(_extract_json_object(content), {})
+    data = _parse_agent_json(content)
+    if not isinstance(data, dict) or not data:
+        repair_system = (
+            "You convert model output into valid JSON. Return only one JSON object. "
+            "Do not include markdown fences, commentary, citations, or trailing commas."
+        )
+        repair_user = json.dumps(
+            {
+                "agent_id": agent_id,
+                "required_contract": contract,
+                "invalid_output": _truncate(content, 12000),
+            },
+            sort_keys=True,
+        )
+        try:
+            repaired_content = complete_with_configured_llm(
+                settings,
+                repair_system,
+                repair_user,
+                model=model,
+                temperature=0,
+                max_tokens=max(800, min(max_tokens, 1800)),
+            )
+        except Exception as exc:
+            return {}, str(exc)
+        data = _parse_agent_json(repaired_content)
     if not isinstance(data, dict) or not data:
         return {}, "Agent returned invalid JSON."
     return data, None
@@ -455,26 +726,100 @@ def _compact(value: Any) -> Any:
     return value
 
 
+def _parse_agent_json(value: str | None) -> dict[str, Any]:
+    parsed = json_loads(_extract_json_object(value), {})
+    if isinstance(parsed, dict) and parsed:
+        return parsed
+    repaired = _repair_json_text(_extract_json_object(value))
+    return json_loads(repaired, {})
+
+
 def _extract_json_object(value: str | None) -> str | None:
     if not value:
         return None
-    start = value.find("{")
-    end = value.rfind("}")
+    text = value.strip()
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
+    if fenced:
+        text = fenced.group(1).strip()
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text):
+        if char != "{":
+            continue
+        try:
+            parsed, end = decoder.raw_decode(text[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return text[index:index + end]
+    start = text.find("{")
+    end = text.rfind("}")
     if start < 0 or end <= start:
+        return text
+    return text[start:end + 1]
+
+
+def _repair_json_text(value: str | None) -> str | None:
+    if not value:
         return value
-    return value[start:end + 1]
+    text = value.strip()
+    text = re.sub(r",\s*([}\]])", r"\1", text)
+    return text
 
 
 def _raise_agent_error(provider: str | None, error: str | None) -> None:
     if not error:
         return
-    provider_name = provider.title() if provider else "The configured provider"
+    provider_name = _provider_label(provider)
     if _is_payload_size_error(error):
         raise ContractReviewAgentError(
             f"{provider_name} rejected the request as too large for the configured model/token limit. "
             "Reduce the selected document scope, use a model with a larger context/token allowance, or split the review into smaller runs."
         )
     raise ContractReviewAgentError(f"Contract review could not run because {provider_name} returned an agent error: {error}")
+
+
+def _provider_label(provider: str | None) -> str:
+    labels = {"openai": "OpenAI", "xai": "xAI"}
+    if not provider:
+        return "The configured provider"
+    return labels.get(provider.lower(), provider.title())
+
+
+def _is_invalid_json_error(error: str | None) -> bool:
+    return bool(error and "invalid json" in error.lower())
+
+
+def _fallback_agent_output(
+    agent_id: str,
+    *,
+    deterministic_extraction: dict[str, Any],
+    deterministic_risks: list[dict[str, Any]],
+    deterministic_negotiation_memo: str,
+    deterministic_client_summary: str,
+) -> dict[str, Any]:
+    if agent_id == "review_planner_agent":
+        return {
+            "strategy": "deterministic_fallback",
+            "required_agents": [],
+            "tool_requests": [],
+            "evidence_gaps": ["One or more specialist agents returned malformed JSON; deterministic review outputs were used."],
+            "stop_conditions": [],
+        }
+    if agent_id == "intake_and_extraction_agent":
+        return {"extraction": deterministic_extraction}
+    if agent_id == "risk_analysis_agent":
+        return {"risk_matrix": deterministic_risks}
+    if agent_id == "negotiation_agent":
+        return {"negotiation_memo": deterministic_negotiation_memo}
+    if agent_id == "client_summary_agent":
+        return {"client_summary": deterministic_client_summary}
+    if agent_id == "quality_control_agent":
+        return {
+            "approved": True,
+            "issues": [{"issue": "Quality control agent returned malformed JSON; deterministic outputs require human review."}],
+            "corrections": {},
+        }
+    return {}
 
 
 def _is_payload_size_error(error: str) -> bool:
