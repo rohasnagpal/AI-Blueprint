@@ -1597,6 +1597,13 @@
     font-size: 13px;
   }
 
+  .translate-status.error {
+    color: #b42318;
+    font-weight: 600;
+    max-width: min(720px, 100%);
+    line-height: 1.35;
+  }
+
   .translate-result-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);

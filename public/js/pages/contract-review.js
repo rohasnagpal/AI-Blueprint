@@ -173,16 +173,30 @@ function collectStandaloneContractReviewPayload() {
   return {workspaceId, payload};
 }
 
+function setContractReviewStatus(message = '', type = '') {
+  const status = document.getElementById('contract-review-status');
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle('error', type === 'error');
+}
+
+function clearContractReviewStatus({force = false} = {}) {
+  const status = document.getElementById('contract-review-status');
+  if (!status) return;
+  if (!force && status.classList.contains('error')) return;
+  status.textContent = '';
+  status.classList.remove('error');
+}
+
 async function runStandaloneContractReview() {
   if (App.contractReview.isRunning) return;
   const btn = document.getElementById('contract-review-run-btn');
-  const status = document.getElementById('contract-review-status');
   try {
     const {workspaceId, payload} = collectStandaloneContractReviewPayload();
     App.contractReview.isRunning = true;
     App.contractReview.result = null;
     if (btn) btn.disabled = true;
-    if (status) status.textContent = 'Queuing review...';
+    setContractReviewStatus('Queuing review...');
     const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/contract-review`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     if (!r.ok) throw new Error(await apiError(r));
     const data = await r.json();
@@ -195,15 +209,14 @@ async function runStandaloneContractReview() {
     renderStandaloneContractReviewResult();
     showToast('Contract review complete.');
   } catch(e) {
-    showToast('Contract review failed: ' + e.message, 'error');
+    setContractReviewStatus('Contract review failed: ' + e.message, 'error');
     App.contractReview.isRunning = false;
     if (btn) btn.disabled = false;
-    if (status) status.textContent = '';
   } finally {
     if (App.contractReview.job) return;
     App.contractReview.isRunning = false;
     if (btn) btn.disabled = false;
-    if (status) status.textContent = '';
+    clearContractReviewStatus();
   }
 }
 
@@ -223,12 +236,11 @@ async function loadContractReviewResultFromJob(workspaceId, job) {
 }
 
 function renderContractReviewProgress() {
-  const status = document.getElementById('contract-review-status');
   const job = App.contractReview.job;
-  if (!status || !job) return;
+  if (!job) return;
   const latest = [...(App.contractReview.events || [])].reverse().find(e => e.content)?.content || job.status || 'running';
   const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
-  status.textContent = `${latest} · ${progress}%`;
+  setContractReviewStatus(`${latest} · ${progress}%`);
 }
 
 function startContractReviewJobStream(workspaceId, job) {
@@ -255,7 +267,12 @@ function startContractReviewJobStream(workspaceId, job) {
           await loadStandaloneContractReviewHistory();
           showToast('Contract review complete.');
         } else {
-          showToast('Contract review ended: ' + data.content, data.content === 'failed' ? 'error' : 'warning');
+          const error = data.metadata?.error || App.contractReview.job?.error || data.content;
+          if (data.content === 'failed') {
+            setContractReviewStatus('Contract review failed: ' + error, 'error');
+          } else {
+            setContractReviewStatus('Contract review ended: ' + data.content, 'error');
+          }
         }
       } catch(e) {
         showToast('Review completed but result load failed: ' + e.message, 'error');
@@ -263,9 +280,8 @@ function startContractReviewJobStream(workspaceId, job) {
         App.contractReview.isRunning = false;
         App.contractReview.job = null;
         const btn = document.getElementById('contract-review-run-btn');
-        const status = document.getElementById('contract-review-status');
         if (btn) btn.disabled = false;
-        if (status) status.textContent = '';
+        clearContractReviewStatus();
       }
     }
   };
@@ -274,10 +290,8 @@ function startContractReviewJobStream(workspaceId, job) {
     App.contractReview.isRunning = false;
     App.contractReview.job = null;
     const btn = document.getElementById('contract-review-run-btn');
-    const status = document.getElementById('contract-review-status');
     if (btn) btn.disabled = false;
-    if (status) status.textContent = '';
-    showToast('Contract review event stream disconnected.', 'error');
+    setContractReviewStatus('Contract review event stream disconnected.', 'error');
   };
 }
 
@@ -503,4 +517,5 @@ function resetStandaloneContractReview() {
   const ids = ['contract-review-title', 'contract-review-instructions'];
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('contract-review-result-grid').style.display = 'none';
+  clearContractReviewStatus({force: true});
 }

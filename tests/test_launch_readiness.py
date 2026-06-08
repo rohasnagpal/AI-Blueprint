@@ -4,6 +4,7 @@ import time
 import unittest
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
@@ -33,6 +34,7 @@ from main import app
 from app.core.contract_agents.clause_extractor import extract_clauses
 from app.core.contract_agents.conflict_detector import detect_conflicts
 from app.core.contract_agents.intake import run_intake
+from app.core.contract_agents.agentic_review import ContractReviewAgentError, run_agentic_contract_review
 from app.core.contract_agents.playbook_comparator import compare_to_playbook
 from app.core.contract_agents.redliner import suggest_redlines
 from app.core.contract_agents.risk_scorer import score_risks
@@ -569,6 +571,122 @@ class LaunchReadinessTest(unittest.TestCase):
         with SessionLocal() as db:
             selected = _select_playbook(db, "missing-workspace-for-builtins", None, "general")
             self.assertIsNone(selected)
+
+    def test_contract_review_does_not_publish_without_llm_provider(self) -> None:
+        with self.assertRaisesRegex(ContractReviewAgentError, "no LLM provider is configured"):
+            run_agentic_contract_review(
+                text="termination liability indemnity",
+                sources=[],
+                config={},
+                workflow={},
+                deterministic_extraction={},
+                deterministic_risks=[],
+                deterministic_negotiation_memo="fallback memo",
+                deterministic_client_summary="fallback summary",
+                settings={},
+            )
+
+    def test_contract_review_does_not_publish_when_provider_rejects_large_request(self) -> None:
+        error = (
+            "Error code: 413 - {'error': {'message': 'Request too large for model `openai/gpt-oss-120b` "
+            "on tokens per minute (TPM): Limit 8000, Requested 23427', 'type': 'tokens', "
+            "'code': 'rate_limit_exceeded'}}"
+        )
+        with patch("app.core.contract_agents.agentic_review.complete_with_configured_llm", side_effect=Exception(error)):
+            with self.assertRaisesRegex(ContractReviewAgentError, "Groq rejected the request as too large"):
+                run_agentic_contract_review(
+                    text="termination liability indemnity",
+                    sources=[],
+                    config={},
+                    workflow={},
+                    deterministic_extraction={},
+                    deterministic_risks=[],
+                    deterministic_negotiation_memo="fallback memo",
+                    deterministic_client_summary="fallback summary",
+                    settings={"local_llm_provider": "groq", "groq_api_key": "test", "chat_model": "openai/gpt-oss-120b"},
+                )
+
+    def test_contract_review_agent_payloads_are_task_scoped(self) -> None:
+        captured_payloads: list[dict] = []
+
+        def fake_complete(_settings, system, user, **_kwargs):
+            captured_payloads.append(json.loads(user))
+            if "review_planner_agent" in system:
+                return json.dumps(
+                    {
+                        "strategy": "targeted",
+                        "required_agents": [],
+                        "tool_requests": [
+                            {"tool": "targeted_document_retrieval", "query": "payment termination indemnity", "limit": 5},
+                            {"tool": "risk_scoring"},
+                            {"tool": "missing_clause_detector"},
+                            {"tool": "redline_fallback_lookup", "clause_types": ["payment", "termination"]},
+                        ],
+                    }
+                )
+            if "intake_and_extraction_agent" in system:
+                return json.dumps({"extraction": {"parties": {"value": "Supplier and Purchaser", "supported": True, "confidence_score": 0.9}}})
+            if "risk_analysis_agent" in system:
+                return json.dumps({"risk_matrix": [{"issue": "Payment timing", "severity": "medium", "finding": "Review payment timing.", "requires_review": True}]})
+            if "negotiation_agent" in system:
+                return json.dumps({"negotiation_memo": "Review payment timing and termination cure periods."})
+            if "client_summary_agent" in system:
+                return json.dumps({"client_summary": "The review found payment and termination points for lawyer review."})
+            if "quality_control_agent" in system:
+                return json.dumps({"approved": True, "issues": [], "corrections": {}})
+            return json.dumps({"revision_notes": "none"})
+
+        long_text = "Supplier shall provide deliverables. Payment termination indemnity confidentiality. " * 900
+        workflow = {
+            "version": "test",
+            "intake": {"contract_category": "msa", "contract_type": "Supply Agreement"},
+            "stats": {"clauses": 80, "review_needed": 20},
+            "clauses": [
+                {
+                    "clause": {
+                        "id": f"clause-{index}",
+                        "clause_type": "payment" if index % 2 else "termination",
+                        "title": "Payment" if index % 2 else "Termination",
+                        "text": ("Long clause text " + str(index) + " ") * 240,
+                        "source": {"filename": "supply.htm", "chunk_index": index, "excerpt": ("Long source excerpt " + str(index) + " ") * 120},
+                        "confidence_score": 0.75,
+                    },
+                    "risks": [{"risk_level": "high" if index % 3 == 0 else "medium", "reasoning": ("Risk reasoning " + str(index) + " ") * 80, "requires_review": True}],
+                    "playbook_findings": [{"status": "no_prohibited_match", "deviation_summary": ("Finding " + str(index) + " ") * 80}],
+                    "redline_suggestions": [{"fallback_language": ("Fallback " + str(index) + " ") * 80}],
+                }
+                for index in range(80)
+            ],
+            "unattached_risk_findings": [{"clause_type": "governing_law", "risk_level": "high", "reasoning": "Missing governing law."}],
+            "escalations": [{"severity": "high", "reason": ("Escalation reason " * 60), "required_action": "Review."}],
+        }
+        sources = [{"filename": "supply.htm", "chunk": index + 1, "excerpt": ("Source excerpt " + str(index) + " ") * 260} for index in range(30)]
+        source_bundle = [{"filename": "supply.htm", "chunk_index": index, "content": ("Bundle content payment termination " + str(index) + " ") * 240} for index in range(30)]
+
+        with patch("app.core.contract_agents.agentic_review.complete_with_configured_llm", side_effect=fake_complete):
+            result = run_agentic_contract_review(
+                text=long_text,
+                sources=sources,
+                config={"instructions": "Focus on payment and termination."},
+                workflow=workflow,
+                deterministic_extraction={"parties": {"value": None, "supported": False}},
+                deterministic_risks=[],
+                deterministic_negotiation_memo="fallback memo",
+                deterministic_client_summary="fallback summary",
+                settings={"local_llm_provider": "openai", "openai_api_key": "test", "chat_model": "gpt-test"},
+                tool_context={"source_bundle": source_bundle, "playbook": None, "playbook_clauses": [], "supported_tools": []},
+            )
+
+        self.assertEqual(result["client_summary"], "The review found payment and termination points for lawyer review.")
+        self.assertEqual(len(captured_payloads), 6)
+        serialized_payloads = [json.dumps(payload, sort_keys=True) for payload in captured_payloads]
+        self.assertTrue(all(len(payload) < 30000 for payload in serialized_payloads))
+        self.assertTrue(all("workflow_clauses" not in payload for payload in serialized_payloads))
+        self.assertTrue(all("text_excerpt" not in payload for payload in serialized_payloads))
+        self.assertTrue(all("Bundle content payment termination" not in payload for payload in serialized_payloads))
+        risk_payload = next(payload for payload in captured_payloads if payload.get("task", {}).get("clauses"))
+        self.assertLessEqual(len(risk_payload["task"]["clauses"]), 8)
+        self.assertLessEqual(len(risk_payload["task"]["clauses"][0]["text"]), 503)
 
     def test_conflict_detector_flags_duplicate_governing_law(self) -> None:
         clauses = [

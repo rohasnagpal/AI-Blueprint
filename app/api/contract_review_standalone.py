@@ -15,7 +15,7 @@ from app.core.contract_agents.redliner import suggest_redlines
 from app.core.contract_agents.risk_scorer import score_risks
 from app.core.contract_agents.summarizer import build_summaries
 from app.core.contract_agents.intake import run_intake
-from app.core.contract_agents.agentic_review import run_agentic_contract_review
+from app.core.contract_agents.agentic_review import ContractReviewAgentError, run_agentic_contract_review
 from app.core.contract_agents.tools import SUPPORTED_TOOLS
 from app.core.audit import record_audit_event
 from app.core.contract_review_utils import client_summary, extract_fields, negotiation_memo, risk_matrix
@@ -887,7 +887,10 @@ async def run_standalone_contract_review(
 ):
     require_workspace_member(workspace_id, user, db)
     if sync:
-        payload = _execute_standalone_contract_review(db, workspace_id=workspace_id, body=body, user=user)
+        try:
+            payload = _execute_standalone_contract_review(db, workspace_id=workspace_id, body=body, user=user)
+        except ContractReviewAgentError as exc:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)) from exc
         db.commit()
         return payload
     _validate_matter(db, workspace_id, body.matter_id)
