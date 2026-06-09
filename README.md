@@ -91,7 +91,7 @@ Run locally:
 
 ```bash
 git clone https://github.com/rohasnagpal/AI-Blueprint.git
-cd AIBlueprint
+cd AI-Blueprint
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -174,13 +174,13 @@ The fastest successful path is:
 - SQLAlchemy
 - Alembic
 - SQLite
-- OpenAI and Groq provider integrations
+- Configurable provider integrations including OpenAI, Anthropic, Groq, OpenRouter, Gemini, Perplexity, Mistral, xAI, and Ollama
 - Optional local RAG dependencies with Chroma, LlamaIndex, and sentence-transformers
 - Vanilla HTML, CSS, and JavaScript frontend
 
 ## Configuration
 
-AI Blueprint supports configurable model providers, document retrieval settings, personas, email settings, workspaces, matters, upload limits, app branding, users, activity logs, and deployment controls from inside the app and through environment variables.
+AI Blueprint supports configurable model providers, document retrieval settings, web search providers, personas, email settings, workspaces, matters, upload limits, app branding, users, activity logs, and deployment controls from inside the app and through environment variables.
 
 For legal use, configure the system around the matter:
 
