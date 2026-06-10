@@ -4,7 +4,9 @@
 
 Typed chat is best for precise questions, longer drafting, summaries, document Q&A, and outputs that users may copy into work product.
 
-Typed chat uses the configured Chat Model provider and model in Settings. Supported providers can include OpenAI, Anthropic, Groq, OpenRouter, Gemini, xAI, and Ollama depending on configured keys and installed dependencies.
+Typed chat uses the configured Chat Model provider and model in Settings.
+
+In the current Settings UI, the main Chat Model selector exposes OpenAI, Groq, and Ollama directly. Some deployments and migrated settings may also use saved model registry entries or stored settings for providers such as OpenRouter, Anthropic, Gemini, Perplexity, Mistral, or xAI.
 
 ## Chat Modes
 
@@ -18,6 +20,8 @@ Use Documents mode when the answer should be grounded in uploaded files. Use Gen
 ## Web Search
 
 The chat interface can expose a web search toggle when configured. Use web search for current external information. Use Documents mode for the user's uploaded matter materials. When both current law and uploaded facts matter, verify important sources before relying on the answer.
+
+Configured search backends can include Brave Search or SearXNG. Some deployments may fall back to public search when no dedicated search provider is configured.
 
 ## Live Voice
 

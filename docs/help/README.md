@@ -14,11 +14,11 @@ This folder is the source help knowledge base for AI Blueprint. It documents the
 - [Drafting](drafting.md): legal document drafting, source documents, progress, saved drafts, and review warnings.
 - [Blueprints and Plugins](blueprints-and-plugins.md): how the older blueprint/plugin model relates to the current Prep and Workflow screens.
 - [Contract Review](contract-review.md): standalone contract review, playbooks, review outputs, and human review.
-- [AI Council and Arbitration Prep](ai-council-and-arbitration-prep.md): current Prep workflows for arbitration, litigation, mediation, and negotiation.
+- [Prep Workflows](ai-council-and-arbitration-prep.md): current Prep workflows for arbitration, litigation, mediation, and negotiation. The filename is legacy, but the content documents the current Prep menu.
 - [Legal Research](legal-research.md): current legal research guidance using Chat, Documents mode, Draft, and prep workflows.
 - [Email](email.md): email account setup, polling, AI drafts, document-grounded replies, approval, and sending.
 - [Translation](translation.md): text and document translation with modes, context, warnings, notes, and HTML output.
-- [Admin and Settings](admin-and-settings.md): API keys, models, RAG, documents, workspaces, matters, users, activity, and appearance.
+- [Admin and Settings](admin-and-settings.md): API keys, models, RAG, web search, documents, workspaces, matters, users, activity, and appearance.
 - [Troubleshooting](troubleshooting.md): common issues and fixes.
 
 ## Intended Assistant Behavior

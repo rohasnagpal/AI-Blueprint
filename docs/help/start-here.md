@@ -20,7 +20,7 @@ After sign-in, confirm:
 
 - A workspace exists.
 - The current user has workspace access.
-- The correct model provider API keys are configured in Settings.
+- The correct model, voice, and search provider settings are configured in Settings.
 - Documents are uploaded, ingested from URL, or connected from a folder into the right workspace and matter.
 - Documents show an indexed status before relying on document search.
 
@@ -34,11 +34,13 @@ The primary sidebar includes:
 - **Prep**: Arbitration Prep, Litigation Prep, Mediation Prep, and Negotiation Prep.
 - **Workflows**: Contract Review, Draft, Email, and Translate.
 - **Personas**: create and manage role-based assistant behavior.
-- **Settings**: API keys, models, RAG, document settings, workspaces, matters, appearance, users, and activity.
+- **Settings**: API keys, models, RAG, chat preferences, document settings, workspaces, matters, appearance, users, and activity.
 
 ## Choosing the Right Area
 
 Use **Chat** for quick questions, summaries, explanations, document Q&A, and exploratory legal analysis.
+
+Use the chat web search toggle when the answer depends on current external information rather than only uploaded matter files.
 
 Use **Voice** for live spoken conversation. Voice can use the selected persona and, in Documents mode, can search the current document scope.
 

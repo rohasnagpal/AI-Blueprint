@@ -22,7 +22,11 @@ If a tab is not visible, the current user may not have permission or the deploym
 
 ## Model Providers
 
-Typed chat, Draft, Translate, Email draft generation, Contract Review, and Prep workflows use the configured chat model provider and model. Supported providers in the app can include OpenAI, Anthropic, Groq, OpenRouter, Gemini, xAI, and Ollama, depending on installed packages and configured keys.
+Typed chat, Draft, Translate, Email draft generation, Contract Review, and Prep workflows use the configured chat model provider and model.
+
+In the current Settings UI, the main Chat Model selector exposes OpenAI, Groq, and Ollama directly.
+
+The API Keys and Model Registry areas can also store keys and model metadata for additional providers such as OpenRouter, Anthropic, Gemini, Perplexity, Mistral, xAI, Cloudflare Workers AI, and Together AI. Live model discovery is available for several of these providers, but visible chat provider choices and runtime behavior can vary by deployment and saved settings.
 
 Live voice uses OpenAI Realtime and requires an OpenAI API key, regardless of the typed chat provider.
 
@@ -34,15 +38,21 @@ Examples:
 
 - Groq typed chat requires a Groq API key.
 - OpenAI typed chat requires an OpenAI API key.
+- Ollama typed chat requires a reachable Ollama server or Ollama API endpoint. Local Ollama does not require a key.
 - Draft, Translate, Contract Review, and Prep require a working configured chat model provider for full model-generated output.
 - Live voice requires an OpenAI API key.
-- Web search may require configured search provider keys.
+- Web search can use Brave Search or SearXNG. If neither is configured, some deployments can fall back to DuckDuckGo-style public search.
 
 Do not expose API keys in screenshots, logs, commits, or shared exports.
 
 ## RAG Provider
 
 RAG Provider controls how AI Blueprint stores and searches document embeddings. Switching providers may require existing documents to be re-indexed.
+
+The current UI exposes:
+
+- OpenAI RAG
+- Local LlamaIndex + ChromaDB
 
 Use this tab when changing the retrieval backend, embedding provider, or vector search configuration.
 
@@ -56,11 +66,24 @@ Important RAG behavior settings include:
 - Retrieval strategy.
 - Embedding model.
 
+Embedding behavior depends on the configured environment. OpenAI embeddings are used when available. Some local or limited setups may fall back to a local embedding path rather than the external embedding provider shown in the UI.
+
 If retrieval misses useful context, increase Top K or adjust scope. If answers include irrelevant material, narrow scope or tune retrieval settings.
 
 ## Chat Preferences
 
-Chat preferences control default conversational behavior, including language and related assistant behavior. Voice greetings use the configured app name and signed-in user when available.
+Chat preferences control default conversational behavior, including response length, source display, streaming, response language, and auto-detect language. Voice greetings use the configured app name and signed-in user when available.
+
+## Web Search Providers
+
+Search provider settings live in the API Keys area.
+
+The current UI includes:
+
+- Brave Search
+- SearXNG
+
+Use web search when the answer depends on current external information. Use Documents mode when the answer should rely on uploaded matter files.
 
 ## Documents Settings
 

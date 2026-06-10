@@ -5,7 +5,7 @@ The current AI Blueprint UI uses direct screens instead of asking users to creat
 - **Prep**: Arbitration Prep, Litigation Prep, Mediation Prep, Negotiation Prep.
 - **Workflows**: Contract Review, Draft, Email, Translate.
 
-Older versions exposed **Blueprints** and **Plugins** as primary screens. Some backend records still use plugin and blueprint tables so workflow runs can be persisted, audited, and related to matters. In normal use, users do not need to create or configure blueprint records directly.
+Older versions exposed **Blueprints**, **Plugins**, and related AI Council concepts as primary screens. Some backend records still use plugin and blueprint tables so workflow runs can be persisted, audited, and related to matters. In normal use, users do not need to create or configure blueprint records directly.
 
 ## Current User Workflow
 
@@ -38,7 +38,7 @@ Draft generates legal work product from structured inputs and optional source do
 
 Email imports unread messages through IMAP, drafts replies, and sends approved replies through SMTP.
 
-Translate translates pasted text or one uploaded document into HTML output with notes and warnings.
+Translate translates pasted text or one uploaded document into HTML output with notes, warnings, preserved terms, and quality checks.
 
 ## Hidden Blueprint Records
 
@@ -48,6 +48,6 @@ Users should manage work from the visible Prep and Workflow screens, not by edit
 
 ## Legacy References
 
-If older documentation, exports, or database records mention AI Council, Legal Research, blueprint instances, plugin enablement, or blueprint membership, treat those as legacy concepts unless a current screen exposes them.
+If older documentation, exports, or database records mention AI Council, Legal Research, blueprint instances, plugin enablement, blueprint membership, or hidden workflow blueprints, treat those as legacy concepts unless a current screen exposes them.
 
 For current structured multi-role analysis, use the Prep workflows and Documents mode in Chat.

@@ -1,6 +1,6 @@
 # Legal Research
 
-The current primary UI does not expose a dedicated Legal Research workflow screen. Use Chat, Documents mode, Draft, and Prep workflows for legal research tasks. Older database records may still mention a Legal Research plugin, but users should follow the current visible screens.
+The current primary UI does not expose a dedicated Legal Research workflow screen. Use Chat, Documents mode, Draft, and Prep workflows for legal research tasks. Older database records may still mention a Legal Research plugin or blueprint, but users should follow the current visible screens.
 
 ## When to Use Chat
 
@@ -11,6 +11,7 @@ Use Chat for:
 - Comparing possible arguments.
 - Preparing a research plan.
 - Asking document-grounded questions about uploaded authorities or matter files.
+- Using web search when the answer depends on current external sources rather than only uploaded materials.
 
 Use Documents mode when the answer should rely on uploaded cases, statutes, pleadings, contracts, correspondence, or research materials.
 
@@ -66,6 +67,7 @@ Weak questions:
 Always verify:
 
 - Jurisdiction.
+- Date of external authorities relative to the relevant events.
 - Currency of authorities.
 - Binding versus persuasive status.
 - Procedural posture.

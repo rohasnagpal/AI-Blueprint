@@ -22,6 +22,8 @@ Document-grounded answers depend on successful indexing. If a document is not in
 
 RAG means retrieval-augmented generation. AI Blueprint retrieves chunks from indexed documents and passes relevant excerpts to the model. RAG depends on the selected workspace, matter, document IDs, and retrieval settings.
 
+The current Settings UI exposes OpenAI RAG and a local LlamaIndex + ChromaDB path. Depending on deployment and configured keys, embeddings may be generated through OpenAI or a local fallback path.
+
 ## Persona
 
 A persona changes assistant behavior. Personas can provide role, tone, reasoning style, output structure, and constraints. Text chat, live voice, email drafting, and some workflows can use selected personas.

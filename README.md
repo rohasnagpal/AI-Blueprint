@@ -203,7 +203,7 @@ AI Blueprint supports legal workflows but does not replace professional legal ju
 
 ## Documentation
 
-- [User Help Pack](docs/help/README.md)
+- [Detailed User Help Pack](docs/help/README.md): current end-user guidance for chat, voice, documents and RAG, contract review, drafting, prep workflows, email, translation, personas, settings, and deployment-related admin tasks.
 - [Deployment Guide](docs/DEPLOYMENT.md)
 - [Public Launch Checklist](docs/PUBLIC_LAUNCH_CHECKLIST.md)
 - [Operations Guide](OPERATIONS.md)
