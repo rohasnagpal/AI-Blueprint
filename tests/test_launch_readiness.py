@@ -847,33 +847,82 @@ class LaunchReadinessTest(unittest.TestCase):
         self.assertEqual(consulting.contract_category, "consulting")
         self.assertEqual(reseller.contract_category, "reseller")
 
-    def test_builtin_insurance_policy_explainer_persona(self) -> None:
+    def test_builtin_personas_are_lawyer_focused(self) -> None:
         personas = {persona["id"]: persona for persona in database._builtin_personas()}
-        persona = personas["insurance-policy-explainer-india"]
-        self.assertEqual(persona["name"], "Insurance Policy Explainer")
-        self.assertEqual(persona["category"], "Insurance")
-        self.assertIn("global insurance policy explainer", persona["system_prompt"])
-        self.assertIn("default to India", persona["system_prompt"])
-        self.assertIn("health insurance", persona["tags"])
-        self.assertTrue(any("country or jurisdiction is unclear" in item for item in persona["constraints"]))
-
-    def test_builtin_consumer_document_personas(self) -> None:
-        personas = {persona["id"]: persona for persona in database._builtin_personas()}
-        expected = {
-            "medical-bill-decoder": ("Medical Bill Decoder", "Healthcare"),
-            "lease-agreement-reviewer": ("Lease Agreement Reviewer", "Housing"),
-            "employment-offer-explainer": ("Employment Offer Explainer", "Work & Career"),
-            "loan-mortgage-explainer": ("Loan / Mortgage Explainer", "Finance"),
-            "warranty-explainer": ("Warranty Explainer", "Consumer"),
+        self.assertEqual(
+            set(personas),
+            {
+                "the-mediator",
+                "the-arbitrator",
+                "the-legal-explainer",
+                "regulatory-compliance-analyst",
+                "legal-researcher",
+                "case-law-analyst",
+                "litigation-drafting-assistant",
+                "cross-examination-strategist",
+                "due-diligence-reviewer",
+                "client-intake-interviewer",
+                "chronology-builder",
+                "evidence-organizer",
+                "settlement-evaluator",
+                "the-contract-reviewer",
+                "the-devils-advocate-legal",
+                "the-legal-strategist",
+                "the-courtroom-coach",
+            },
+        )
+        expected_categories = {
+            "the-mediator": "Dispute Resolution",
+            "the-arbitrator": "Dispute Resolution",
+            "settlement-evaluator": "Dispute Resolution",
+            "litigation-drafting-assistant": "Litigation",
+            "cross-examination-strategist": "Litigation",
+            "the-devils-advocate-legal": "Litigation",
+            "the-courtroom-coach": "Litigation",
+            "the-legal-explainer": "Legal Research",
+            "legal-researcher": "Legal Research",
+            "case-law-analyst": "Legal Research",
+            "the-contract-reviewer": "Contracts & Transactions",
+            "due-diligence-reviewer": "Contracts & Transactions",
+            "regulatory-compliance-analyst": "Compliance",
+            "client-intake-interviewer": "Matter Management",
+            "chronology-builder": "Matter Management",
+            "evidence-organizer": "Matter Management",
+            "the-legal-strategist": "Strategy",
         }
-        for persona_id, (name, category) in expected.items():
-            with self.subTest(persona_id=persona_id):
-                persona = personas[persona_id]
-                self.assertEqual(persona["name"], name)
-                self.assertEqual(persona["category"], category)
-                self.assertIn("default to India", persona["system_prompt"])
-                self.assertIn("india default", persona["tags"])
-                self.assertTrue(any("unclear" in item and "default to India" in item for item in persona["constraints"]))
+        self.assertEqual({persona_id: persona["category"] for persona_id, persona in personas.items()}, expected_categories)
+
+    def test_retired_builtin_personas_are_removed_from_existing_database(self) -> None:
+        conn = database.get_connection()
+        now = "2026-06-20T00:00:00+00:00"
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO personas
+            (id, name, category, description, system_prompt, constraints_json, output_format_json, tags_json, is_builtin, is_enabled, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+            """,
+            (
+                "richard-feynman",
+                "Richard Feynman",
+                "Expert Explainers",
+                "Retired built-in",
+                "Retired built-in prompt",
+                "[]",
+                "{}",
+                "[]",
+                now,
+                now,
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        database.init_db()
+
+        conn = database.get_connection()
+        row = conn.execute("SELECT id FROM personas WHERE id = ?", ("richard-feynman",)).fetchone()
+        conn.close()
+        self.assertIsNone(row)
 
     def test_runtime_security_rejects_insecure_production_cookies(self) -> None:
         with self.assertRaises(RuntimeError):

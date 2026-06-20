@@ -182,6 +182,16 @@ def _extract_pdf_pages(path: Path) -> list[str]:
         from pypdf import PdfReader  # type: ignore
     except Exception:
         return []
+    try:
+        reader = PdfReader(str(path))
+        pages = []
+        for page in reader.pages:
+            text = _clean_text(page.extract_text() or "")
+            if text:
+                pages.append(text)
+        return pages
+    except Exception:
+        return []
 
 
 def _extract_docx_text(path: Path) -> str:
@@ -195,13 +205,45 @@ def _extract_docx_text(path: Path) -> str:
     except ElementTree.ParseError:
         return ""
     namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
-    paragraphs = []
-    for paragraph in root.findall(".//w:p", namespace):
-        parts = [node.text or "" for node in paragraph.findall(".//w:t", namespace)]
-        text = "".join(parts).strip()
-        if text:
-            paragraphs.append(text)
-    return _clean_text("\n\n".join(paragraphs))
+    body = root.find("w:body", namespace)
+    if body is None:
+        return ""
+    blocks: list[str] = []
+    paragraph_tag = _docx_tag("p")
+    table_tag = _docx_tag("tbl")
+    for child in body:
+        if child.tag == paragraph_tag:
+            text = _docx_paragraph_text(child, namespace)
+            if text:
+                blocks.append(text)
+        elif child.tag == table_tag:
+            rows = _docx_table_rows(child, namespace)
+            if rows:
+                blocks.extend(rows)
+    return _clean_text("\n".join(blocks))
+
+
+def _docx_tag(local_name: str) -> str:
+    return f"{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}{local_name}"
+
+
+def _docx_paragraph_text(paragraph: ElementTree.Element, namespace: dict[str, str]) -> str:
+    parts = [node.text or "" for node in paragraph.findall(".//w:t", namespace)]
+    return "".join(parts).strip()
+
+
+def _docx_table_rows(table: ElementTree.Element, namespace: dict[str, str]) -> list[str]:
+    rows: list[str] = []
+    for row in table.findall("w:tr", namespace):
+        cells = []
+        for cell in row.findall("w:tc", namespace):
+            paragraphs = [_docx_paragraph_text(paragraph, namespace) for paragraph in cell.findall("w:p", namespace)]
+            text = " ".join(part for part in paragraphs if part).strip()
+            cells.append(text)
+        line = " | ".join(cell for cell in cells if cell).strip()
+        if line:
+            rows.append(line)
+    return rows
 
 
 def _extract_xlsx_text(path: Path) -> str:
@@ -249,15 +291,6 @@ def _xlsx_cell_text(cell: ElementTree.Element, shared_strings: list[str], namesp
         except (ValueError, IndexError):
             return ""
     return raw
-    try:
-        reader = PdfReader(str(path))
-        pages = []
-        for page in reader.pages:
-            text = _clean_text(page.extract_text() or "")
-            pages.append(text)
-        return [page for page in pages if page]
-    except Exception:
-        return []
 
 
 def _chunk_pages(pages: list[str], *, chunk_size: int = 1200, overlap: int = 150, extraction_method: str = "plain_text") -> list[dict]:
@@ -275,27 +308,77 @@ def _chunk_text(
     extraction_method: str = "plain_text",
     page: int | None = None,
 ) -> list[dict]:
+    text = _clean_text(text)
+    if not text:
+        return []
     chunks = []
-    start = 0
-    while start < len(text):
-        end = min(len(text), start + chunk_size)
-        chunk = text[start:end].strip()
-        if chunk:
-            leading_trim = len(text[start:end]) - len(text[start:end].lstrip())
-            trailing_trim = len(text[start:end].rstrip())
-            chunks.append(
-                {
-                    "content": chunk,
-                    "page": page,
-                    "start_offset": start + leading_trim,
-                    "end_offset": start + trailing_trim,
-                    "extraction_method": extraction_method,
-                }
-            )
-        if end == len(text):
-            break
-        start = max(end - overlap, start + 1)
+    lines = _lines_with_offsets(text)
+    current: list[tuple[str, int, int]] = []
+    current_length = 0
+
+    for line, line_start, line_end in lines:
+        line_length = len(line)
+        if current and current_length + 1 + line_length > chunk_size:
+            _append_chunk(chunks, current, page=page, extraction_method=extraction_method)
+            current = _overlap_lines(current, overlap)
+            current_length = sum(len(item[0]) for item in current) + max(0, len(current) - 1)
+        current.append((line, line_start, line_end))
+        current_length += line_length + (1 if current_length else 0)
+
+    if current:
+        _append_chunk(chunks, current, page=page, extraction_method=extraction_method)
     return chunks
+
+
+def _lines_with_offsets(text: str) -> list[tuple[str, int, int]]:
+    lines: list[tuple[str, int, int]] = []
+    offset = 0
+    for raw_line in text.splitlines(keepends=True):
+        start = offset
+        end = offset + len(raw_line)
+        offset = end
+        line = raw_line.strip()
+        if line:
+            leading_trim = len(raw_line) - len(raw_line.lstrip())
+            trailing_trim = len(raw_line.rstrip())
+            lines.append((line, start + leading_trim, start + trailing_trim))
+    if not lines and text.strip():
+        leading_trim = len(text) - len(text.lstrip())
+        trailing_trim = len(text.rstrip())
+        lines.append((text.strip(), leading_trim, trailing_trim))
+    return lines
+
+
+def _append_chunk(chunks: list[dict], lines: list[tuple[str, int, int]], *, page: int | None, extraction_method: str) -> None:
+    if not lines:
+        return
+    content = "\n".join(line for line, _start, _end in lines).strip()
+    if not content:
+        return
+    chunks.append(
+        {
+            "content": content,
+            "page": page,
+            "start_offset": lines[0][1],
+            "end_offset": lines[-1][2],
+            "extraction_method": extraction_method,
+        }
+    )
+
+
+def _overlap_lines(lines: list[tuple[str, int, int]], overlap: int) -> list[tuple[str, int, int]]:
+    if overlap <= 0:
+        return []
+    selected: list[tuple[str, int, int]] = []
+    length = 0
+    for line in reversed(lines):
+        addition = len(line[0]) + (1 if selected else 0)
+        if selected and length + addition > overlap:
+            break
+        selected.append(line)
+        length += addition
+    selected.reverse()
+    return selected
 
 
 def _clean_text(text: str) -> str:

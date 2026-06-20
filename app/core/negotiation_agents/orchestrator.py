@@ -516,7 +516,7 @@ def _deterministic_outputs(sources: list[dict[str, Any]], source_bundle: list[di
         "discovery_analysis": [{"item_type": "information_gap", "description": "Information-exchange posture requires lawyer review against negotiation goals, valuation support, and authority needs.", "status": "requires_review", "confidence_score": 0.4}],
         "witness_prep": [],
         "deposition_prep": [],
-        "motion_strategy": {"motions": [], "caveat": "Mediator brief strategy requires lawyer review and confidentiality verification."},
+        "motion_strategy": {"motions": [], "caveat": "Negotiation position brief strategy requires lawyer review and confidentiality verification."},
         "trial_prep": {"themes": [], "caveat": "Negotiation session planning requires lawyer review and does not predict outcomes."},
         "argument_strategy": {"themes": [], "caveat": "No legal advice, settlement recommendation, or outcome prediction. Negotiation themes require lawyer review."},
         "cross_examination": [],

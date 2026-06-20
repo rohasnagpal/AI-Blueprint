@@ -15,6 +15,7 @@
   const menuGroups = {
     prep: [
       {view:'arbitration-prep', label:'Arbitration Prep', navId:'more-arbitration-prep', icon:'arbitration'},
+      {view:'cross-exam-prep', label:'Cross-Examination Prep', navId:'more-cross-exam-prep', icon:'crossExam'},
       {view:'litigation-prep', label:'Litigation Prep', navId:'more-litigation-prep', icon:'litigation'},
       {view:'mediation-prep', label:'Mediation Prep', navId:'more-mediation-prep', icon:'mediation'},
       {view:'negotiation-prep', label:'Negotiation Prep', navId:'more-negotiation-prep', icon:'negotiation'},
@@ -85,6 +86,12 @@
       fallbackHtml:'<div class="view" id="view-arbitration-prep"><div class="add-doc-view"><div class="view-header"><h2>Arbitration Prep</h2><p>Refresh the page and try again.</p></div></div></div>',
     },
     {
+      slotId:'cross-exam-prep-view-slot',
+      viewId:'view-cross-exam-prep',
+      url:'/views/cross-exam-prep.html',
+      fallbackHtml:'<div class="view" id="view-cross-exam-prep"><div class="add-doc-view"><div class="view-header"><h2>Cross-Examination Prep</h2><p>Refresh the page and try again.</p></div></div></div>',
+    },
+    {
       slotId:'litigation-prep-view-slot',
       viewId:'view-litigation-prep',
       url:'/views/litigation-prep.html',
@@ -117,7 +124,7 @@
   ];
 
   const navItems = [...primaryNavItems.filter(item => item.view), ...moreNavItems];
-  const viewRoutes = {chat:'/chat',personas:'/personas',email:'/email','add-doc':'/documents/add',translate:'/translate','contract-review':'/contract-review','arbitration-prep':'/arbitration-prep','litigation-prep':'/litigation-prep','mediation-prep':'/mediation-prep','negotiation-prep':'/negotiation-prep',draft:'/draft','view-docs':'/documents',workspaces:'/settings/workspaces',settings:'/settings','admin-users':'/settings/users'};
+  const viewRoutes = {chat:'/chat',personas:'/personas',email:'/email','add-doc':'/documents/add',translate:'/translate','contract-review':'/contract-review','arbitration-prep':'/arbitration-prep','cross-exam-prep':'/cross-exam-prep','litigation-prep':'/litigation-prep','mediation-prep':'/mediation-prep','negotiation-prep':'/negotiation-prep',draft:'/draft','view-docs':'/documents',workspaces:'/settings/workspaces',settings:'/settings','admin-users':'/settings/users'};
   const icons = {
     chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     personas: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
@@ -129,6 +136,7 @@
     review: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
     arbitration: '<path d="M12 3v18"/><path d="M5 7h14"/><path d="M6 7l-3 6h6L6 7Z"/><path d="M18 7l-3 6h6l-3-6Z"/><path d="M8 21h8"/>',
     litigation: '<path d="M14 3h7v7"/><path d="M10 21H3v-7"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M12 8v8"/><path d="M8 12h8"/>',
+    crossExam: '<path d="M4 5h16"/><path d="M4 12h10"/><path d="M4 19h8"/><path d="m15 16 2 2 4-5"/><path d="M18 3v4"/><path d="M8 10v4"/>',
     mediation: '<path d="M7 11v2a5 5 0 0 0 10 0v-2"/><path d="M5 9h4l2 2h2l2-2h4"/><path d="M12 16v5"/><path d="M8 21h8"/><path d="M6 5h12"/>',
     negotiation: '<path d="M8 12h8"/><path d="M12 8v8"/><path d="M4 8h5l2 2"/><path d="M20 16h-5l-2-2"/><path d="M5 16h4"/><path d="M15 8h4"/>',
     draft: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/><path d="M15 5 19 9"/>',
@@ -221,12 +229,12 @@
     moreNavItems,
     navItems,
     viewFragments,
-    views: {chat:'view-chat',personas:'view-personas',email:'view-email','add-doc':'view-add-doc',translate:'view-translate','contract-review':'view-contract-review','arbitration-prep':'view-arbitration-prep','litigation-prep':'view-litigation-prep','mediation-prep':'view-mediation-prep','negotiation-prep':'view-negotiation-prep',draft:'view-draft','view-docs':'view-view-docs',workspaces:'view-settings',settings:'view-settings','admin-users':'view-settings'},
+    views: {chat:'view-chat',personas:'view-personas',email:'view-email','add-doc':'view-add-doc',translate:'view-translate','contract-review':'view-contract-review','arbitration-prep':'view-arbitration-prep','cross-exam-prep':'view-cross-exam-prep','litigation-prep':'view-litigation-prep','mediation-prep':'view-mediation-prep','negotiation-prep':'view-negotiation-prep',draft:'view-draft','view-docs':'view-view-docs',workspaces:'view-settings',settings:'view-settings','admin-users':'view-settings'},
     navs: navItems.reduce((navs, item) => {
       navs[item.view] = item.navId;
       return navs;
     }, {workspaces:'nav-settings'}),
-    titles: {chat:'Chat',personas:'Personas',email:'Email','add-doc':'Add Document',translate:'Translate','contract-review':'Contract Review','arbitration-prep':'Arbitration Prep','litigation-prep':'Litigation Prep','mediation-prep':'Mediation Prep','negotiation-prep':'Negotiation Prep',draft:'Draft','view-docs':'View Documents',workspaces:'Workspaces',settings:'Settings','admin-users':'Admin Users'},
+    titles: {chat:'Chat',personas:'Personas',email:'Email','add-doc':'Add Document',translate:'Translate','contract-review':'Contract Review','arbitration-prep':'Arbitration Prep','cross-exam-prep':'Cross-Examination Prep','litigation-prep':'Litigation Prep','mediation-prep':'Mediation Prep','negotiation-prep':'Negotiation Prep',draft:'Draft','view-docs':'View Documents',workspaces:'Workspaces',settings:'Settings','admin-users':'Admin Users'},
     viewRoutes,
     routeViews: Object.entries(viewRoutes).reduce((routes, [view, path]) => {
       routes[path] = view;

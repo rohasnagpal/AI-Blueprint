@@ -60,8 +60,8 @@ AGENT_SPECS: list[tuple[str, str, str, int, str]] = [
     ),
     (
         "motion_strategy_agent",
-        "Produce mediator-brief themes, evidentiary support, vulnerabilities, likely counterpart responses, and confidentiality caveats.",
-        "Return JSON with key motion_strategy only. Treat it as mediator_brief_strategy. Do not provide legal advice, settlement recommendation, or outcome prediction.",
+        "Produce negotiation position brief themes, evidentiary support, vulnerabilities, likely counterpart responses, and confidentiality caveats.",
+        "Return JSON with key motion_strategy only. Treat it as negotiation_position_brief. Do not provide legal advice, settlement recommendation, or outcome prediction.",
         2200,
         "motion_strategy",
     ),

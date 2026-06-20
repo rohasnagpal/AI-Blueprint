@@ -52,8 +52,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
 
 
@@ -177,6 +177,8 @@ APP_ROUTES = {
     "/contract-review",
     "/arbitration-prep",
     "/arbitration-prep/",
+    "/cross-exam-prep",
+    "/cross-exam-prep/",
     "/litigation-prep",
     "/litigation-prep/",
     "/mediation-prep",

@@ -1833,6 +1833,73 @@
     padding: 7px 12px;
   }
 
+  #view-cross-exam-prep .translate-actions {
+    margin-top: 12px;
+    margin-bottom: 12px;
+  }
+
+  #view-cross-exam-prep .cross-exam-options-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 16px;
+    row-gap: 16px;
+  }
+
+  #view-cross-exam-prep .council-form > .council-field {
+    display: grid;
+    gap: 8px;
+  }
+
+  #view-cross-exam-prep .council-form > .council-field label {
+    margin-bottom: 0;
+  }
+
+  #view-cross-exam-prep #cross-exam-prep-red-lines,
+  #view-cross-exam-prep #cross-exam-prep-focus {
+    min-height: 118px;
+  }
+
+  #view-cross-exam-prep .cross-exam-history-card {
+    margin-top: 4px;
+  }
+
+  #view-cross-exam-prep .cross-exam-history-card .settings-card-header {
+    padding: 14px 18px 12px;
+  }
+
+  #view-cross-exam-prep .cross-exam-history-row {
+    padding: 14px 16px;
+    gap: 12px;
+    box-shadow: none;
+  }
+
+  #view-cross-exam-prep .cross-exam-history-row-head {
+    align-items: flex-start;
+  }
+
+  #view-cross-exam-prep .cross-exam-history-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  #view-cross-exam-prep .cross-exam-history-actions .btn-secondary {
+    min-height: 34px;
+    padding: 7px 12px;
+    line-height: 1.2;
+  }
+
+  .btn-secondary.danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+  }
+
+  .btn-secondary.danger:hover {
+    color: #fff;
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+
   .draft-history-empty {
     color: var(--text-muted);
     font-size: 13px;
@@ -1902,6 +1969,10 @@
       grid-template-columns: 1fr;
     }
 
+    #view-cross-exam-prep .cross-exam-options-row {
+      grid-template-columns: 1fr;
+    }
+
     .translate-result-grid {
       grid-template-columns: 1fr;
     }
@@ -1919,6 +1990,30 @@
   @media (max-width: 640px) {
     .translate-view {
       padding: 24px 16px 36px;
+    }
+  }
+
+  @media print {
+    body:has(#view-cross-exam-prep.active) .app-shell > :not(.main-content),
+    body:has(#view-cross-exam-prep.active) #view-cross-exam-prep .view-header,
+    body:has(#view-cross-exam-prep.active) #view-cross-exam-prep #cross-exam-prep-scope-card,
+    body:has(#view-cross-exam-prep.active) #view-cross-exam-prep .translate-setup-card,
+    body:has(#view-cross-exam-prep.active) #view-cross-exam-prep .translate-actions,
+    body:has(#view-cross-exam-prep.active) #view-cross-exam-prep .settings-card-actions,
+    body:has(#view-cross-exam-prep.active) #view-cross-exam-prep .translate-review-card {
+      display: none !important;
+    }
+
+    body:has(#view-cross-exam-prep.active) #view-cross-exam-prep .translate-result-grid {
+      display: block !important;
+    }
+
+    body:has(#view-cross-exam-prep.active) #view-cross-exam-prep .settings-card,
+    body:has(#view-cross-exam-prep.active) #view-cross-exam-prep .translate-html-preview {
+      border: 0 !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      overflow: visible !important;
     }
   }
   .upload-btn svg { width: 15px; height: 15px; }

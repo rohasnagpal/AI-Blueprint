@@ -17,6 +17,7 @@ ROUTES = [
     ("/draft", "#view-draft", "Draft"),
     ("/contract-review", "#view-contract-review", "Contract Review"),
     ("/arbitration-prep", "#view-arbitration-prep", "Arbitration Prep"),
+    ("/cross-exam-prep", "#view-cross-exam-prep", "Cross-Examination Prep"),
     ("/litigation-prep", "#view-litigation-prep", "Litigation Prep"),
     ("/mediation-prep", "#view-mediation-prep", "Mediation Prep"),
     ("/negotiation-prep", "#view-negotiation-prep", "Negotiation Prep"),

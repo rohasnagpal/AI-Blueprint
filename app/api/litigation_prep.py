@@ -4,10 +4,11 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.litigation_agents.orchestrator import run_agentic_litigation_prep
+from app.core.litigation_agents.cross_exam import _is_hidden_source_name, run_agentic_cross_exam_prep
 from app.core.litigation_agents.tools import SUPPORTED_TOOLS
 from app.core.audit import record_audit_event
 from app.core.database import SessionLocal, get_db
@@ -61,6 +62,13 @@ class LitigationPrepRunIn(BaseModel):
     hearing_dates: list[str] = Field(default_factory=list, max_length=20)
     litigation_focus: str | None = Field(default=None, max_length=100)
     instructions: str | None = Field(default=None, max_length=12000)
+    workflow_mode: str = Field(default="litigation_prep", max_length=80)
+    target_witness: str | None = Field(default=None, max_length=255)
+    cross_objective: str | None = Field(default=None, max_length=120)
+    risk_level: str | None = Field(default=None, max_length=40)
+    output_language: str | None = Field(default=None, max_length=80)
+    red_lines: str | None = Field(default=None, max_length=4000)
+    focus_notes: str | None = Field(default=None, max_length=4000)
 
 
 class LitigationDecisionIn(BaseModel):
@@ -96,16 +104,29 @@ def _source_chunks(db: Session, workspace_id: str, body: LitigationPrepRunIn) ->
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Selected document is not indexed: {doc.original_name}")
         if doc.matter_id != body.matter_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected documents must belong to the selected matter")
-    chunks = db.execute(
+    base_query = (
         select(KnowledgeChunk, KnowledgeDocument)
         .join(KnowledgeDocument, KnowledgeDocument.id == KnowledgeChunk.document_id)
         .where(KnowledgeChunk.workspace_id == workspace_id, KnowledgeChunk.document_id.in_(document_ids))
         .order_by(KnowledgeDocument.original_name, KnowledgeChunk.chunk_index)
-        .limit(180)
-    ).all()
+    )
+    chunks = db.execute(base_query.limit(180)).all()
     if not chunks:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No indexed source chunks are available for litigation preparation")
     return chunks
+
+
+def _source_chunk_count(db: Session, workspace_id: str, body: LitigationPrepRunIn) -> int:
+    document_ids = list(dict.fromkeys(str(item) for item in body.document_ids if str(item).strip()))[:40]
+    return int(
+        db.execute(
+            select(func.count(KnowledgeChunk.id)).where(
+                KnowledgeChunk.workspace_id == workspace_id,
+                KnowledgeChunk.document_id.in_(document_ids),
+            )
+        ).scalar()
+        or 0
+    )
 
 
 def _source_bundle(chunks: list[tuple[KnowledgeChunk, KnowledgeDocument]]) -> list[dict[str, Any]]:
@@ -198,6 +219,8 @@ def _format_run_row(run: LitigationPrepRun) -> dict[str, Any]:
         "court": config.get("court"),
         "jurisdiction": config.get("jurisdiction"),
         "procedural_stage": config.get("procedural_stage"),
+        "workflow_mode": config.get("workflow_mode") or "litigation_prep",
+        "target_witness": config.get("target_witness"),
         "created_at": run.created_at.isoformat(),
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "completed_at": run.completed_at.isoformat() if run.completed_at else None,
@@ -258,6 +281,7 @@ def _execute_litigation_prep(
 ) -> dict[str, Any]:
     matter = _validate_matter(db, workspace_id, body.matter_id)
     chunks = _source_chunks(db, workspace_id, body)
+    total_source_chunks = _source_chunk_count(db, workspace_id, body)
     run_id = run_id or str(uuid.uuid4())
     blueprint = _litigation_blueprint(db, workspace_id, matter, user)
     if job:
@@ -277,21 +301,35 @@ def _execute_litigation_prep(
         "hearing_dates": body.hearing_dates,
         "litigation_focus": body.litigation_focus,
         "instructions": body.instructions or "",
+        "workflow_mode": body.workflow_mode,
+        "target_witness": body.target_witness,
+        "cross_objective": body.cross_objective,
+        "risk_level": body.risk_level,
+        "output_language": body.output_language,
+        "red_lines": body.red_lines,
+        "focus_notes": body.focus_notes,
+        "source_chunk_count": len(chunks),
+        "source_chunk_total": total_source_chunks,
+        "source_chunks_truncated": total_source_chunks > len(chunks),
         "supported_tools": sorted(SUPPORTED_TOOLS),
     }
-    if job:
-        add_job_event(db, job=job, event_type="progress", message="Running litigation agents", metadata={"progress": 45, "run_id": run_id})
-        job.progress = max(job.progress, 45)
-        db.commit()
     settings = get_runtime_settings_with_secrets()
-    agentic = run_agentic_litigation_prep(sources=sources, source_bundle=source_bundle, run_context=config, settings=settings)
+    if body.workflow_mode == "cross_exam_prep":
+        agentic = _execute_cross_exam_agents(db, job=job, run_id=run_id, sources=sources, source_bundle=source_bundle, config=config, settings=settings)
+    else:
+        if job:
+            add_job_event(db, job=job, event_type="progress", message="Running litigation agents", metadata={"progress": 45, "run_id": run_id})
+            job.progress = max(job.progress, 45)
+            db.commit()
+        agentic = run_agentic_litigation_prep(sources=sources, source_bundle=source_bundle, run_context=config, settings=settings)
     provider = configured_llm_provider(settings)
     model = settings.get("chat_model") if provider else None
     if job:
         add_job_event(db, job=job, event_type="progress", message="Persisting litigation prep outputs", metadata={"progress": 82, "run_id": run_id})
         job.progress = max(job.progress, 82)
         db.commit()
-    _persist_litigation_state(db, workspace_id=workspace_id, matter_id=matter.id, blueprint_id=blueprint.id, run_id=run_id, user=user, title=body.title or "Litigation Prep", config=config, result=agentic, sources=sources, provider=provider, model=model)
+    persisted_sources = _public_cross_exam_sources(sources) if body.workflow_mode == "cross_exam_prep" else sources
+    _persist_litigation_state(db, workspace_id=workspace_id, matter_id=matter.id, blueprint_id=blueprint.id, run_id=run_id, user=user, title=body.title or "Litigation Prep", config=config, result=agentic, sources=persisted_sources, provider=provider, model=model)
     payload = _format_output(*_get_run_output(db, workspace_id, run_id))
     record_audit_event(
         db,
@@ -305,6 +343,22 @@ def _execute_litigation_prep(
     return payload
 
 
+def _execute_cross_exam_agents(db: Session, *, job: Job | None, run_id: str, sources: list[dict[str, Any]], source_bundle: list[dict[str, Any]], config: dict[str, Any], settings: dict[str, Any]) -> dict[str, Any]:
+    def progress(message: str, value: int, step: str) -> None:
+        if not job:
+            return
+        add_job_event(db, job=job, event_type="progress", message=message, metadata={"progress": value, "run_id": run_id, "step": step})
+        job.progress = max(job.progress, value)
+        db.commit()
+
+    return run_agentic_cross_exam_prep(sources=sources, source_bundle=source_bundle, run_context=config, settings=settings, progress_callback=progress)
+
+
+def _public_cross_exam_sources(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    public = [source for source in sources if not _is_hidden_source_name(str(source.get("filename") or "").lower())]
+    return public
+
+
 def _persist_litigation_state(db: Session, *, workspace_id: str, matter_id: str, blueprint_id: str, run_id: str, user: User, title: str, config: dict[str, Any], result: dict[str, Any], sources: list[dict[str, Any]], provider: str | None, model: str | None) -> None:
     now = utcnow()
     run = LitigationPrepRun(
@@ -316,7 +370,7 @@ def _persist_litigation_state(db: Session, *, workspace_id: str, matter_id: str,
         status="completed",
         status_detail="Agentic litigation preparation completed.",
         config_snapshot_json=json.dumps(config, sort_keys=True),
-        workflow_version="litigation_prep_workflow_v1",
+        workflow_version="cross_exam_prep_workflow_v1" if config.get("workflow_mode") == "cross_exam_prep" else "litigation_prep_workflow_v1",
         source_anchor_version="knowledge_chunk_v1",
         created_by_user_id=user.id,
         started_at=now,
@@ -493,9 +547,18 @@ def _run_litigation_prep_job(job_id: str, workspace_id: str, user_id: str, body_
 
 
 @router.get("/runs")
-async def list_runs(workspace_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=25, ge=1, le=100), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def list_runs(
+    workspace_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100),
+    workflow_mode: str | None = Query(default=None, max_length=80),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     require_workspace_member(workspace_id, user, db)
     rows = select(LitigationPrepRun).where(LitigationPrepRun.workspace_id == workspace_id).order_by(LitigationPrepRun.created_at.desc())
+    if workflow_mode:
+        rows = rows.where(func.json_extract(LitigationPrepRun.config_snapshot_json, "$.workflow_mode") == workflow_mode)
     return page_query_response(db, rows, _format_run_row, page=page, page_size=page_size, scalars=True)
 
 
@@ -521,6 +584,45 @@ async def create_run(workspace_id: str, body: LitigationPrepRunIn, background_ta
 async def get_run(workspace_id: str, run_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_member(workspace_id, user, db)
     return _format_output(*_get_run_output(db, workspace_id, run_id))
+
+
+@router.delete("/runs/{run_id}")
+async def delete_run(workspace_id: str, run_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_workspace_member(workspace_id, user, db)
+    run = db.execute(select(LitigationPrepRun).where(LitigationPrepRun.workspace_id == workspace_id, LitigationPrepRun.id == run_id)).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Litigation prep run not found")
+    matter_id = run.matter_id
+    for model in [
+        LitigationReviewDecision,
+        LitigationAgentStepOutput,
+        LitigationRiskItem,
+        LitigationDamagesItem,
+        LitigationDiscoveryItem,
+        LitigationMotion,
+        LitigationProceduralTask,
+        LitigationArgument,
+        LitigationDepositionTopic,
+        LitigationWitness,
+        LitigationEvidenceItem,
+        LitigationChronologyEvent,
+        LitigationClaim,
+        LitigationIssue,
+        LitigationPrepOutput,
+    ]:
+        db.query(model).filter(model.run_id == run_id).delete(synchronize_session=False)
+    db.delete(run)
+    record_audit_event(
+        db,
+        action="litigation_prep.delete",
+        resource_type="litigation_prep",
+        resource_id=run_id,
+        user_id=user.id,
+        workspace_id=workspace_id,
+        metadata={"matter_id": matter_id},
+    )
+    db.commit()
+    return {"deleted": True, "id": run_id}
 
 
 @router.get("/runs/{run_id}/claims")

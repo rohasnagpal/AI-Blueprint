@@ -1,0 +1,133 @@
+  <!-- ── CROSS-EXAMINATION PREP VIEW ── -->
+  <div class="view" id="view-cross-exam-prep">
+    <div class="add-doc-view translate-view draft-view">
+      <div class="view-header">
+        <h2>Cross-Examination Prep</h2>
+        <p>Prepare a witness-specific cross plan from indexed matter documents.</p>
+      </div>
+
+      <div class="upload-scope-panel" id="cross-exam-prep-scope-card">
+        <div class="council-field">
+          <label for="cross-exam-prep-workspace-select">Workspace</label>
+          <select class="council-select" id="cross-exam-prep-workspace-select" onchange="onCrossExamPrepWorkspaceChange()"></select>
+        </div>
+        <div class="council-field">
+          <label for="cross-exam-prep-matter-select">Matter</label>
+          <select class="council-select" id="cross-exam-prep-matter-select" onchange="onCrossExamPrepMatterChange()"></select>
+        </div>
+      </div>
+
+      <div class="settings-card translate-setup-card draft-setup-card">
+        <div class="settings-card-header">
+          <div>
+            <div class="settings-card-title">Prepare Cross</div>
+            <div class="settings-card-subtitle" id="cross-exam-prep-doc-summary">Select a matter with indexed documents.</div>
+          </div>
+        </div>
+        <div class="council-form">
+          <div class="council-form-row">
+            <div class="council-field">
+              <label for="cross-exam-prep-witness">Witness</label>
+              <input class="council-input" id="cross-exam-prep-witness" placeholder="PW-3, complainant, investigating officer"/>
+            </div>
+            <div class="council-field">
+              <label for="cross-exam-prep-objective">Objective</label>
+              <select class="council-select" id="cross-exam-prep-objective">
+                <option value="Prepare full cross" selected>Prepare full cross</option>
+                <option value="Destroy credibility">Destroy credibility</option>
+                <option value="Extract admissions">Extract admissions</option>
+                <option value="Challenge timeline">Challenge timeline</option>
+                <option value="Challenge identification">Challenge identification</option>
+                <option value="Challenge document">Challenge document</option>
+                <option value="Expose investigation gaps">Expose investigation gaps</option>
+                <option value="Contain damage">Contain damage</option>
+              </select>
+            </div>
+          </div>
+          <div class="council-form-row cross-exam-options-row">
+            <div class="council-field">
+              <label for="cross-exam-prep-side">Side</label>
+              <select class="council-select" id="cross-exam-prep-side">
+                <option value="defence / accused" selected>Defence / accused</option>
+                <option value="complainant / prosecution">Complainant / prosecution</option>
+                <option value="plaintiff / claimant">Plaintiff / claimant</option>
+                <option value="defendant / respondent">Defendant / respondent</option>
+                <option value="neutral analysis">Neutral analysis</option>
+              </select>
+            </div>
+            <div class="council-field">
+              <label for="cross-exam-prep-risk">Risk level</label>
+              <select class="council-select" id="cross-exam-prep-risk">
+                <option value="balanced" selected>Balanced</option>
+                <option value="conservative">Conservative</option>
+                <option value="aggressive">Aggressive</option>
+              </select>
+            </div>
+            <div class="council-field">
+              <label for="cross-exam-prep-language">Language</label>
+              <select class="council-select" id="cross-exam-prep-language">
+                <option value="English" selected>English</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Hinglish">Hinglish</option>
+              </select>
+            </div>
+          </div>
+          <div class="council-field">
+            <label for="cross-exam-prep-red-lines">Red lines / facts not to dispute</label>
+            <textarea class="council-textarea" id="cross-exam-prep-red-lines" rows="3" placeholder="Anything the cross should avoid challenging or mentioning"></textarea>
+          </div>
+          <div class="council-field">
+            <label for="cross-exam-prep-focus">Specific focus</label>
+            <textarea class="council-textarea" id="cross-exam-prep-focus" rows="3" placeholder="Optional: CCTV timing, delayed statement, 65B certificate, missing corroboration"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="translate-actions">
+        <button class="btn-primary" type="button" id="cross-exam-prep-run-btn" onclick="runCrossExamPrep()">Prepare Cross</button>
+        <button class="btn-secondary" type="button" onclick="resetCrossExamPrep()">Clear</button>
+        <span class="translate-status" id="cross-exam-prep-status"></span>
+      </div>
+
+      <div class="settings-card translate-setup-card draft-setup-card" id="cross-exam-prep-progress-card" data-csp-style="display:none">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">Live Progress</div><div class="settings-card-subtitle">Agent steps as the cross plan is prepared.</div></div>
+        </div>
+        <div class="translate-review-list" id="cross-exam-prep-progress-list"></div>
+      </div>
+
+      <div class="settings-card translate-setup-card draft-setup-card cross-exam-history-card" id="cross-exam-prep-history-card" data-csp-style="display:none">
+        <div class="settings-card-header">
+          <div><div class="settings-card-title">Recent Cross Prep</div><div class="settings-card-subtitle">Witness-focused prep runs.</div></div>
+        </div>
+        <div class="council-list" id="cross-exam-prep-history-list"></div>
+      </div>
+
+      <div class="translate-result-grid draft-result-grid" id="cross-exam-prep-result-grid" data-csp-style="display:none">
+        <div class="settings-card translate-result-card draft-result-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Courtroom Script</div><div class="settings-card-subtitle" id="cross-exam-prep-result-meta"></div></div>
+            <div class="settings-card-actions">
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Copy script" aria-label="Copy script" onclick="copyCrossExamPrep()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download Markdown" aria-label="Download Markdown" onclick="downloadCrossExamPrep()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Print" aria-label="Print" onclick="printCrossExamPrep()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="translate-html-preview draft-html-preview" id="cross-exam-prep-preview"></div>
+        </div>
+
+        <div class="settings-card translate-review-card">
+          <div class="settings-card-header">
+            <div><div class="settings-card-title">Agent Review</div><div class="settings-card-subtitle">Warnings, missing material, and sources.</div></div>
+          </div>
+          <div class="translate-review-list" id="cross-exam-prep-side-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
