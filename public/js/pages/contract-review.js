@@ -271,6 +271,14 @@ async function loadContractReviewResultFromJob(workspaceId, job) {
   return true;
 }
 
+async function refreshContractReviewJob(workspaceId, jobId) {
+  if (!workspaceId || !jobId) return null;
+  const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/jobs/${encodeURIComponent(jobId)}`);
+  if (!r.ok) throw new Error(await apiError(r));
+  const data = await r.json();
+  return data.job || null;
+}
+
 function renderContractReviewProgress() {
   const job = App.contractReview.job;
   if (!job) return;
@@ -299,11 +307,35 @@ function startContractReviewJobStream(workspaceId, job) {
     if (data.type === 'done') {
       stopContractReviewStream();
       App.contractReview.job = data.metadata || App.contractReview.job;
+      let keepRunning = false;
       try {
         if (data.content === 'completed') {
           await loadContractReviewResultFromJob(workspaceId, App.contractReview.job);
           await loadStandaloneContractReviewHistory();
           showToast('Contract review complete.');
+        } else if (data.content === 'stream_timeout') {
+          const current = await refreshContractReviewJob(workspaceId, App.contractReview.job?.id || job.id);
+          if (current?.status === 'completed') {
+            App.contractReview.job = current;
+            await loadContractReviewResultFromJob(workspaceId, current);
+            await loadStandaloneContractReviewHistory();
+            showToast('Contract review complete.');
+          } else if (current?.status === 'failed') {
+            App.contractReview.job = current;
+            setContractReviewStatus('Contract review failed: ' + (current.error || 'Unknown error'), 'error');
+          } else if (current?.status === 'cancelled') {
+            App.contractReview.job = current;
+            setContractReviewStatus('Contract review cancelled.', 'error');
+          } else {
+            App.contractReview.job = current || (App.contractReview.job?.id ? App.contractReview.job : job);
+            setContractReviewStatus('Contract review is still running. Reconnecting...');
+            setTimeout(() => {
+              if (!App.contractReview.isRunning) return;
+              startContractReviewJobStream(workspaceId, App.contractReview.job || job);
+            }, 1000);
+            keepRunning = true;
+            return;
+          }
         } else {
           const error = data.metadata?.error || App.contractReview.job?.error || data.content;
           if (data.content === 'failed') {
@@ -315,6 +347,7 @@ function startContractReviewJobStream(workspaceId, job) {
       } catch(e) {
         showToast('Review completed but result load failed: ' + e.message, 'error');
       } finally {
+        if (keepRunning) return;
         App.contractReview.isRunning = false;
         App.contractReview.job = null;
         const btn = document.getElementById('contract-review-run-btn');

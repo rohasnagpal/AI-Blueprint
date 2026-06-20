@@ -70,20 +70,11 @@ function selectedDraftSourceDocumentIds() {
 }
 
 function collectDraftPayload() {
-  const documentType = document.getElementById('draft-document-type')?.value.trim() || '';
-  const facts = document.getElementById('draft-facts')?.value.trim() || '';
-  if (!documentType) throw new Error('Document type is required.');
-  if (!facts) throw new Error('Facts and background are required.');
+  const details = document.getElementById('draft-details')?.value.trim() || '';
+  if (!details) throw new Error('Please describe what you need drafted.');
   const payload = {
-    title: document.getElementById('draft-title')?.value.trim() || null,
-    document_type: documentType,
-    jurisdiction: document.getElementById('draft-jurisdiction')?.value.trim() || null,
+    details,
     tone: document.getElementById('draft-tone')?.value || 'formal',
-    audience: document.getElementById('draft-audience')?.value.trim() || null,
-    parties: document.getElementById('draft-parties')?.value.trim() || null,
-    facts,
-    key_terms: document.getElementById('draft-key-terms')?.value.trim() || null,
-    instructions: document.getElementById('draft-instructions')?.value.trim() || null,
     source_document_ids: selectedDraftSourceDocumentIds(),
   };
   if (App.v2.enabled && App.v2.user) payload.matter_id = selectedDraftMatterId();
@@ -403,10 +394,8 @@ function resetDraft() {
   App.drafting.job = null;
   App.drafting.events = [];
   App.drafting.startedAt = null;
-  ['draft-document-type','draft-title','draft-jurisdiction','draft-audience','draft-parties','draft-facts','draft-key-terms','draft-instructions'].forEach(id => {
-    const node = document.getElementById(id);
-    if (node) node.value = '';
-  });
+  const details = document.getElementById('draft-details');
+  if (details) details.value = '';
   const grid = document.getElementById('draft-result-grid');
   if (grid) grid.style.display = 'none';
   const progress = document.getElementById('draft-progress-card');

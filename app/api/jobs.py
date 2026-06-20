@@ -103,6 +103,11 @@ async def stream_job_events(workspace_id: str, job_id: str, user: User = Depends
                     yield _sse_event({"type": "done", "content": current_job.status, "metadata": format_job(current_job)})
                     return
             await asyncio.sleep(1)
-        yield _sse_event({"type": "done", "content": "stream_timeout", "metadata": {"job_id": initial_job_id}})
+        with SessionLocal() as poll_db:
+            current_job = poll_db.get(Job, initial_job_id)
+            metadata = format_job(current_job) if current_job else {"id": initial_job_id}
+            metadata["stream_timed_out"] = True
+            metadata["running_in_process"] = is_job_running(initial_job_id)
+        yield _sse_event({"type": "done", "content": "stream_timeout", "metadata": metadata})
 
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

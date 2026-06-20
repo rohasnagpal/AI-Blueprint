@@ -153,7 +153,7 @@ def run_agentic_litigation_prep(
             qc_input,
             settings,
             model=model,
-            max_tokens=2200,
+            max_tokens=3000,
         )
     else:
         qc, qc_error = _deterministic_qc(draft, tool_results), None
@@ -179,7 +179,7 @@ def run_agentic_litigation_prep(
                 revision_input,
                 settings,
                 model=model,
-                max_tokens=2600,
+                max_tokens=3500,
             )
         else:
             revision_data, revision_error = _deterministic_revisions(flagged_items, draft), None

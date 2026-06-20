@@ -106,31 +106,31 @@ def run_agentic_contract_review(
             "intake_and_extraction_agent",
             "Extract commercially relevant contract facts and correct unsupported deterministic extraction fields.",
             "Return JSON with key extraction only. extraction must be an object keyed by field name. Each value should include value, supported, evidence, and confidence_score.",
-            3000,
+            5000,
         ),
         (
             "risk_analysis_agent",
             "Assess clause, playbook, business, and legal risk from the workflow outputs and source evidence.",
             "Return JSON with key risk_matrix only. risk_matrix must be an array. Each item must include issue, severity, clause_id, clause_type, finding, evidence, requires_review, confidence_score, and recommended_action.",
-            3200,
+            5000,
         ),
         (
             "negotiation_agent",
             "Turn the extraction and risk analysis into practical negotiation priorities and fallback positions.",
             "Return JSON with key negotiation_memo only. The value must be a markdown string with sections ## Priority Issues, ## Fallback Positions, ## Walk-Away Conditions, and ## Open Questions.",
-            1800,
+            2600,
         ),
         (
             "client_summary_agent",
             "Convert the lawyer-facing findings into a cautious plain-English client summary without legal advice.",
             "Return JSON with key client_summary only. The value must be a concise plain-English string.",
-            1400,
+            2200,
         ),
         (
             "quality_control_agent",
             "Review the draft outputs for unsupported claims, legal-advice overreach, missing evidence, and internal contradictions.",
             "Return JSON with keys approved, issues, corrections. approved is boolean; issues is an array; corrections is an object that may contain extraction, risk_matrix, negotiation_memo, or client_summary.",
-            2400,
+            3000,
         ),
     ]
     agent_progress = {
@@ -207,7 +207,7 @@ def run_agentic_contract_review(
             revision_input,
             settings,
             model=model,
-            max_tokens=2600,
+            max_tokens=3500,
         )
         elapsed_ms = int((time.perf_counter() - started) * 1000)
         if revision_error:
@@ -786,7 +786,17 @@ def _provider_label(provider: str | None) -> str:
 
 
 def _is_invalid_json_error(error: str | None) -> bool:
-    return bool(error and "invalid json" in error.lower())
+    if not error:
+        return False
+    lower = error.lower()
+    return (
+        "invalid json" in lower
+        or "jsondecodeerror" in lower
+        or "expecting value" in lower
+        or "expecting property name enclosed in double quotes" in lower
+        or "unterminated string" in lower
+        or "extra data" in lower
+    )
 
 
 def _fallback_agent_output(

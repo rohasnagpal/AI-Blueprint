@@ -19,55 +19,21 @@
 
       <div class="settings-card translate-setup-card draft-setup-card">
         <div class="council-form">
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="draft-document-type">Document type</label>
-              <input class="council-input" id="draft-document-type" placeholder="e.g. Legal notice, SaaS agreement, board resolution, reply to show-cause notice"/>
-            </div>
-            <div class="council-field">
-              <label for="draft-tone">Tone</label>
-              <select class="council-select" id="draft-tone">
-                <option value="formal">Formal</option>
-                <option value="neutral">Neutral</option>
-                <option value="firm">Firm</option>
-                <option value="aggressive">Aggressive</option>
-                <option value="collaborative">Collaborative</option>
-                <option value="client-friendly">Client-friendly</option>
-                <option value="plain-language">Plain-language</option>
-              </select>
-            </div>
-            <div class="council-field">
-              <label for="draft-jurisdiction">Jurisdiction</label>
-              <input class="council-input" id="draft-jurisdiction" placeholder="e.g. India, Maharashtra"/>
-            </div>
-          </div>
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="draft-title">Title</label>
-              <input class="council-input" id="draft-title" placeholder="Optional title"/>
-            </div>
-            <div class="council-field">
-              <label for="draft-audience">Audience</label>
-              <input class="council-input" id="draft-audience" placeholder="Client, counterparty, court, board, regulator"/>
-            </div>
+          <div class="council-field">
+            <label for="draft-tone">Tone</label>
+            <select class="council-select" id="draft-tone" style="max-width:220px">
+              <option value="formal">Formal</option>
+              <option value="neutral">Neutral</option>
+              <option value="firm">Firm</option>
+              <option value="aggressive">Aggressive</option>
+              <option value="collaborative">Collaborative</option>
+              <option value="client-friendly">Client-friendly</option>
+              <option value="plain-language">Plain-language</option>
+            </select>
           </div>
           <div class="council-field">
-            <label for="draft-parties">Parties</label>
-            <textarea class="council-textarea" id="draft-parties" rows="3" placeholder="Names, roles, addresses, representatives, company details"></textarea>
-          </div>
-          <div class="council-field">
-            <label for="draft-facts">Facts and background</label>
-            <textarea class="council-textarea draft-main-textarea" id="draft-facts" placeholder="Describe the facts, dates, events, transaction, dispute, issue, or desired document"></textarea>
-          </div>
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="draft-key-terms">Key terms</label>
-              <textarea class="council-textarea" id="draft-key-terms" rows="5" placeholder="Commercial terms, clauses, relief sought, payment terms, deadlines, fallback positions"></textarea>
-            </div>
-            <div class="council-field">
-              <label for="draft-instructions">Drafting instructions</label>
-              <textarea class="council-textarea" id="draft-instructions" rows="5" placeholder="Formatting preferences, clauses to include/exclude, strategic notes, negotiation posture"></textarea>
-            </div>
+            <label for="draft-details">Details</label>
+            <textarea class="council-textarea draft-main-textarea" id="draft-details" rows="12" placeholder="Describe what you need drafted. Include the document type, parties, facts, jurisdiction, and any specific terms or relief.&#10;&#10;Examples:&#10;• Legal notice from Sharma &amp; Associates to ABC Ltd demanding payment of ₹5 lakh under invoice #123 dated 15 March 2024. Maharashtra jurisdiction. Give 30 days to pay or we file suit.&#10;• Writ petition in the Delhi High Court on behalf of XYZ Exports Pvt Ltd challenging cancellation of export licence by DGFT. Grounds: violation of natural justice, Article 14. Relief: stay and reinstatement of licence.&#10;• Employment contract for a senior software engineer joining at ₹25 LPA, 6-month probation, 3-month notice period. Governing law: Karnataka.&#10;• Bail application before Sessions Court, Mumbai for accused charged under IPC 420 and 406. Grounds: first offence, cooperating with investigation, no flight risk."></textarea>
           </div>
           <div class="council-field" id="draft-source-documents-field" data-csp-style="display:none">
             <label for="draft-source-documents">Source documents</label>

@@ -646,6 +646,7 @@ class LaunchReadinessTest(unittest.TestCase):
         error = "Contract review could not run because Anthropic returned an agent error: Agent returned invalid JSON."
         self.assertTrue(_is_agent_invalid_json_error(error))
         self.assertTrue(_is_agent_invalid_json_error("Contract review agent `risk_analysis_agent` did not return required list `risk_matrix`."))
+        self.assertTrue(_is_agent_invalid_json_error("Contract review could not run because Openrouter returned an agent error: Expecting value: line 253 column 1 (char 1386)"))
         fallback = _deterministic_agentic_review_fallback(
             provider="anthropic",
             model="claude-test",

@@ -910,7 +910,16 @@ def _is_agent_invalid_json_error(error: str) -> bool:
 
 def _is_recoverable_agent_output_error(error: str) -> bool:
     lower = (error or "").lower()
-    return "invalid json" in lower or "did not return required" in lower or "incomplete json" in lower
+    return (
+        "invalid json" in lower
+        or "did not return required" in lower
+        or "incomplete json" in lower
+        or "jsondecodeerror" in lower
+        or "expecting value" in lower
+        or "expecting property name enclosed in double quotes" in lower
+        or "unterminated string" in lower
+        or "extra data" in lower
+    )
 
 
 def _deterministic_agentic_review_fallback(
