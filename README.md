@@ -13,6 +13,8 @@ AI Blueprint is built for lawyers, firms, legal teams, and legal operations team
 
 The goal is not to replace legal judgment. The goal is to give lawyers a structured workspace for reviewing documents, preparing disputes and negotiations, drafting work product, translating legal material, and organizing matter knowledge with stronger control over data, models, and retrieval scope.
 
+<img width="1920" height="1200" alt="ai-blueprint" src="https://github.com/user-attachments/assets/7b8b8230-5ae7-43d0-b23c-695b23c8fa3f" />
+
 ## Core Capabilities
 
 - **Document-grounded legal chat and RAG**  
