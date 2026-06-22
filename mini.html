@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI Blueprint Mini</title>
+  <title>AI Blueprint (Mini) for Lawyers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <style>
@@ -445,6 +448,41 @@
       background: #fffdf9;
       border-top: 1px solid var(--border);
     }
+    .output-list {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+      background: #fffdf9;
+      border-top: 1px solid var(--border);
+    }
+    .output-entry {
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .output-entry-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+      background: #f8f6f0;
+      border-bottom: 1px solid var(--border);
+    }
+    .output-entry-title {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .output-entry-meta {
+      margin-top: 2px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    .output-entry-body {
+      padding: 16px;
+    }
     .output.empty {
       display: flex;
       align-items: center;
@@ -511,8 +549,8 @@
 <body>
   <main class="page">
     <header class="view-header">
-      <h1>AI Blueprint Mini</h1>
-      <p>A single-file legal AI workspace. Upload documents, type what you need, and get reviewed legal work product using your own OpenRouter key.</p>
+      <h1>AI Blueprint (Mini) for Lawyers</h1>
+      <p>Just add your OpenRouter key, and put agentic legal AI to work. Built in 🇮🇳 India for the world by Rohas Nagpal.</p>
     </header>
 
     <section class="mini-grid">
@@ -520,7 +558,7 @@
         <button class="settings-card-header" type="button" data-accordion-target="settingsCard" aria-expanded="false">
           <div>
             <div class="settings-card-title">Settings</div>
-            <div class="settings-card-subtitle">OpenRouter key, credit check, and model quality preset.</div>
+            <div class="settings-card-subtitle">Add / edit / remove your OpenRouter key, check your credits, choose a mode or AI model.</div>
           </div>
           <span class="accordion-icon" aria-hidden="true">⌄</span>
         </button>
@@ -605,14 +643,15 @@
         <div class="settings-card-header">
           <div>
             <div class="settings-card-title">Request</div>
-            <div class="settings-card-subtitle">Describe the legal work product you need. The app infers the task.</div>
+            <div class="settings-card-subtitle">Describe the legal work product you need. AI Blueprint (Mini) infers the task.</div>
           </div>
         </div>
         <div class="card-body">
-          <textarea class="textarea" id="prompt" placeholder="Tell AI Blueprint what you need..."></textarea>
+          <textarea class="textarea" id="prompt" placeholder="Tell AI Blueprint (Mini) what you need..."></textarea>
           <div class="prompt-actions">
             <div class="actions">
               <button class="btn-primary" type="button" id="runBtn">Run</button>
+              <button class="btn-secondary hidden" type="button" id="cancelBtn">Cancel</button>
               <button class="btn-secondary hidden" type="button" id="retryBtn">Retry from failed step</button>
             </div>
             <div class="run-note">This runs 4 AI calls. High Quality mode may cost more and take longer.</div>
@@ -620,6 +659,7 @@
           <div class="request-meta hidden" id="requestUsageMeta">
             <span class="meta-pill" id="usageInfo">Current request tokens: 0</span>
           </div>
+          <div class="hint">Follow-up requests can refer to earlier answers in this thread. New Thread starts fresh.</div>
         </div>
       </div>
 
@@ -650,10 +690,11 @@
           <div class="actions">
             <button class="btn-secondary" type="button" id="copyBtn">Copy Output</button>
             <button class="btn-secondary" type="button" id="exportBtn">Export Markdown</button>
-            <button class="btn-secondary" type="button" id="clearBtn">Clear</button>
+            <button class="btn-secondary" type="button" id="newThreadBtn">New Thread</button>
+            <button class="btn-secondary" type="button" id="clearAllBtn">Clear All</button>
           </div>
         </div>
-        <div id="output" class="output empty">The final output will appear here.</div>
+        <div id="output" class="output-list"></div>
       </div>
     </section>
   </main>
@@ -675,6 +716,7 @@
 
     const OPENROUTER_TIMEOUT_MS = 90000;
     const MAX_DOCUMENT_CHARS = 60000;
+    const MAX_CONVERSATION_CONTEXT_CHARS = 16000;
     const API_KEY_STORAGE_KEY = "aiBlueprintMiniOpenRouterKey";
     const OUTPUT_TOKEN_LIMITS_BY_MODE = {
       low: {
@@ -700,8 +742,8 @@
     const MODEL_PRESETS = {
       low: {
         label: "Low Cost",
-        intake: "google/gemini-2.5-flash-lite-preview-09-2025",
-        document: "google/gemini-2.5-flash-lite-preview-09-2025",
+        intake: "google/gemini-2.5-flash-lite",
+        document: "google/gemini-2.5-flash-lite",
         work: "google/gemini-2.5-flash",
         review: "google/gemini-2.5-flash"
       },
@@ -722,8 +764,8 @@
     };
 
     const MODEL_OPTIONS = [
-      { value: "", label: "Choose automatically from selected mode" },
-      { value: "google/gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite" },
+      { value: "", label: "Choose an AI model" },
+      { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
       { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
       { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
       { value: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4" },
@@ -736,11 +778,15 @@
     let documentAnalysisResult = null;
     let workProductResult = "";
     let finalOutput = "";
+    let outputHistory = [];
     let failedStep = null;
     let failedStepName = "";
     let failedStepRetryable = false;
     let lastRawModelOutput = "";
     let isRunning = false;
+    let activeAbortController = null;
+    let cancelRequested = false;
+    let contextCutoffTime = 0;
     let currentUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: [] };
 
     const els = {
@@ -761,6 +807,7 @@
       truncationNotice: document.getElementById("truncationNotice"),
       prompt: document.getElementById("prompt"),
       runBtn: document.getElementById("runBtn"),
+      cancelBtn: document.getElementById("cancelBtn"),
       retryBtn: document.getElementById("retryBtn"),
       statusBox: document.getElementById("statusBox"),
       errorCard: document.getElementById("errorCard"),
@@ -771,7 +818,8 @@
       output: document.getElementById("output"),
       copyBtn: document.getElementById("copyBtn"),
       exportBtn: document.getElementById("exportBtn"),
-      clearBtn: document.getElementById("clearBtn")
+      newThreadBtn: document.getElementById("newThreadBtn"),
+      clearAllBtn: document.getElementById("clearAllBtn")
     };
 
     const SYSTEM_PROMPTS = {
@@ -888,8 +936,8 @@ Rules:
       resetPipelineState();
       resetUsage();
       els.creditsInfo.textContent = "Credits: not checked";
-      setStatus("");
-      setError("Saved OpenRouter API key cleared.", "");
+      clearError();
+      setStatus("Saved OpenRouter API key cleared.");
     }
 
     function resetPipelineState() {
@@ -958,6 +1006,7 @@ Rules:
     async function callOpenRouter(model, systemPrompt, userContent, maxTokens) {
       const apiKey = els.apiKey.value.trim();
       const controller = new AbortController();
+      activeAbortController = controller;
       const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS);
       try {
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -1002,13 +1051,15 @@ Rules:
         };
       } catch (err) {
         if (err.name === "AbortError") {
-          const error = new Error("Step timed out after 90 seconds. You can retry from this step.");
-          error.timeout = true;
+          const error = new Error(cancelRequested ? "Run cancelled by user." : "Step timed out after 90 seconds. You can retry from this step.");
+          error.timeout = !cancelRequested;
+          error.cancelled = cancelRequested;
           throw error;
         }
         throw err;
       } finally {
         clearTimeout(timer);
+        if (activeAbortController === controller) activeAbortController = null;
       }
     }
 
@@ -1203,6 +1254,22 @@ Rules:
       await executePipeline(1);
     }
 
+    function cancelRun() {
+      if (!isRunning) return;
+      cancelRequested = true;
+      failedStepRetryable = false;
+      els.retryBtn.classList.add("hidden");
+      if (activeAbortController) activeAbortController.abort();
+      setStatus("Cancelling...");
+    }
+
+    function throwIfCancelled() {
+      if (!cancelRequested) return;
+      const error = new Error("Run cancelled by user.");
+      error.cancelled = true;
+      throw error;
+    }
+
     async function retryFromFailedStep() {
       if (!failedStep || !failedStepRetryable) return;
       if ((failedStep > 1 && !intakeResult) || (failedStep > 2 && !documentAnalysisResult) || (failedStep > 3 && !workProductResult)) {
@@ -1232,24 +1299,29 @@ Rules:
       saveApiKey();
       clearError();
       if (startStep === 1) resetUsage();
+      cancelRequested = false;
       setRunning(true);
       try {
         const preset = selectedPreset();
         const tokenLimits = selectedOutputTokenLimits(userPrompt);
         const docContext = buildDocumentContext(uploadedDocs);
         if (startStep <= 1) {
+          throwIfCancelled();
           setStatus("1/4 Understanding request...");
           intakeResult = await runJsonStep(1, "Intake Analyst", preset.intake, SYSTEM_PROMPTS.intake, buildIntakeUserContent(userPrompt), tokenLimits.intake);
         }
         if (startStep <= 2) {
+          throwIfCancelled();
           setStatus("2/4 Analysing documents...");
           documentAnalysisResult = await runJsonStep(2, "Document Analyst", preset.document, SYSTEM_PROMPTS.document, buildDocumentUserContent(userPrompt, docContext), tokenLimits.document);
         }
         if (startStep <= 3) {
+          throwIfCancelled();
           setStatus("3/4 Preparing work product...");
           workProductResult = await runTextStep(3, "Legal Work Product Generator", preset.work, SYSTEM_PROMPTS.work, buildWorkUserContent(userPrompt, docContext), tokenLimits.work);
         }
         if (startStep <= 4) {
+          throwIfCancelled();
           setStatus("4/4 Reviewing final answer...");
           finalOutput = await runTextStep(4, "Legal QA Reviewer", preset.review, SYSTEM_PROMPTS.review, buildReviewUserContent(userPrompt), tokenLimits.review);
         }
@@ -1257,12 +1329,21 @@ Rules:
         failedStepName = "";
         failedStepRetryable = false;
         lastRawModelOutput = "";
-        renderOutput(finalOutput);
+        addOutputToHistory(userPrompt, finalOutput);
         setStatus("Done.");
       } catch (err) {
-        handleStepError(err);
+        if (err.cancelled || cancelRequested) {
+          failedStep = null;
+          failedStepName = "";
+          failedStepRetryable = false;
+          setStatus("Cancelled.");
+          clearError();
+        } else {
+          handleStepError(err);
+        }
       } finally {
         setRunning(false);
+        cancelRequested = false;
       }
     }
 
@@ -1347,19 +1428,43 @@ Rules:
 
     function buildIntakeUserContent(userPrompt) {
       const docs = uploadedDocs.length ? uploadedDocs.map(doc => `- ${doc.name}, ${doc.wordCount} words, ${doc.extractionStatus}`).join("\n") : "- No uploaded documents";
-      return `Original user prompt:\n${userPrompt}\n\nUploaded documents:\n${docs}`;
+      return `Original user prompt:\n${userPrompt}\n\nRecent local session context:\n${buildConversationContext()}\n\nUploaded documents:\n${docs}`;
     }
 
     function buildDocumentUserContent(userPrompt, docContext) {
-      return `Original user prompt:\n${userPrompt}\n\nIntake result:\n${JSON.stringify(intakeResult, null, 2)}\n\nDocument extraction warnings:\n${docContext.warnings}\n\nDocument truncation summary:\n${docContext.truncationSummary}\n\nUploaded document text:\n${docContext.text || "No document text provided."}`;
+      return `Original user prompt:\n${userPrompt}\n\nRecent local session context:\n${buildConversationContext()}\n\nIntake result:\n${JSON.stringify(intakeResult, null, 2)}\n\nDocument extraction warnings:\n${docContext.warnings}\n\nDocument truncation summary:\n${docContext.truncationSummary}\n\nUploaded document text:\n${docContext.text || "No document text provided."}`;
     }
 
     function buildWorkUserContent(userPrompt, docContext) {
-      return `Original user prompt:\n${userPrompt}\n\nIntake result:\n${JSON.stringify(intakeResult, null, 2)}\n\nDocument analysis:\n${JSON.stringify(documentAnalysisResult, null, 2)}\n\nRelevant document text/extracts:\n${docContext.text || "No document text provided."}\n\nDocument truncation summary:\n${docContext.truncationSummary}`;
+      return `Original user prompt:\n${userPrompt}\n\nRecent local session context:\n${buildConversationContext()}\n\nIntake result:\n${JSON.stringify(intakeResult, null, 2)}\n\nDocument analysis:\n${JSON.stringify(documentAnalysisResult, null, 2)}\n\nRelevant document text/extracts:\n${docContext.text || "No document text provided."}\n\nDocument truncation summary:\n${docContext.truncationSummary}`;
     }
 
     function buildReviewUserContent(userPrompt) {
-      return `Original user prompt:\n${userPrompt}\n\nIntake result:\n${JSON.stringify(intakeResult, null, 2)}\n\nDocument analysis:\n${JSON.stringify(documentAnalysisResult, null, 2)}\n\nDraft work product:\n${workProductResult}`;
+      return `Original user prompt:\n${userPrompt}\n\nRecent local session context:\n${buildConversationContext()}\n\nIntake result:\n${JSON.stringify(intakeResult, null, 2)}\n\nDocument analysis:\n${JSON.stringify(documentAnalysisResult, null, 2)}\n\nDraft work product:\n${workProductResult}`;
+    }
+
+    function buildConversationContext() {
+      const entries = contextEntries();
+      if (!entries.length) return "No previous answers selected for context.";
+      const blocks = [];
+      let usedChars = 0;
+      for (const entry of entries) {
+        const block = `Previous user request:\n${entry.prompt}\n\nPrevious AI Blueprint answer:\n${entry.output}`;
+        const remaining = MAX_CONVERSATION_CONTEXT_CHARS - usedChars;
+        if (remaining <= 0) break;
+        if (block.length > remaining) {
+          blocks.push(`${block.slice(0, remaining)}\n[Previous context truncated]`);
+          break;
+        }
+        blocks.push(block);
+        usedChars += block.length;
+      }
+      return blocks.join("\n\n---\n\n");
+    }
+
+    function contextEntries() {
+      const eligible = outputHistory.filter(entry => Date.parse(entry.createdAt) > contextCutoffTime);
+      return eligible;
     }
 
     function selectedPresetKey() {
@@ -1438,7 +1543,9 @@ Rules:
       isRunning = running;
       els.runBtn.disabled = running;
       els.retryBtn.disabled = running;
-      els.clearBtn.disabled = running;
+      els.cancelBtn.classList.toggle("hidden", !running);
+      els.newThreadBtn.disabled = running;
+      els.clearAllBtn.disabled = running;
       els.saveKeyBtn.disabled = running;
       els.clearKeyBtn.disabled = running;
       els.creditsBtn.disabled = running;
@@ -1465,16 +1572,35 @@ Rules:
       URL.revokeObjectURL(url);
     }
 
-    function clearSession() {
+    function newThread() {
       els.prompt.value = "";
       uploadedDocs = [];
       els.docUpload.value = "";
+      contextCutoffTime = Date.now();
+      resetPipelineState();
+      finalOutput = outputHistory[0]?.output || "";
+      resetUsage();
+      clearError();
+      setStatus("New thread started.");
+      renderDocs();
+      renderOutputHistory();
+      els.truncationNotice.textContent = "";
+      els.truncationNotice.classList.add("hidden");
+    }
+
+    function clearAll() {
+      els.prompt.value = "";
+      uploadedDocs = [];
+      els.docUpload.value = "";
+      outputHistory = [];
+      finalOutput = "";
+      contextCutoffTime = 0;
       resetPipelineState();
       resetUsage();
       clearError();
       setStatus("");
       renderDocs();
-      renderOutput("");
+      renderOutputHistory();
       els.truncationNotice.textContent = "";
       els.truncationNotice.classList.add("hidden");
     }
@@ -1539,16 +1665,55 @@ Rules:
       }).join("");
     }
 
-    function renderOutput(markdown) {
+    function addOutputToHistory(promptText, markdown) {
       finalOutput = markdown || "";
-      els.outputCard.classList.toggle("hidden", !finalOutput);
       if (!finalOutput) {
-        els.output.className = "output empty";
-        els.output.textContent = "The final output will appear here.";
+        renderOutputHistory();
         return;
       }
-      els.output.className = "output";
-      els.output.innerHTML = `<div class="markdown-body">${renderMarkdown(finalOutput)}</div>`;
+      outputHistory.unshift({
+        prompt: promptText || "Legal request",
+        output: finalOutput,
+        createdAt: new Date().toISOString(),
+        usage: { ...currentUsage }
+      });
+      renderOutputHistory();
+    }
+
+    function renderOutput(markdown) {
+      finalOutput = markdown || "";
+      if (finalOutput) {
+        outputHistory = [{
+          prompt: "Legal request",
+          output: finalOutput,
+          createdAt: new Date().toISOString(),
+          usage: { ...currentUsage }
+        }];
+      }
+      renderOutputHistory();
+    }
+
+    function renderOutputHistory() {
+      els.outputCard.classList.toggle("hidden", outputHistory.length === 0);
+      if (!outputHistory.length) {
+        els.output.innerHTML = "";
+        return;
+      }
+      els.output.innerHTML = outputHistory.map((entry, index) => {
+        const title = entry.prompt.length > 120 ? `${entry.prompt.slice(0, 117)}...` : entry.prompt;
+        const when = new Date(entry.createdAt).toLocaleString();
+        const tokens = entry.usage?.total_tokens ? ` · ${Number(entry.usage.total_tokens).toLocaleString()} tokens` : "";
+        return `<article class="output-entry">
+          <div class="output-entry-header">
+            <div>
+              <div class="output-entry-title">${escapeHtml(title)}</div>
+              <div class="output-entry-meta">${escapeHtml(when)}${escapeHtml(tokens)}</div>
+            </div>
+            ${index === 0 ? '<span class="meta-pill">Latest</span>' : ""}
+          </div>
+          <div class="output-entry-body markdown-body">${renderMarkdown(entry.output)}</div>
+        </article>`;
+      }).join("");
     }
 
     function renderMarkdown(markdown) {
@@ -1695,10 +1860,12 @@ Rules:
       buildDocumentContext(uploadedDocs);
     });
     els.runBtn.addEventListener("click", runPipeline);
+    els.cancelBtn.addEventListener("click", cancelRun);
     els.retryBtn.addEventListener("click", retryFromFailedStep);
     els.copyBtn.addEventListener("click", copyOutput);
     els.exportBtn.addEventListener("click", exportMarkdown);
-    els.clearBtn.addEventListener("click", clearSession);
+    els.newThreadBtn.addEventListener("click", newThread);
+    els.clearAllBtn.addEventListener("click", clearAll);
 
     loadApiKey();
     populateModelOverride();
