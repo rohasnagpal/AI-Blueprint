@@ -147,12 +147,17 @@
     .settings-section:nth-child(even) {
       background: #f0ede6;
     }
-    .api-key-row,
-    .model-select-row {
+    .api-key-row {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
       align-items: center;
+    }
+    .model-override-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
     }
     .api-key-actions,
     .model-actions {
@@ -531,18 +536,75 @@
       background: var(--accent-soft);
       color: var(--text-muted);
     }
+    .how-it-works-list {
+      display: grid;
+      gap: 10px;
+      margin: 0 0 18px;
+      padding: 0;
+      list-style: none;
+    }
+    .how-it-works-list li {
+      padding: 12px 14px;
+      background: #f8f6f0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .how-it-works-list strong {
+      color: var(--text);
+    }
+    .model-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .model-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      background: var(--surface);
+      font-size: 13px;
+    }
+    .model-table th,
+    .model-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    .model-table th {
+      color: var(--text);
+      background: #f0ede6;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .model-table tr:last-child td {
+      border-bottom: 0;
+    }
+    .model-table th:last-child,
+    .model-table td:last-child {
+      border-right: 0;
+    }
+    .model-table code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
     .hidden { display: none !important; }
     @media (max-width: 720px) {
       .page { padding: 26px 14px 34px; }
       .view-header h1 { font-size: 27px; }
       .settings-card-header, .card-body { padding-left: 14px; padding-right: 14px; }
-      .form-grid, .mode-group, .api-key-row, .model-select-row { grid-template-columns: 1fr; }
+      .form-grid, .mode-group, .api-key-row, .model-override-grid { grid-template-columns: 1fr; }
       .api-key-actions, .model-actions { justify-content: stretch; }
       .api-key-actions button, .model-actions button { flex: 1; }
       .prompt-actions { align-items: stretch; flex-direction: column; }
       .actions, .actions button, .prompt-actions button { width: 100%; }
       .actions button { justify-content: center; }
       .doc-item { grid-template-columns: 1fr; }
+      .model-table { min-width: 680px; }
     }
   </style>
 </head>
@@ -566,7 +628,7 @@
           <div class="settings-stack">
             <section class="settings-section">
               <div class="field">
-                <label for="apiKey">OpenRouter API Key</label>
+                <label for="apiKey">OpenRouter API Key <a href="https://openrouter.ai/" target="_blank"></a></label>
                 <div class="api-key-row">
                   <input class="input" id="apiKey" type="password" autocomplete="off" placeholder="sk-or-...">
                   <div class="api-key-actions">
@@ -584,7 +646,7 @@
 
             <section class="settings-section">
               <div class="field">
-                <label>Mode</label>
+                <label>Option 1: Select Mode</label>
                 <div class="mode-group" role="radiogroup" aria-label="Mode">
                   <label class="mode-option"><input type="radio" name="mode" value="low" checked><span>Low Cost</span></label>
                   <label class="mode-option"><input type="radio" name="mode" value="balanced"><span>Balanced</span></label>
@@ -595,25 +657,33 @@
 
             <section class="settings-section">
               <div class="field">
-                <label for="modelOverride">Model override</label>
-                <div class="model-select-row">
-                  <select class="input" id="modelOverride"></select>
-                  <div class="model-actions">
-                    <button class="btn-secondary" type="button" id="refreshModelsBtn">Refresh Models</button>
+                <label>Option 2: Select Models instead of Mode</label>
+                <div class="model-override-grid">
+                  <div class="field">
+                    <label for="modelOverrideIntake">Intake</label>
+                    <select class="input model-override-select" id="modelOverrideIntake"></select>
+                  </div>
+                  <div class="field">
+                    <label for="modelOverrideDocument">Document Analysis</label>
+                    <select class="input model-override-select" id="modelOverrideDocument"></select>
+                  </div>
+                  <div class="field">
+                    <label for="modelOverrideWork">Work Product</label>
+                    <select class="input model-override-select" id="modelOverrideWork"></select>
+                  </div>
+                  <div class="field">
+                    <label for="modelOverrideReview">QA Review</label>
+                    <select class="input model-override-select" id="modelOverrideReview"></select>
                   </div>
                 </div>
-                <div class="hint">Optional. If selected, this model is used for all 4 calls instead of the mode preset.</div>
+                <div class="model-actions">
+                  <button class="btn-secondary" type="button" id="refreshModelsBtn">Refresh Models</button>
+                </div>
+                <div class="hint">Optional. Select a model for any step you want to override. Blank steps keep the selected mode preset.</div>
                 <div class="hint" id="modelListStatus">Using fallback model list until OpenRouter models load.</div>
               </div>
             </section>
 
-            <section class="settings-section">
-              <div class="field">
-                <label for="customModelId">Custom model ID</label>
-                <input class="input" id="customModelId" type="text" autocomplete="off" placeholder="provider/model-slug">
-                <div class="hint">Optional. Paste any OpenRouter model slug. This overrides both the dropdown and mode preset.</div>
-              </div>
-            </section>
           </div>
           <div class="privacy-note">Runs in your browser. Your API key is stored locally. Uploaded documents are sent to OpenRouter only when you run a task.</div>
         </div>
@@ -696,6 +766,74 @@
         </div>
         <div id="output" class="output-list"></div>
       </div>
+
+      <div class="settings-card collapsed" id="howItWorksCard">
+        <button class="settings-card-header" type="button" data-accordion-target="howItWorksCard" aria-expanded="false">
+          <div>
+            <div class="settings-card-title">How It Works</div>
+            <div class="settings-card-subtitle">Each run uses four internal AI calls before showing the final reviewed output.</div>
+          </div>
+          <span class="accordion-icon" aria-hidden="true">⌄</span>
+        </button>
+        <div class="card-body">
+          <ul class="how-it-works-list">
+            <li><strong>Intake:</strong> Understands the request, classifies the task, identifies missing context, and plans the output structure.</li>
+            <li><strong>Document Analysis:</strong> Extracts relevant facts, clauses, risks, and warnings from uploaded documents without inventing content.</li>
+            <li><strong>Work Product:</strong> Generates the actual legal draft, review, summary, memo, or preparation material requested.</li>
+            <li><strong>QA Review:</strong> Checks the draft for hallucinations, unsupported claims, weak structure, and legal-risk flags before final output.</li>
+          </ul>
+
+          <div class="model-table-wrap" aria-label="Mode model presets">
+            <table class="model-table">
+              <thead>
+                <tr>
+                  <th>Mode</th>
+                  <th>Intake</th>
+                  <th>Document Analysis</th>
+                  <th>Work Product</th>
+                  <th>QA Review</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Low Cost</strong></td>
+                  <td><code>google/gemini-2.5-flash-lite</code></td>
+                  <td><code>google/gemini-2.5-flash-lite</code></td>
+                  <td><code>openai/gpt-4.1-mini</code></td>
+                  <td><code>google/gemini-2.5-flash</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Balanced</strong></td>
+                  <td><code>google/gemini-2.5-flash-lite</code></td>
+                  <td><code>google/gemini-2.5-flash</code></td>
+                  <td><code>anthropic/claude-sonnet-4</code></td>
+                  <td><code>google/gemini-2.5-pro</code></td>
+                </tr>
+                <tr>
+                  <td><strong>High Quality</strong></td>
+                  <td><code>google/gemini-2.5-flash</code></td>
+                  <td><code>google/gemini-2.5-pro</code></td>
+                  <td><code>anthropic/claude-sonnet-4</code></td>
+                  <td><code>openai/gpt-4.1</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="hint">Changing the mode changes which models are used for the four internal calls. Step-specific model selections override individual preset models.</div>
+        </div>
+      </div>
+
+      <div class="settings-card" id="fullVersionCard">
+        <div class="settings-card-header">
+          <div>
+            <div class="settings-card-title">Need More Power and Features?</div>
+            <div class="settings-card-subtitle">
+              Try <a href="https://www.rohasnagpal.com/ai-blueprint/" target="_blank" rel="noopener noreferrer">AI Blueprint for Lawyers</a> for the full legal AI workspace.
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -715,7 +853,7 @@
     */
 
     const OPENROUTER_TIMEOUT_MS = 90000;
-    const MAX_DOCUMENT_CHARS = 60000;
+    const MAX_DOCUMENT_CHARS = 1000000;
     const MAX_CONVERSATION_CONTEXT_CHARS = 16000;
     const API_KEY_STORAGE_KEY = "aiBlueprintMiniOpenRouterKey";
     const OUTPUT_TOKEN_LIMITS_BY_MODE = {
@@ -744,22 +882,22 @@
         label: "Low Cost",
         intake: "google/gemini-2.5-flash-lite",
         document: "google/gemini-2.5-flash-lite",
-        work: "google/gemini-2.5-flash",
+        work: "openai/gpt-4.1-mini",
         review: "google/gemini-2.5-flash"
       },
       balanced: {
         label: "Balanced",
-        intake: "google/gemini-2.5-flash",
+        intake: "google/gemini-2.5-flash-lite",
         document: "google/gemini-2.5-flash",
         work: "anthropic/claude-sonnet-4",
         review: "google/gemini-2.5-pro"
       },
       high: {
         label: "High Quality",
-        intake: "google/gemini-2.5-pro",
+        intake: "google/gemini-2.5-flash",
         document: "google/gemini-2.5-pro",
         work: "anthropic/claude-sonnet-4",
-        review: "anthropic/claude-sonnet-4"
+        review: "openai/gpt-4.1"
       }
     };
 
@@ -797,10 +935,12 @@
       creditsInfo: document.getElementById("creditsInfo"),
       requestUsageMeta: document.getElementById("requestUsageMeta"),
       usageInfo: document.getElementById("usageInfo"),
-      modelOverride: document.getElementById("modelOverride"),
+      modelOverrideIntake: document.getElementById("modelOverrideIntake"),
+      modelOverrideDocument: document.getElementById("modelOverrideDocument"),
+      modelOverrideWork: document.getElementById("modelOverrideWork"),
+      modelOverrideReview: document.getElementById("modelOverrideReview"),
       refreshModelsBtn: document.getElementById("refreshModelsBtn"),
       modelListStatus: document.getElementById("modelListStatus"),
-      customModelId: document.getElementById("customModelId"),
       docUpload: document.getElementById("docUpload"),
       docList: document.getElementById("docList"),
       libraryWarning: document.getElementById("libraryWarning"),
@@ -1473,14 +1613,14 @@ Rules:
 
     function selectedPreset() {
       const preset = MODEL_PRESETS[selectedPresetKey()] || MODEL_PRESETS.low;
-      const override = selectedCustomModelId() || selectedModelOverride();
-      if (!override) return preset;
+      const overrides = selectedModelOverrides();
+      if (!Object.values(overrides).some(Boolean)) return preset;
       return {
-        label: selectedCustomModelId() ? `${preset.label} + Custom Model` : `${preset.label} + Model Override`,
-        intake: override,
-        document: override,
-        work: override,
-        review: override
+        label: `${preset.label} + Step Model Override`,
+        intake: overrides.intake || preset.intake,
+        document: overrides.document || preset.document,
+        work: overrides.work || preset.work,
+        review: overrides.review || preset.review
       };
     }
 
@@ -1497,20 +1637,33 @@ Rules:
       return base;
     }
 
-    function selectedModelOverride() {
-      return els.modelOverride?.value || "";
+    function modelOverrideSelects() {
+      return [
+        els.modelOverrideIntake,
+        els.modelOverrideDocument,
+        els.modelOverrideWork,
+        els.modelOverrideReview
+      ].filter(Boolean);
     }
 
-    function selectedCustomModelId() {
-      return (els.customModelId?.value || "").trim();
+    function selectedModelOverrides() {
+      return {
+        intake: els.modelOverrideIntake?.value || "",
+        document: els.modelOverrideDocument?.value || "",
+        work: els.modelOverrideWork?.value || "",
+        review: els.modelOverrideReview?.value || ""
+      };
     }
 
     function populateModelOverride(options = MODEL_OPTIONS, statusMessage = "Using fallback model list.") {
-      const currentValue = els.modelOverride.value;
-      els.modelOverride.innerHTML = options.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}${option.value ? ` (${escapeHtml(option.value)})` : ""}</option>`).join("");
-      if (currentValue && Array.from(els.modelOverride.options).some(option => option.value === currentValue)) {
-        els.modelOverride.value = currentValue;
-      }
+      const renderedOptions = options.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}${option.value ? ` (${escapeHtml(option.value)})` : ""}</option>`).join("");
+      modelOverrideSelects().forEach(select => {
+        const currentValue = select.value;
+        select.innerHTML = renderedOptions;
+        if (currentValue && Array.from(select.options).some(option => option.value === currentValue)) {
+          select.value = currentValue;
+        }
+      });
       els.modelListStatus.textContent = statusMessage;
     }
 
@@ -1839,8 +1992,7 @@ Rules:
       els.creditsInfo.textContent = "Credits: not checked";
     });
     document.querySelectorAll("input[name='mode']").forEach(input => input.addEventListener("change", invalidatePipelineAndUsage));
-    els.modelOverride.addEventListener("change", invalidatePipelineAndUsage);
-    els.customModelId.addEventListener("input", invalidatePipelineAndUsage);
+    modelOverrideSelects().forEach(select => select.addEventListener("change", invalidatePipelineAndUsage));
     els.prompt.addEventListener("input", invalidatePipelineAndUsage);
     els.saveKeyBtn.addEventListener("click", saveApiKeyFromButton);
     els.clearKeyBtn.addEventListener("click", clearApiKey);
