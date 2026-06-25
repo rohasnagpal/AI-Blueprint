@@ -95,8 +95,8 @@ function renderEmailList() {
       <div class="detail-text" data-csp-style="max-height:120px;overflow:auto;margin:8px 0">${esc((m.body || '').slice(0, 1200))}</div>
       ${m.error ? `<div class="council-card-desc" data-csp-style="color:var(--danger)">${esc(m.error)}</div>` : ''}
       <div class="council-form-row">
-        <div class="council-field"><label>Persona</label><select class="council-select email-row-persona" data-id="${m.id}"><option value="">No persona</option>${App.personas.map(p => `<option value="${esc(p.id)}" ${p.id === m.persona_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
-        <div class="council-field"><label>RAG scope</label><select class="council-select email-row-docs" data-id="${m.id}"><option value="none">No document search</option></select></div>
+        <div class="council-field"><label>Persona</label><div class="council-field-help">Controls reply role, tone, and drafting style.</div><select class="council-select email-row-persona" data-id="${m.id}"><option value="">No persona</option>${App.personas.map(p => `<option value="${esc(p.id)}" ${p.id === m.persona_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+        <div class="council-field"><label>RAG scope</label><div class="council-field-help">Controls which documents can be searched for this reply.</div><select class="council-select email-row-docs" data-id="${m.id}"><option value="none">No document search</option></select></div>
       </div>
       <div class="council-field"><label>Draft</label><textarea class="council-textarea email-draft" data-id="${m.id}" data-csp-style="min-height:150px">${esc(m.draft_body || '')}</textarea></div>
       <div class="council-actions">

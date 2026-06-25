@@ -3,7 +3,20 @@
     <div class="add-doc-view translate-view draft-view">
       <div class="view-header">
         <h2>Litigation Prep</h2>
-        <p>Prepare structured litigation work product from indexed matter documents.</p>
+        <div class="view-header-copy">
+          <span>Prepare structured litigation work product from indexed matter documents.</span>
+          <details class="inline-help">
+            <summary>How it works</summary>
+            <div class="inline-help-panel">
+              <p>Litigation Prep uses an agentic workflow to turn indexed case materials into court-ready work product.</p>
+              <ul>
+                <li>Specialized agents review pleadings, facts, claims, defenses, and procedural posture.</li>
+                <li>They build chronology, evidence, discovery, deposition, motion, trial, and damages materials.</li>
+                <li>The workflow surfaces gaps, risks, and next steps while lawyers control strategy and final judgment.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div class="upload-scope-panel" id="litigation-prep-scope-card">
@@ -26,6 +39,7 @@
             </div>
             <div class="council-field">
               <label for="litigation-prep-party-role">Party role</label>
+              <div class="council-field-help">Sets the perspective for risks, strategy, and work product. Use Neutral analysis when you want a balanced case assessment.</div>
               <select class="council-select" id="litigation-prep-party-role">
                 <option value="plaintiff">Plaintiff</option>
                 <option value="defendant">Defendant</option>
@@ -55,6 +69,7 @@
           <div class="council-form-row">
             <div class="council-field">
               <label for="litigation-prep-focus">Litigation focus</label>
+              <div class="council-field-help">Full prep produces the broadest package. Choose a narrower focus when you only need one workstream.</div>
               <select class="council-select" id="litigation-prep-focus">
                 <option value="full prep">Full prep</option>
                 <option value="pleadings">Pleadings</option>
@@ -72,6 +87,7 @@
           </div>
           <div class="council-field" id="litigation-prep-source-documents-field">
             <label for="litigation-prep-source-documents">Indexed source documents</label>
+            <div class="council-field-help">Select the indexed record materials to use. At least one source document is required to run prep.</div>
             <select class="council-select draft-source-select" id="litigation-prep-source-documents" multiple></select>
           </div>
           <div class="council-field">

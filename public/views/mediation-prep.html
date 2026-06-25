@@ -3,7 +3,20 @@
     <div class="add-doc-view translate-view draft-view">
       <div class="view-header">
         <h2>Mediation Prep</h2>
-        <p>Prepare structured mediation work product from indexed matter documents.</p>
+        <div class="view-header-copy">
+          <span>Prepare structured mediation work product from indexed matter documents.</span>
+          <details class="inline-help">
+            <summary>How it works</summary>
+            <div class="inline-help-panel">
+              <p>Mediation Prep uses an agentic workflow to organize the matter for settlement-focused preparation.</p>
+              <ul>
+                <li>Specialized agents review positions, interests, evidence, authority, and information gaps.</li>
+                <li>They prepare mediator brief inputs, participant notes, damages analysis, and session planning.</li>
+                <li>The workflow highlights negotiation risks and practical options while lawyers approve final strategy.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div class="upload-scope-panel" id="mediation-prep-scope-card">
@@ -26,6 +39,7 @@
             </div>
             <div class="council-field">
               <label for="mediation-prep-party-role">Party role</label>
+              <div class="council-field-help">Sets the perspective for positions, interests, risks, and settlement options. Use Neutral analysis for a balanced assessment.</div>
               <select class="council-select" id="mediation-prep-party-role">
                 <option value="requesting party">Requesting party</option>
                 <option value="responding party">Responding party</option>
@@ -55,6 +69,7 @@
           <div class="council-form-row">
             <div class="council-field">
               <label for="mediation-prep-focus">Mediation focus</label>
+              <div class="council-field-help">Full prep produces the broadest package. Choose a narrower focus when you only need one workstream.</div>
               <select class="council-select" id="mediation-prep-focus">
                 <option value="full prep">Full prep</option>
                 <option value="positions">Positions</option>
@@ -72,6 +87,7 @@
           </div>
           <div class="council-field" id="mediation-prep-source-documents-field">
             <label for="mediation-prep-source-documents">Indexed source documents</label>
+            <div class="council-field-help">Select the indexed record materials to use. At least one source document is required to run prep.</div>
             <select class="council-select draft-source-select" id="mediation-prep-source-documents" multiple></select>
           </div>
           <div class="council-field">

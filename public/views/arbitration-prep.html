@@ -3,7 +3,20 @@
     <div class="add-doc-view translate-view draft-view">
       <div class="view-header">
         <h2>Arbitration Prep</h2>
-        <p>Prepare structured arbitration work product from indexed matter documents.</p>
+        <div class="view-header-copy">
+          <span>Prepare structured arbitration work product from indexed matter documents.</span>
+          <details class="inline-help">
+            <summary>How it works</summary>
+            <div class="inline-help-panel">
+              <p>Arbitration Prep uses an agentic workflow to move from indexed case materials to hearing-ready work product.</p>
+              <ul>
+                <li>Specialized agents review documents, spot issues, build timelines, and map evidence.</li>
+                <li>They prepare witness, exhibit, procedural, damages, and argument materials.</li>
+                <li>The workflow compares findings, surfaces gaps or conflicts, and keeps lawyers in control of final judgment.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div class="upload-scope-panel" id="arbitration-prep-scope-card">
@@ -26,6 +39,7 @@
             </div>
             <div class="council-field">
               <label for="arbitration-prep-party-role">Party role</label>
+              <div class="council-field-help">Sets the perspective for issues, procedural risks, and hearing strategy. Use Neutral analysis for a balanced assessment.</div>
               <select class="council-select" id="arbitration-prep-party-role">
                 <option value="claimant">Claimant</option>
                 <option value="respondent">Respondent</option>
@@ -63,6 +77,7 @@
           </div>
           <div class="council-field" id="arbitration-prep-source-documents-field">
             <label for="arbitration-prep-source-documents">Indexed source documents</label>
+            <div class="council-field-help">Select the indexed record materials to use. At least one source document is required to run prep.</div>
             <select class="council-select draft-source-select" id="arbitration-prep-source-documents" multiple></select>
           </div>
           <div class="council-field">

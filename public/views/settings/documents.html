@@ -5,7 +5,7 @@
           <div class="settings-card">
             <div class="settings-card-header">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
-              <div><div class="settings-card-title">Accepted File Types</div></div>
+              <div><div class="settings-card-title">Accepted File Types</div><div class="settings-card-subtitle">Toggle which formats users can upload into the document index.</div></div>
             </div>
             <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">PDF (.pdf)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
             <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Word Document (.docx)</div></div><div class="settings-row-control"><div class="s-toggle on" onclick="this.classList.toggle('on')"></div></div></div>
@@ -40,7 +40,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Auto-delete After</div>
-                <div class="settings-row-desc">Automatically remove documents after a set period</div>
+                <div class="settings-row-desc">Automatically removes uploaded documents and their search index after the selected period. Use Never for matters that must stay available.</div>
               </div>
               <div class="settings-row-control">
                 <select class="s-select" id="sel-auto-delete">

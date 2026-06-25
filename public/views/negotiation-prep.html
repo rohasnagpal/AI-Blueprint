@@ -3,7 +3,20 @@
     <div class="add-doc-view translate-view draft-view">
       <div class="view-header">
         <h2>Negotiation Prep</h2>
-        <p>Prepare structured negotiation work product from indexed matter documents.</p>
+        <div class="view-header-copy">
+          <span>Prepare structured negotiation work product from indexed matter documents.</span>
+          <details class="inline-help">
+            <summary>How it works</summary>
+            <div class="inline-help-panel">
+              <p>Negotiation Prep uses an agentic workflow to convert matter materials into a practical negotiation plan.</p>
+              <ul>
+                <li>Specialized agents review positions, leverage, constraints, evidence, and commercial context.</li>
+                <li>They prepare talking points, concessions, fallback options, participant prep, and session plans.</li>
+                <li>The workflow flags gaps, risks, and decision points while lawyers keep control of final strategy.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div class="upload-scope-panel" id="negotiation-prep-scope-card">
@@ -26,6 +39,7 @@
             </div>
             <div class="council-field">
               <label for="negotiation-prep-party-role">Party role</label>
+              <div class="council-field-help">Sets the perspective for leverage, concessions, risks, and fallback options. Use Neutral analysis for a balanced assessment.</div>
               <select class="council-select" id="negotiation-prep-party-role">
                 <option value="requesting party">Requesting party</option>
                 <option value="responding party">Responding party</option>
@@ -55,6 +69,7 @@
           <div class="council-form-row">
             <div class="council-field">
               <label for="negotiation-prep-focus">Negotiation focus</label>
+              <div class="council-field-help">Full prep produces the broadest package. Choose a narrower focus when you only need one workstream.</div>
               <select class="council-select" id="negotiation-prep-focus">
                 <option value="full prep">Full prep</option>
                 <option value="positions">Positions</option>
@@ -72,6 +87,7 @@
           </div>
           <div class="council-field" id="negotiation-prep-source-documents-field">
             <label for="negotiation-prep-source-documents">Indexed source documents</label>
+            <div class="council-field-help">Select the indexed record materials to use. At least one source document is required to run prep.</div>
             <select class="council-select draft-source-select" id="negotiation-prep-source-documents" multiple></select>
           </div>
           <div class="council-field">

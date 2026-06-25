@@ -1388,6 +1388,67 @@
     color: var(--text-muted);
   }
 
+  .view-header-copy {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 13.5px;
+    color: var(--text-muted);
+  }
+
+  .inline-help {
+    position: relative;
+    display: inline-block;
+  }
+
+  .inline-help summary {
+    list-style: none;
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .inline-help summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .inline-help summary:hover,
+  .inline-help summary:focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .inline-help-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 20;
+    width: min(420px, calc(100vw - 48px));
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+    color: var(--text);
+  }
+
+  .inline-help-panel p {
+    margin: 0 0 8px;
+    color: var(--text);
+  }
+
+  .inline-help-panel ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-muted);
+  }
+
+  .inline-help-panel li + li {
+    margin-top: 5px;
+  }
+
   #view-add-doc .view-header {
     max-width: var(--add-doc-content-width);
   }
@@ -3411,6 +3472,18 @@
 
   .council-field {
     min-width: 0;
+  }
+
+  .council-field-help {
+    margin: -2px 0 6px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-muted);
+  }
+
+  .council-actions .council-field-help {
+    flex-basis: 100%;
+    margin: -2px 0 2px;
   }
 
   .council-input,

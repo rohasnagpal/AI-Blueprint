@@ -33,7 +33,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Max Output Tokens</div>
-                <div class="settings-row-desc">Maximum length of each generated response</div>
+                <div class="settings-row-desc">Sets the maximum length of each generated response. Increase it for long drafts or detailed reviews; lower it to keep answers shorter and reduce cost.</div>
               </div>
               <div class="settings-row-control">
                 <select class="s-select" id="sel-max-tokens">
@@ -47,7 +47,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Temperature</div>
-                <div class="settings-row-desc">Lower = more factual, Higher = more creative</div>
+                <div class="settings-row-desc">Controls how much variation the model uses. Keep it low for legal, factual, or source-grounded work; raise it only for brainstorming or style variations.</div>
               </div>
               <div class="settings-row-control">
                 <div class="s-slider-wrap">
@@ -70,7 +70,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Embedding Provider</div>
-                <div class="settings-row-desc">Can differ from your chat model provider</div>
+                <div class="settings-row-desc">Controls which provider turns documents into searchable vectors. This affects document search quality, not writing style, and changes may require re-indexing.</div>
               </div>
               <div class="settings-row-control">
                 <select class="s-select" id="sel-embedding-provider">
@@ -83,7 +83,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Embedding Model</div>
-                <div class="settings-row-desc">Higher dimension models improve retrieval accuracy</div>
+                <div class="settings-row-desc">Controls the model used for document search. Larger embedding models can improve retrieval accuracy, but may cost more and require documents to be re-indexed.</div>
               </div>
               <div class="settings-row-control">
                 <select class="s-select" id="sel-embedding-model">

@@ -134,12 +134,17 @@ function renderDraftResult() {
   if (!result || !grid || !preview || !review) return;
   grid.style.display = 'grid';
   preview.innerHTML = sanitizeDraftHtml(result.draft_html || `<p>${esc(result.draft_text || '')}</p>`);
-  if (meta) meta.textContent = `${result.document_type || 'draft'}${result.jurisdiction ? ' · ' + result.jurisdiction : ''}${result.persisted ? ' · saved to workspace' : ' · local result'}`;
+  const agentic = result.agentic_review || result.config?.agentic_review || result.config?.drafting_trace?.agentic_review || result.drafting_trace?.agentic_review || {};
+  if (meta) meta.textContent = `${result.document_type || 'draft'}${result.jurisdiction ? ' · ' + result.jurisdiction : ''}${agentic.enabled ? ' · agentic draft' : ''}${result.persisted ? ' · saved to workspace' : ' · local result'}`;
+  const qualityGates = agentic.quality_control?.gates || [];
+  const agentTrace = agentic.agent_trace || [];
   review.innerHTML = `
     <div class="translate-review-section"><strong>Warnings</strong>${renderTranslationList(result.review_warnings || [], 'No warnings returned.')}</div>
     <div class="translate-review-section"><strong>Missing information</strong>${renderTranslationList(result.missing_information || [], 'No missing information returned.')}</div>
     <div class="translate-review-section"><strong>Assumptions</strong>${renderTranslationList(result.assumptions || [], 'No assumptions returned.')}</div>
     <div class="translate-review-section"><strong>Sources</strong>${renderTranslationList((result.sources || []).map(source => source.filename ? `${source.filename}${source.chunk !== undefined ? ' · chunk ' + source.chunk : ''}` : source), 'No source documents used.')}</div>
+    <div class="translate-review-section"><strong>Quality Gates</strong>${renderTranslationList(qualityGates.map(gate => `${gate.name || 'gate'}: ${gate.status || 'unknown'}`), 'No quality gates returned.')}</div>
+    <div class="translate-review-section"><strong>Agent Trace</strong>${renderTranslationList(agentTrace.map(step => `${step.step_name || 'agent'}: ${step.status || 'unknown'}`), 'No agent trace returned.')}</div>
   `;
 }
 
@@ -185,6 +190,7 @@ function renderDraftHistory() {
     const date = item.completed_at || item.created_at;
     const tokens = item.config?.drafting_trace?.token_usage || item.config?.token_usage || {};
     const tokenText = tokens.total_tokens ? ` · ~${tokens.total_tokens} tokens` : '';
+    const agentText = item.agentic_review?.enabled || item.config?.agentic_review?.enabled ? ' · agentic' : '';
     const meta = [
       item.document_type || 'Draft',
       item.jurisdiction || '',
@@ -193,7 +199,7 @@ function renderDraftHistory() {
     return `<div class="draft-history-row">
       <div>
         <div class="draft-history-title">${esc(title)}</div>
-        <div class="draft-history-meta-line">${esc(meta)}${esc(tokenText)}</div>
+        <div class="draft-history-meta-line">${esc(meta)}${esc(agentText)}${esc(tokenText)}</div>
       </div>
       <div class="draft-history-actions">
         <button class="btn-secondary" type="button" onclick="openDraftHistoryItem('${esc(item.id)}')">Open</button>

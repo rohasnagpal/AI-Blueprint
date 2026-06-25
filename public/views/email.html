@@ -33,11 +33,11 @@
             <div class="email-field"><label>SMTP2GO password</label><input class="council-input" id="email-smtp-password" type="password" placeholder="SMTP password"/></div>
           </div>
           <div class="email-grid two">
-            <div class="email-field"><label>Verify SMTP TLS certificate</label><select class="council-select" id="email-smtp-verify-tls"><option value="true">Yes</option><option value="false">No</option></select></div>
+            <div class="email-field"><label>Verify SMTP TLS certificate</label><div class="council-field-help">Leave this on unless you are debugging a known mail-server certificate issue.</div><select class="council-select" id="email-smtp-verify-tls"><option value="true">Yes</option><option value="false">No</option></select></div>
           </div>
           <div class="email-grid two">
-            <div class="email-field"><label>Reply persona</label><select class="council-select" id="email-persona-select"></select></div>
-            <div class="email-field"><label>RAG scope</label><select class="council-select" id="email-doc-context"></select></div>
+            <div class="email-field"><label>Reply persona</label><div class="council-field-help">Controls the role, tone, and drafting style used for generated replies.</div><select class="council-select" id="email-persona-select"></select></div>
+            <div class="email-field"><label>RAG scope</label><div class="council-field-help">Controls which documents can be searched when drafting a reply.</div><select class="council-select" id="email-doc-context"></select></div>
           </div>
           <div class="council-actions email-actions">
             <button class="btn-primary" onclick="saveEmailSettings()">Save Settings</button>

@@ -3,7 +3,20 @@
     <div class="add-doc-view translate-view draft-view">
       <div class="view-header">
         <h2>Cross-Examination Prep</h2>
-        <p>Prepare a witness-specific cross plan from indexed matter documents.</p>
+        <div class="view-header-copy">
+          <span>Prepare a witness-specific cross plan from indexed matter documents.</span>
+          <details class="inline-help">
+            <summary>How it works</summary>
+            <div class="inline-help-panel">
+              <p>Cross-Examination Prep uses an agentic workflow to build a focused witness plan from the record.</p>
+              <ul>
+                <li>Specialized agents analyze witness statements, documents, contradictions, timelines, and proof gaps.</li>
+                <li>They generate themes, admissions, impeachment points, sequencing, and question sets.</li>
+                <li>The workflow respects red lines and risk level while counsel controls courtroom strategy.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div class="upload-scope-panel" id="cross-exam-prep-scope-card">
@@ -32,6 +45,7 @@
             </div>
             <div class="council-field">
               <label for="cross-exam-prep-objective">Objective</label>
+              <div class="council-field-help">Controls the structure and emphasis of the cross plan, including admissions, impeachment, timeline, or damage control.</div>
               <select class="council-select" id="cross-exam-prep-objective">
                 <option value="Prepare full cross" selected>Prepare full cross</option>
                 <option value="Destroy credibility">Destroy credibility</option>
@@ -47,6 +61,7 @@
           <div class="council-form-row cross-exam-options-row">
             <div class="council-field">
               <label for="cross-exam-prep-side">Side</label>
+              <div class="council-field-help">Sets whose case theory the questions should support. Use Neutral analysis to evaluate both sides.</div>
               <select class="council-select" id="cross-exam-prep-side">
                 <option value="defence / accused" selected>Defence / accused</option>
                 <option value="complainant / prosecution">Complainant / prosecution</option>
@@ -57,6 +72,7 @@
             </div>
             <div class="council-field">
               <label for="cross-exam-prep-risk">Risk level</label>
+              <div class="council-field-help">Conservative avoids overreach, Balanced mixes control and pressure, and Aggressive presses harder on contradictions.</div>
               <select class="council-select" id="cross-exam-prep-risk">
                 <option value="balanced" selected>Balanced</option>
                 <option value="conservative">Conservative</option>

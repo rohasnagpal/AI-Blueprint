@@ -10,7 +10,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Top K Results</div>
-                <div class="settings-row-desc">Number of document chunks retrieved per query</div>
+                <div class="settings-row-desc">Controls how many document sections are sent to the AI for each question. Increase it when answers miss useful context; lower it when answers feel noisy or too broad.</div>
               </div>
               <div class="settings-row-control">
                 <div class="s-slider-wrap">
@@ -22,7 +22,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Similarity Threshold</div>
-                <div class="settings-row-desc">Minimum relevance score to include a chunk as a source</div>
+                <div class="settings-row-desc">Sets how closely a document section must match your question before it can be used. Raise it for stricter, more focused answers; lower it when the AI is missing relevant material.</div>
               </div>
               <div class="settings-row-control">
                 <div class="s-slider-wrap">
@@ -34,7 +34,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Retrieval Strategy</div>
-                <div class="settings-row-desc">How chunks are matched to your query</div>
+                <div class="settings-row-desc">Choose how document sections are matched to your question. Use Semantic for meaning-based matches, Keyword for exact terms, or Hybrid when you want both.</div>
               </div>
               <div class="settings-row-control">
                 <select class="s-select" id="sel-retrieval">
@@ -54,7 +54,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Chunk Size</div>
-                <div class="settings-row-desc">Number of tokens per document chunk</div>
+                <div class="settings-row-desc">Controls how large each indexed document section is. Use larger chunks when answers need more surrounding context; use smaller chunks when you want more precise source matching.</div>
               </div>
               <div class="settings-row-control">
                 <div class="s-slider-wrap">
@@ -66,7 +66,7 @@
             <div class="settings-row">
               <div class="settings-row-info">
                 <div class="settings-row-label">Chunk Overlap</div>
-                <div class="settings-row-desc">Overlapping tokens between adjacent chunks for context continuity</div>
+                <div class="settings-row-desc">Repeats some text between neighboring chunks so important sentences are not split apart. Increase it for long clauses or dense documents; lower it to reduce duplicate context.</div>
               </div>
               <div class="settings-row-control">
                 <div class="s-slider-wrap">

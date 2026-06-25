@@ -3,7 +3,20 @@
     <div class="add-doc-view translate-view">
       <div class="view-header">
         <h2>Translate</h2>
-        <p>Translate pasted text or one document with mode-specific review warnings.</p>
+        <div class="view-header-copy">
+          <span>Translate pasted text or one document with mode-specific review warnings.</span>
+          <details class="inline-help">
+            <summary>How it works</summary>
+            <div class="inline-help-panel">
+              <p>Translate uses a review-oriented workflow to convert text or one document into the selected target language.</p>
+              <ul>
+                <li>The workflow detects source context, applies the selected mode, and preserves legal meaning where possible.</li>
+                <li>It returns translated text with review warnings for ambiguity, formatting, or terminology issues.</li>
+                <li>Human review remains required before relying on translated legal or official content.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div class="upload-scope-panel" id="translate-scope-card">
@@ -105,6 +118,7 @@
             </div>
             <div class="council-field">
               <label for="translate-mode">Mode</label>
+              <div class="council-field-help">Choose the translation style. Legal preserves legal meaning; Literal stays closest to the original wording; Plain-language simplifies the result.</div>
               <select class="council-select" id="translate-mode">
                 <option value="legal">Legal</option>
                 <option value="business">Business</option>

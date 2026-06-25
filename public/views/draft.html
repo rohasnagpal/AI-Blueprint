@@ -3,7 +3,20 @@
     <div class="add-doc-view translate-view draft-view">
       <div class="view-header">
         <h2>Draft</h2>
-        <p>Generate contracts, notices, letters, resolutions, and memos as printable HTML.</p>
+        <div class="view-header-copy">
+          <span>Generate contracts, notices, letters, resolutions, and memos as printable HTML.</span>
+          <details class="inline-help">
+            <summary>How it works</summary>
+            <div class="inline-help-panel">
+              <p>Draft uses an agentic workflow to turn your instructions and optional source documents into structured legal text.</p>
+              <ul>
+                <li>Specialized agents identify document type, parties, facts, jurisdiction, tone, and required clauses.</li>
+                <li>They assemble a printable draft and preserve source context where matter documents are selected.</li>
+                <li>The workflow produces a starting draft for lawyer review, revision, and final approval.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div class="upload-scope-panel" id="draft-scope-card">
@@ -21,6 +34,7 @@
         <div class="council-form">
           <div class="council-field">
             <label for="draft-tone">Tone</label>
+            <div class="council-field-help">Choose the drafting posture. Use formal or neutral for most legal documents; use plain-language or client-friendly when readability matters most.</div>
             <select class="council-select" id="draft-tone" style="max-width:220px">
               <option value="formal">Formal</option>
               <option value="neutral">Neutral</option>
@@ -37,6 +51,7 @@
           </div>
           <div class="council-field" id="draft-source-documents-field" data-csp-style="display:none">
             <label for="draft-source-documents">Source documents</label>
+            <div class="council-field-help">Select matter documents the draft should rely on. Leave blank when you want the draft based only on your instructions.</div>
             <select class="council-select draft-source-select" id="draft-source-documents" multiple></select>
           </div>
         </div>

@@ -102,6 +102,7 @@ function renderAdminUsers() {
               <div class="council-actions">
                 <label class="admin-check"><input class="admin-user-active" data-id="${esc(user.id)}" type="checkbox" ${user.is_active ? 'checked' : ''}/> Active</label>
                 <label class="admin-check"><input class="admin-user-system" data-id="${esc(user.id)}" type="checkbox" ${user.is_system_admin ? 'checked' : ''}/> System admin</label>
+                <div class="council-field-help">System admins can manage users and global administration across the app.</div>
               </div>
             </section>
 
@@ -129,6 +130,7 @@ function renderAdminUsers() {
                 </div>
                 <div class="council-field">
                   <label for="admin-membership-role-${esc(user.id)}">Role to add</label>
+                  <div class="council-field-help">Members can work in the workspace. Admins can manage workspace access and settings.</div>
                   <select class="council-select admin-membership-role" id="admin-membership-role-${esc(user.id)}" data-id="${esc(user.id)}"><option value="member">Member</option><option value="admin">Admin</option></select>
                 </div>
                 <button class="btn-secondary" type="button" onclick="addAdminUserMembership('${esc(user.id)}')">Add Access</button>

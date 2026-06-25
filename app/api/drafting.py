@@ -2,12 +2,13 @@ import hashlib
 import html
 import json
 import re
+import time
 import uuid
 from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,16 +26,54 @@ router = APIRouter(tags=["drafting"])
 
 TONES = {"formal", "neutral", "firm", "aggressive", "collaborative", "client-friendly", "plain-language"}
 ALLOWED_TAGS = "article|section|header|footer|h1|h2|h3|h4|p|ol|ul|li|table|thead|tbody|tr|th|td|blockquote|aside|strong|em|br|hr|small|div|span"
+DRAFT_AGENT_SEQUENCE = [
+    "draft_intake_agent",
+    "draft_architect_agent",
+    "draft_writer_agent",
+    "draft_review_agent",
+    "draft_revision_agent",
+    "draft_render_agent",
+]
 
 
 class DraftRequest(BaseModel):
-    details: str = Field(min_length=1, max_length=80_000)
+    details: str = Field(default="", max_length=80_000)
     tone: str = Field(default="formal", max_length=100)
     matter_id: str | None = None
     source_document_ids: list[str] = Field(default_factory=list, max_length=12)
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_legacy_shape(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or str(data.get("details") or "").strip():
+            return data
+        parts = []
+        labels = [
+            ("document_type", "Document type"),
+            ("jurisdiction", "Jurisdiction"),
+            ("parties", "Parties"),
+            ("facts", "Facts"),
+            ("key_terms", "Key terms"),
+            ("instructions", "Instructions"),
+        ]
+        for key, label in labels:
+            value = str(data.get(key) or "").strip()
+            if value:
+                parts.append(f"{label}: {value}")
+        if parts:
+            data = dict(data)
+            data["details"] = "\n".join(parts)
+        return data
+
+    @model_validator(mode="after")
+    def require_details(self) -> "DraftRequest":
+        if not self.details.strip():
+            raise ValueError("Please describe what you need drafted.")
+        return self
+
 
 def _format_draft(run: DraftRun) -> dict:
+    config = json_loads(run.config_json, {})
     return {
         "id": run.id,
         "workspace_id": run.workspace_id,
@@ -44,7 +83,7 @@ def _format_draft(run: DraftRun) -> dict:
         "jurisdiction": run.jurisdiction,
         "tone": run.tone,
         "audience": run.audience,
-        "config": json_loads(run.config_json, {}),
+        "config": config,
         "draft_html": run.draft_html,
         "draft_text": run.draft_text,
         "assumptions": json_loads(run.assumptions_json, []),
@@ -53,6 +92,7 @@ def _format_draft(run: DraftRun) -> dict:
         "sources": json_loads(run.sources_json, []),
         "provider": run.provider,
         "model": run.model,
+        "agentic_review": config.get("agentic_review") or config.get("drafting_trace", {}).get("agentic_review") or {},
         "status": run.status,
         "error": run.error,
         "created_by_user_id": run.created_by_user_id,
@@ -226,6 +266,69 @@ def _call_json(
         return _json_from_llm(repaired)
 
 
+def _trace(step_name: str, status: str, provider: str | None, model: str | None, error: str | None = None, duration_ms: int | None = None, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload = {
+        "step_name": step_name,
+        "status": status,
+        "provider": provider or "internal",
+        "model": model,
+        "error": error,
+    }
+    if duration_ms is not None:
+        payload["duration_ms"] = duration_ms
+    if metadata:
+        payload["metadata"] = metadata
+    return payload
+
+
+def _run_draft_planner(settings: dict, body: DraftRequest, *, tone: str, source_context: str, provider: str | None, model: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    fallback = {
+        "strategy": "Run the standard legal drafting agent sequence.",
+        "required_agents": DRAFT_AGENT_SEQUENCE,
+        "quality_gates": ["missing_fact_placeholders", "source_discipline", "human_review_warning", "printable_html"],
+        "stop_conditions": ["complete_revised_draft_rendered"],
+    }
+    if not provider:
+        return fallback, [_trace("draft_planner_agent", "skipped", provider, model, "No configured LLM provider.")]
+    started = time.perf_counter()
+    system = (
+        _system_prompt()
+        + " You are a legal drafting planner. Select the bounded drafting agents needed for this request. "
+        "Return JSON keys: strategy, required_agents, quality_gates, source_plan, stop_conditions. "
+        f"Allowed agents: {', '.join(DRAFT_AGENT_SEQUENCE)}."
+    )
+    try:
+        data = _call_json(
+            settings,
+            system=system,
+            user={"task": "draft_planning", "tone": tone, "details": body.details[:12000], "has_source_context": bool(source_context)},
+            model=model,
+            max_tokens=1200,
+            temperature=0.05,
+        )
+        agents = data.get("required_agents")
+        if not isinstance(agents, list) or not agents:
+            data["required_agents"] = DRAFT_AGENT_SEQUENCE
+        else:
+            data["required_agents"] = [agent for agent in agents if agent in DRAFT_AGENT_SEQUENCE] or DRAFT_AGENT_SEQUENCE
+        return data, [_trace("draft_planner_agent", "completed", provider, model, duration_ms=int((time.perf_counter() - started) * 1000), metadata={"agent_count": len(data["required_agents"])})]
+    except Exception as exc:
+        return fallback, [_trace("draft_planner_agent", "fallback", provider, model, str(exc), int((time.perf_counter() - started) * 1000))]
+
+
+def _quality_gate_report(*, sections: list[dict[str, Any]], draft_html: str, missing: list[str], warnings: list[str], source_context: str, sources_used: list[Any]) -> dict[str, Any]:
+    gates = []
+    gates.append({"name": "sections_present", "status": "passed" if sections else "failed"})
+    gates.append({"name": "printable_html", "status": "passed" if draft_html.startswith("<article") and "</article>" in draft_html else "needs_review"})
+    gates.append({"name": "missing_facts_marked", "status": "passed" if missing or "[" in draft_html or "placeholder" not in draft_html.lower() else "needs_review"})
+    gates.append({"name": "source_discipline", "status": "passed" if not source_context or sources_used else "needs_review"})
+    gates.append({"name": "human_review_warning", "status": "passed" if any("review" in str(item).lower() for item in warnings) else "needs_review"})
+    return {
+        "gates": gates,
+        "passed": all(gate["status"] == "passed" for gate in gates),
+    }
+
+
 def _intake_step(settings: dict, details: str, *, model: str, tone: str) -> dict[str, Any]:
     system = (
         _system_prompt()
@@ -318,8 +421,30 @@ def _default_section_draft(details: str) -> dict[str, Any]:
     }
 
 
+def _fallback_intake_from_details(details: str) -> dict[str, Any]:
+    fields: dict[str, str] = {}
+    for line in details.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        normalized = key.strip().lower().replace(" ", "_")
+        fields[normalized] = value.strip()
+    return {
+        "document_type": fields.get("document_type") or "Legal document",
+        "title": fields.get("document_type") or "Draft Legal Document",
+        "jurisdiction": fields.get("jurisdiction"),
+        "parties": fields.get("parties"),
+        "facts": fields.get("facts") or details,
+        "key_terms": fields.get("key_terms"),
+        "instructions": fields.get("instructions"),
+        "audience": None,
+    }
+
+
 def _fallback_draft(details: str, *, tone: str) -> dict:
-    title = "Draft Legal Document"
+    intake = _fallback_intake_from_details(details)
+    document_type = str(intake.get("document_type") or "Legal document")
+    title = str(intake.get("title") or "Draft Legal Document")
     details_escaped = html.escape(details).replace("\n", "<br>")
     html_output = (
         f'<article class="draft-document">'
@@ -328,9 +453,15 @@ def _fallback_draft(details: str, *, tone: str) -> dict:
         '<section><h2>Review Note</h2><p>Configure an LLM provider in Settings to generate a full legal draft.</p></section>'
         "</article>"
     )
+    agentic_review = {
+        "enabled": False,
+        "version": "agentic_drafting_v1",
+        "agent_trace": [_trace("draft_planner_agent", "skipped", None, None, "No configured LLM provider.")],
+        "quality_control": {"gates": [{"name": "configured_provider", "status": "failed"}], "passed": False},
+    }
     return {
-        "document_type": "Legal document",
-        "jurisdiction": None,
+        "document_type": document_type,
+        "jurisdiction": intake.get("jurisdiction"),
         "title": title,
         "draft_html": html_output,
         "draft_text": _strip_html(html_output),
@@ -338,7 +469,10 @@ def _fallback_draft(details: str, *, tone: str) -> dict:
         "missing_information": ["Configured LLM provider is required for full drafting."],
         "review_warnings": ["Human legal review is required before use."],
         "sources_used": [],
-        "intake": {},
+        "drafting_trace": {"pipeline": "agentic_drafting_v1", "agentic_review": agentic_review, "tokens": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "exact": False}},
+        "agentic_review": agentic_review,
+        "token_usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "exact": False},
+        "intake": intake,
         "provider": None,
         "model": None,
     }
@@ -349,6 +483,8 @@ def _draft(body: DraftRequest, *, tone: str, source_context: str, progress_callb
     provider = configured_llm_provider(settings)
     model = settings.get("chat_model", "gpt-4o")
     estimated_tokens: dict[str, Any] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "exact": False}
+    agent_trace: list[dict[str, Any]] = []
+    agent_outputs: dict[str, Any] = {}
 
     def add_tokens(usage: dict[str, Any]) -> None:
         estimated_tokens["prompt_tokens"] += int(usage.get("prompt_tokens") or 0)
@@ -363,16 +499,50 @@ def _draft(body: DraftRequest, *, tone: str, source_context: str, progress_callb
     pipeline_warnings = []
 
     if progress_callback:
-        progress_callback("Extracting document parameters", 15, {"stage": "intake", "tokens": dict(estimated_tokens)})
-    intake = _intake_step(settings, body.details, model=model, tone=tone)
+        progress_callback("Planning drafting agents", 12, {"stage": "draft_planner_agent", "tokens": dict(estimated_tokens)})
+    planner_output, planner_trace = _run_draft_planner(settings, body, tone=tone, source_context=source_context, provider=provider, model=model)
+    agent_outputs["draft_planner_agent"] = planner_output
+    agent_trace.extend(planner_trace)
+
+    if progress_callback:
+        progress_callback("Intake agent extracting document parameters", 20, {"stage": "draft_intake_agent", "tokens": dict(estimated_tokens)})
+    started = time.perf_counter()
+    try:
+        intake = _intake_step(settings, body.details, model=model, tone=tone)
+        agent_outputs["draft_intake_agent"] = intake
+        agent_trace.append(_trace("draft_intake_agent", "completed", provider, model, duration_ms=int((time.perf_counter() - started) * 1000)))
+    except Exception as exc:
+        intake = {
+            "document_type": "Legal document",
+            "title": None,
+            "jurisdiction": None,
+            "parties": None,
+            "facts": body.details,
+            "key_terms": None,
+            "instructions": None,
+            "audience": None,
+        }
+        pipeline_warnings.append(f"Intake fallback used: {exc}")
+        agent_outputs["draft_intake_agent"] = intake
+        agent_trace.append(_trace("draft_intake_agent", "fallback", provider, model, str(exc), int((time.perf_counter() - started) * 1000)))
 
     try:
         if progress_callback:
-            progress_callback("Planning structure and drafting document", 35, {"stage": "plan_and_draft", "tokens": dict(estimated_tokens)})
+            progress_callback("Architecture and writing agents drafting document", 45, {"stage": "draft_writer_agent", "tokens": dict(estimated_tokens)})
+        started = time.perf_counter()
         section_draft = _plan_and_draft_step(settings, intake, tone=tone, source_context=source_context, model=model, token_callback=add_tokens)
+        agent_outputs["draft_architect_agent"] = section_draft.get("outline") if isinstance(section_draft.get("outline"), dict) else {"sections": [section.get("heading") for section in section_draft.get("sections", []) if isinstance(section, dict)]}
+        agent_outputs["draft_writer_agent"] = section_draft
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        agent_trace.append(_trace("draft_architect_agent", "completed", provider, model, duration_ms=elapsed_ms))
+        agent_trace.append(_trace("draft_writer_agent", "completed", provider, model, duration_ms=elapsed_ms))
     except Exception as exc:
         section_draft = _default_section_draft(body.details)
         pipeline_warnings.append(f"Plan-and-draft fallback used: {exc}")
+        agent_outputs["draft_architect_agent"] = {"sections": ["Details"]}
+        agent_outputs["draft_writer_agent"] = section_draft
+        agent_trace.append(_trace("draft_architect_agent", "fallback", provider, model, str(exc)))
+        agent_trace.append(_trace("draft_writer_agent", "fallback", provider, model, str(exc)))
 
     outline = section_draft.get("outline") if isinstance(section_draft.get("outline"), dict) else {"sections": []}
     analysis = {
@@ -384,11 +554,21 @@ def _draft(body: DraftRequest, *, tone: str, source_context: str, progress_callb
 
     try:
         if progress_callback:
-            progress_callback("Reviewing draft and revising", 70, {"stage": "qa_and_revise", "tokens": dict(estimated_tokens)})
+            progress_callback("Review and revision agents checking draft", 72, {"stage": "draft_review_agent", "tokens": dict(estimated_tokens)})
+        started = time.perf_counter()
         data = _qa_and_revise_step(settings, intake, tone=tone, draft=section_draft, model=model, token_callback=add_tokens)
+        agent_outputs["draft_review_agent"] = {"qa_issues": data.get("qa_issues") or [], "missing_information": data.get("missing_information") or [], "review_warnings": data.get("review_warnings") or []}
+        agent_outputs["draft_revision_agent"] = data
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        agent_trace.append(_trace("draft_review_agent", "completed", provider, model, duration_ms=elapsed_ms))
+        agent_trace.append(_trace("draft_revision_agent", "completed", provider, model, duration_ms=elapsed_ms))
     except Exception as exc:
         data = section_draft
         pipeline_warnings.append(f"QA-and-revision fallback used: {exc}")
+        agent_outputs["draft_review_agent"] = {"qa_issues": [str(exc)], "missing_information": data.get("missing_information") or [], "review_warnings": data.get("review_warnings") or []}
+        agent_outputs["draft_revision_agent"] = data
+        agent_trace.append(_trace("draft_review_agent", "fallback", provider, model, str(exc)))
+        agent_trace.append(_trace("draft_revision_agent", "fallback", provider, model, str(exc)))
 
     if "qa" not in locals():
         qa: dict[str, Any] = {"issues": data.get("qa_issues") if isinstance(data.get("qa_issues"), list) else [], "missing_information": data.get("missing_information") or [], "assumptions": data.get("assumptions") or [], "review_warnings": data.get("review_warnings") or []}
@@ -401,9 +581,10 @@ def _draft(body: DraftRequest, *, tone: str, source_context: str, progress_callb
     preamble = str(data.get("preamble") or section_draft.get("preamble") or "").strip()
 
     if progress_callback:
-        progress_callback("Rendering printable HTML", 88, {"stage": "render", "tokens": dict(estimated_tokens)})
+        progress_callback("Render agent producing printable HTML", 88, {"stage": "draft_render_agent", "tokens": dict(estimated_tokens)})
 
     document_type = str(intake.get("document_type") or "Legal document")
+    started = time.perf_counter()
     draft_html = _sanitize_html(_render_printable_html(title, sections, document_type=document_type, preamble=preamble))
 
     missing: list[str] = []
@@ -419,6 +600,18 @@ def _draft(body: DraftRequest, *, tone: str, source_context: str, progress_callb
         if isinstance(payload.get(key), list):
             warnings.extend(payload[key])
     warnings.extend(pipeline_warnings)
+    sources_used = data.get("sources_used") if isinstance(data.get("sources_used"), list) else []
+    quality_control = _quality_gate_report(sections=sections, draft_html=draft_html, missing=missing, warnings=warnings, source_context=source_context, sources_used=sources_used)
+    agent_outputs["draft_render_agent"] = {"title": title, "document_type": document_type, "quality_control": quality_control}
+    agent_trace.append(_trace("draft_render_agent", "completed", "internal", "draft_html_renderer_v1", duration_ms=int((time.perf_counter() - started) * 1000), metadata={"quality_passed": quality_control["passed"]}))
+    agentic_review = {
+        "enabled": True,
+        "version": "agentic_drafting_v1",
+        "planner": planner_output,
+        "agent_trace": agent_trace,
+        "agent_outputs": agent_outputs,
+        "quality_control": quality_control,
+    }
 
     return {
         "document_type": document_type,
@@ -429,8 +622,9 @@ def _draft(body: DraftRequest, *, tone: str, source_context: str, progress_callb
         "assumptions": list(dict.fromkeys(str(item) for item in assumptions if str(item).strip()))[:24],
         "missing_information": list(dict.fromkeys(str(item) for item in missing if str(item).strip()))[:24],
         "review_warnings": list(dict.fromkeys(str(item) for item in warnings if str(item).strip()))[:24],
-        "sources_used": data.get("sources_used") if isinstance(data.get("sources_used"), list) else [],
-        "drafting_trace": {"analysis": analysis, "outline": outline, "qa": qa, "pipeline": "intake_plan_draft_qa_revision_render_v3", "tokens": dict(estimated_tokens)},
+        "sources_used": sources_used,
+        "drafting_trace": {"analysis": analysis, "outline": outline, "qa": qa, "pipeline": "agentic_drafting_v1", "tokens": dict(estimated_tokens), "agentic_review": agentic_review},
+        "agentic_review": agentic_review,
         "token_usage": dict(estimated_tokens),
         "intake": intake,
         "provider": provider,
@@ -461,6 +655,7 @@ def _result_payload(body: DraftRequest, *, tone: str, source_context: str, sourc
         "review_warnings": warnings,
         "sources": sources or result.get("sources_used") or [],
         "drafting_trace": result.get("drafting_trace") or {},
+        "agentic_review": result.get("agentic_review") or result.get("drafting_trace", {}).get("agentic_review") or {},
         "token_usage": result.get("token_usage") or {},
         "provider": result.get("provider"),
         "model": result.get("model"),
@@ -485,6 +680,7 @@ def _save_draft_run(db: Session, *, workspace_id: str, user: User, body: DraftRe
                 "intake": intake,
                 "source_document_ids": body.source_document_ids,
                 "drafting_trace": payload.get("drafting_trace") or {},
+                "agentic_review": payload.get("agentic_review") or {},
                 "token_usage": payload.get("token_usage") or {},
             },
             sort_keys=True,

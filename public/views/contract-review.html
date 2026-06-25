@@ -3,7 +3,20 @@
     <div class="add-doc-view translate-view draft-view">
       <div class="view-header">
         <h2>Contract Review</h2>
-        <p>Review indexed contracts directly from a workspace.</p>
+        <div class="view-header-copy">
+          <span>Review indexed contracts directly from a workspace.</span>
+          <details class="inline-help">
+            <summary>How it works</summary>
+            <div class="inline-help-panel">
+              <p>Contract Review uses an agentic workflow to inspect selected contracts against your playbook and instructions.</p>
+              <ul>
+                <li>Specialized agents extract clauses, confirm key facts, compare terms, and score risks.</li>
+                <li>They prepare summaries, issue lists, negotiation points, and source-backed review notes.</li>
+                <li>The workflow flags uncertainty and required human checks before any work product is used.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div class="upload-scope-panel" id="contract-review-scope-card">
@@ -26,6 +39,7 @@
             </div>
             <div class="council-field">
               <label for="contract-review-depth">Review depth</label>
+              <div class="council-field-help">Standard balances coverage and speed. Detailed expands the analysis. Red-flag only focuses on material risks.</div>
               <select class="council-select" id="contract-review-depth">
                 <option value="standard">Standard</option>
                 <option value="detailed">Detailed</option>
@@ -34,11 +48,13 @@
             </div>
             <div class="council-field">
               <label for="contract-review-playbook">Playbook</label>
+              <div class="council-field-help">The playbook defines the clauses, standards, and risk checks used to review the contract.</div>
               <select class="council-select" id="contract-review-playbook"></select>
             </div>
           </div>
           <div class="council-field" id="contract-review-source-documents-field">
             <label for="contract-review-source-documents">Source contracts</label>
+            <div class="council-field-help">Select the contracts to review. If none are selected, the run may use the available indexed contracts for this matter.</div>
             <select class="council-select draft-source-select" id="contract-review-source-documents" multiple></select>
           </div>
           <div class="council-field">

@@ -17,10 +17,11 @@
               </div>
               <div class="council-form-row">
                 <div class="council-field"><label for="admin-user-workspace">Workspace</label><select class="council-select" id="admin-user-workspace"></select></div>
-                <div class="council-field"><label for="admin-user-role">Workspace role</label><select class="council-select" id="admin-user-role"><option value="member">Member</option><option value="admin">Admin</option></select></div>
+                <div class="council-field"><label for="admin-user-role">Workspace role</label><div class="council-field-help">Members can work inside the workspace. Workspace admins can manage workspace access and settings.</div><select class="council-select" id="admin-user-role"><option value="member">Member</option><option value="admin">Admin</option></select></div>
               </div>
               <div class="council-actions">
                 <label class="admin-check"><input id="admin-user-system-admin" type="checkbox"/> System admin</label>
+                <div class="council-field-help">System admins can manage users and global administration across the app.</div>
                 <button class="btn-primary" type="button" onclick="createAdminUser()">Create User</button>
               </div>
             </div>
