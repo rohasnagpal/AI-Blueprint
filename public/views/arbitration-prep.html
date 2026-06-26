@@ -4,16 +4,39 @@
       <div class="view-header">
         <h2>Arbitration Prep</h2>
         <div class="view-header-copy">
-          <span>Prepare structured arbitration work product from indexed matter documents.</span>
+          <span>Generate a structured arbitration preparation report from indexed matter documents.</span>
           <details class="inline-help">
             <summary>How it works</summary>
             <div class="inline-help-panel">
-              <p>Arbitration Prep uses an agentic workflow to move from indexed case materials to hearing-ready work product.</p>
-              <ul>
-                <li>Specialized agents review documents, spot issues, build timelines, and map evidence.</li>
-                <li>They prepare witness, exhibit, procedural, damages, and argument materials.</li>
-                <li>The workflow compares findings, surfaces gaps or conflicts, and keeps lawyers in control of final judgment.</li>
-              </ul>
+              <p>Arbitration Prep organizes arbitration materials into a lawyer-reviewed preparation report. It does not decide the dispute, provide legal advice, or predict the award.</p>
+              <div class="arbitration-help-grid">
+                <div>
+                  <strong>Upload</strong>
+                  <ul>
+                    <li>Notice or request for arbitration</li>
+                    <li>Answer, response, or counterclaim</li>
+                    <li>Statements of claim and defense</li>
+                    <li>Contracts and arbitration clause</li>
+                    <li>Procedural orders and timetables</li>
+                    <li>Key correspondence and exhibits</li>
+                    <li>Witness statements or transcripts</li>
+                    <li>Expert reports and damages schedules</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Output</strong>
+                  <ul>
+                    <li>Case snapshot and procedural posture</li>
+                    <li>Issues for determination</li>
+                    <li>Factual chronology and evidence matrix</li>
+                    <li>Witness and cross-examination prep</li>
+                    <li>Procedural tasks and hearing deadlines</li>
+                    <li>Damages and remedies analysis</li>
+                    <li>Strengths, weaknesses, and uncertainty points</li>
+                    <li>One-page hearing preparation plan</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </details>
         </div>
@@ -32,63 +55,20 @@
 
       <div class="settings-card translate-setup-card draft-setup-card">
         <div class="council-form">
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="arbitration-prep-title">Run title</label>
-              <input class="council-input" id="arbitration-prep-title" placeholder="Arbitration prep"/>
-            </div>
-            <div class="council-field">
-              <label for="arbitration-prep-party-role">Party role</label>
-              <div class="council-field-help">Sets the perspective for issues, procedural risks, and hearing strategy. Use Neutral analysis for a balanced assessment.</div>
-              <select class="council-select" id="arbitration-prep-party-role">
-                <option value="claimant">Claimant</option>
-                <option value="respondent">Respondent</option>
-                <option value="third party">Third party</option>
-                <option value="neutral analysis" selected>Neutral analysis</option>
-              </select>
-            </div>
-            <div class="council-field">
-              <label for="arbitration-prep-forum-rules">Forum / rules</label>
-              <select class="council-select" id="arbitration-prep-forum-rules">
-                <option value="">Not specified</option>
-                <option value="ICC">ICC</option>
-                <option value="LCIA">LCIA</option>
-                <option value="SIAC">SIAC</option>
-                <option value="UNCITRAL">UNCITRAL</option>
-                <option value="AAA/ICDR">AAA/ICDR</option>
-                <option value="ad hoc">ad hoc</option>
-                <option value="other">other</option>
-              </select>
-            </div>
-          </div>
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="arbitration-prep-seat">Seat / jurisdiction</label>
-              <input class="council-input" id="arbitration-prep-seat" placeholder="Singapore, London, New York"/>
-            </div>
-            <div class="council-field">
-              <label for="arbitration-prep-stage">Procedural stage</label>
-              <input class="council-input" id="arbitration-prep-stage" placeholder="Pleadings, disclosure, pre-hearing"/>
-            </div>
-            <div class="council-field">
-              <label for="arbitration-prep-dates">Hearing / deadline dates</label>
-              <input class="council-input" id="arbitration-prep-dates" placeholder="2026-07-15, 2026-08-01"/>
-            </div>
-          </div>
           <div class="council-field" id="arbitration-prep-source-documents-field">
             <label for="arbitration-prep-source-documents">Indexed source documents</label>
-            <div class="council-field-help">Select the indexed record materials to use. At least one source document is required to run prep.</div>
+            <div class="council-field-help">Leave blank to use all indexed documents in the selected matter.</div>
             <select class="council-select draft-source-select" id="arbitration-prep-source-documents" multiple></select>
           </div>
           <div class="council-field">
-            <label for="arbitration-prep-instructions">Prep instructions</label>
-            <textarea class="council-textarea" id="arbitration-prep-instructions" rows="4" placeholder="Focus issues, witnesses, procedural orders, damages, evidence gaps, or hearing priorities"></textarea>
+            <label for="arbitration-prep-instructions">Optional arbitration notes</label>
+            <textarea class="council-textarea" id="arbitration-prep-instructions" rows="4" placeholder="Optional: forum/rules, seat, hearing date, party perspective, procedural stage, damages focus, witnesses, or issues to test"></textarea>
           </div>
         </div>
       </div>
 
       <div class="translate-actions">
-        <button class="btn-primary" type="button" id="arbitration-prep-run-btn" onclick="runArbitrationPrep()">Run Prep</button>
+        <button class="btn-primary" type="button" id="arbitration-prep-run-btn" onclick="runArbitrationPrep()">Generate Arbitration Prep Report</button>
         <button class="btn-secondary" type="button" onclick="resetArbitrationPrep()">Clear</button>
         <span class="translate-status" id="arbitration-prep-status"></span>
       </div>
@@ -110,6 +90,12 @@
               </button>
               <button class="icon-btn translate-result-icon-btn" type="button" title="Download Markdown" aria-label="Download Markdown" onclick="downloadArbitrationPrep()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Print report" aria-label="Print report" onclick="printArbitrationPrepReport()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download print-ready HTML" aria-label="Download print-ready HTML" onclick="downloadArbitrationPrepHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
               </button>
             </div>
           </div>

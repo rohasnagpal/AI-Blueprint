@@ -28,6 +28,7 @@ database.SECRET_KEY_FILE = str(APP_SECRET_PATH)
 from fastapi.testclient import TestClient
 
 from main import app
+from app.core.arbitration_agents.models import ArbitrationWorkflow
 from app.core.arbitration_agents.orchestrator import run_agentic_arbitration_prep
 from app.core.arbitration_agents.tools import SUPPORTED_TOOLS, run_arbitration_agent_tools
 from app.core.database import SessionLocal
@@ -135,6 +136,16 @@ class ArbitrationPrepTest(unittest.TestCase):
                 )
             db.commit()
         return document_id
+
+    def test_arbitration_workflow_model_matches_report_shape(self) -> None:
+        workflow = ArbitrationWorkflow()
+        dumped = workflow.model_dump()
+        self.assertEqual(dumped["version"], "arbitration_prep_workflow_v2")
+        self.assertIn("witness_prep", dumped)
+        self.assertNotIn("witnesses", dumped)
+        self.assertIn("argument_strategy", dumped)
+        self.assertIn("cross_examination", dumped)
+        self.assertIn("client_or_team_summary", dumped)
 
     def wait_for_job(self, workspace_id: str, job_id: str) -> dict:
         last = None
@@ -259,6 +270,7 @@ class ArbitrationPrepTest(unittest.TestCase):
         responses = [
             {"strategy": "plan", "required_agents": [], "tool_requests": [{"tool": "targeted_document_retrieval", "query": "claim"}], "evidence_gaps": [], "stop_conditions": []},
             {"case_snapshot": {"forum_rules": "ICC"}},
+            {"client_or_team_summary": "Neutral arbitration summary for lawyer review."},
             {"issues": []},
             {"chronology": []},
             {"evidence_matrix": []},
@@ -279,7 +291,7 @@ class ArbitrationPrepTest(unittest.TestCase):
         self.assertIn("revision_controller_agent", [step["step_name"] for step in result["agent_trace"]])
         self.assertEqual(mocked.call_count, len(responses))
 
-        clean_responses = responses[:11] + [{"approved": True, "flagged_items": [], "unsupported_claims": [], "privilege_flags": [], "warnings": [], "corrections": {}}]
+        clean_responses = responses[:-2] + [{"approved": True, "flagged_items": [], "unsupported_claims": [], "privilege_flags": [], "warnings": [], "corrections": {}}]
         with patch("app.core.arbitration_agents.orchestrator.configured_llm_provider", return_value="mock"), patch("app.core.arbitration_agents.orchestrator.complete_with_configured_llm", side_effect=[json.dumps(item) for item in clean_responses]) as clean_mock:
             clean = run_agentic_arbitration_prep(sources=[], source_bundle=source_bundle, run_context={"forum_rules": "ICC", "seat": "Paris"}, settings=settings)
         self.assertNotIn("revision_controller_agent", [step["step_name"] for step in clean["agent_trace"]])

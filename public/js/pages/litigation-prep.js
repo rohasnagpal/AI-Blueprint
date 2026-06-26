@@ -80,7 +80,9 @@ function renderLitigationPrepSourceDocuments() {
 function selectedLitigationPrepDocumentIds() {
   const select = document.getElementById('litigation-prep-source-documents');
   if (!select) return [];
-  return [...select.selectedOptions].map(option => option.value).filter(Boolean);
+  const selected = [...select.selectedOptions].map(option => option.value).filter(Boolean);
+  if (selected.length) return selected;
+  return [...select.options].map(option => option.value).filter(Boolean);
 }
 
 function collectLitigationPrepPayload() {
@@ -115,20 +117,23 @@ async function loadLitigationPrepHistory() {
     return;
   }
   try {
-    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/litigation-prep/runs?page_size=8`);
+    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/litigation-prep/runs?page_size=8&workflow_mode=litigation_prep`);
     if (!r.ok) throw new Error(await apiError(r));
     const data = await r.json();
     App.litigationPrep.history = data.items || [];
     card.style.display = App.litigationPrep.history.length ? 'block' : 'none';
-    list.innerHTML = App.litigationPrep.history.map(run => `<div class="council-row">
-      <div class="council-row-head">
+    list.innerHTML = App.litigationPrep.history.map(run => `<div class="council-row litigation-prep-history-row">
+      <div class="council-row-head litigation-prep-history-row-head">
         <div>
           <div class="council-card-title">${esc(run.title || 'Litigation prep')}</div>
           <div class="council-card-meta">${esc(run.completed_at ? new Date(run.completed_at).toLocaleString() : run.status || 'queued')}${run.court ? ' · ' + esc(run.court) : ''}</div>
         </div>
         <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
       </div>
-      <div class="council-actions"><button class="btn-secondary" type="button" onclick="openLitigationPrepRun('${esc(run.id)}')">Open</button></div>
+      <div class="council-actions litigation-prep-history-actions">
+        <button class="btn-secondary" type="button" onclick="openLitigationPrepRun('${esc(run.id)}')">Open</button>
+        <button class="btn-secondary danger" type="button" onclick="deleteLitigationPrepRun('${esc(run.id)}')">Delete</button>
+      </div>
     </div>`).join('');
   } catch(e) {
     card.style.display = 'none';
@@ -146,6 +151,27 @@ async function openLitigationPrepRun(runId) {
     showToast('Litigation prep loaded.');
   } catch(e) {
     showToast('Failed to load litigation prep: ' + e.message, 'error');
+  }
+}
+
+async function deleteLitigationPrepRun(runId) {
+  const workspaceId = litigationPrepWorkspaceId();
+  if (!workspaceId || !runId) return;
+  const run = (App.litigationPrep.history || []).find(item => item.id === runId);
+  const title = run?.title || 'Litigation prep';
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  try {
+    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/litigation-prep/runs/${encodeURIComponent(runId)}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    if (App.litigationPrep.result?.id === runId) {
+      App.litigationPrep.result = null;
+      const grid = document.getElementById('litigation-prep-result-grid');
+      if (grid) grid.style.display = 'none';
+    }
+    await loadLitigationPrepHistory();
+    showToast('Litigation prep deleted.');
+  } catch(e) {
+    showToast('Failed to delete litigation prep: ' + e.message, 'error');
   }
 }
 
@@ -280,6 +306,95 @@ function renderLitigationSection(title, items, renderer, emptyText) {
   return `<section><h2>${esc(title)}</h2>${items && items.length ? items.map(renderer).join('') : `<p>${esc(emptyText || 'No supported items returned.')}</p>`}</section>`;
 }
 
+function litigationReportRows(value) {
+  if (!value || typeof value !== 'object') return `<p>${esc(litigationDisplayValue(value))}</p>`;
+  return `<table><tbody>${Object.entries(value).map(([key, item]) => `<tr><th>${esc(key.replace(/_/g, ' '))}</th><td>${esc(litigationDisplayValue(item))}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function litigationReportList(items, renderer, emptyText = 'No supported items returned.') {
+  return items && items.length ? items.map(renderer).join('') : `<p class="muted">${esc(emptyText)}</p>`;
+}
+
+function litigationReportSection(title, body, opts = {}) {
+  return `<section class="${opts.pageBreak ? 'page-break' : ''}"><h2>${esc(title)}</h2>${body}</section>`;
+}
+
+function litigationReportStyles() {
+  return `<style>
+    :root { color: #172026; background: #f3f1ea; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; background: #f3f1ea; color: #172026; }
+    .litigation-report { max-width: 920px; margin: 0 auto; background: #fff; padding: 48px 56px; box-sizing: border-box; }
+    .report-kicker { color: #687076; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { font-size: 32px; line-height: 1.15; margin: 10px 0 12px; letter-spacing: 0; }
+    h2 { font-size: 18px; margin: 28px 0 12px; padding-bottom: 7px; border-bottom: 1px solid #d9dee2; letter-spacing: 0; }
+    h3 { font-size: 14px; margin: 14px 0 6px; letter-spacing: 0; }
+    p, li, td, th { font-size: 12.5px; line-height: 1.48; }
+    .report-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; margin: 20px 0; font-size: 12px; }
+    .report-notice { border: 1px solid #b8c2c9; border-left: 4px solid #31566f; padding: 12px 14px; margin: 18px 0 24px; background: #f7fafb; font-size: 12.5px; }
+    .toc { columns: 2; padding-left: 20px; }
+    .item { break-inside: avoid; border: 1px solid #e0e4e7; padding: 10px 12px; margin: 8px 0; border-radius: 6px; }
+    .item strong { display: block; margin-bottom: 4px; }
+    .muted { color: #687076; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+    th, td { text-align: left; vertical-align: top; border: 1px solid #dfe4e7; padding: 7px 8px; }
+    th { width: 28%; background: #f4f6f7; font-weight: 700; }
+    footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #d9dee2; font-size: 11px; color: #687076; }
+    @media print {
+      @page { size: letter; margin: 0.55in; }
+      body { background: #fff; }
+      .litigation-report { max-width: none; margin: 0; padding: 0; }
+      .page-break { break-before: page; }
+      h2, .item, tr { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>`;
+}
+
+function litigationPrepReportHtml(result = App.litigationPrep.result, standalone = false) {
+  if (!result) return '';
+  const config = result.config || {};
+  const generated = result.completed_at ? new Date(result.completed_at).toLocaleString() : new Date().toLocaleString();
+  const sources = result.sources || [];
+  const warnings = result.warnings || [];
+  const body = `
+    <article class="litigation-report">
+      <div class="report-kicker">Litigation preparation</div>
+      <h1>${esc(result.title || 'Litigation Prep')}</h1>
+      <div class="report-notice">This report is a litigation preparation aid for lawyer review. It does not decide the dispute, provide legal advice, predict outcomes, or replace counsel judgment.</div>
+      <div class="report-meta">
+        <div><strong>Perspective:</strong> ${esc(config.party_role || 'neutral analysis')}</div>
+        <div><strong>Generated:</strong> ${esc(generated)}</div>
+        <div><strong>Court:</strong> ${esc(config.court || 'Not provided')}</div>
+        <div><strong>Jurisdiction:</strong> ${esc(config.jurisdiction || 'Not provided')}</div>
+        <div><strong>Venue:</strong> ${esc(config.venue || 'Not provided')}</div>
+        <div><strong>Stage:</strong> ${esc(config.procedural_stage || 'Not provided')}</div>
+        <div><strong>Dates:</strong> ${esc(litigationDisplayValue(config.hearing_dates || []))}</div>
+        <div><strong>Focus:</strong> ${esc(config.litigation_focus || 'full prep')}</div>
+      </div>
+      ${litigationReportSection('Table of Contents', `<ol class="toc"><li>Case Snapshot</li><li>Claims and Defenses</li><li>Issues and Proof Elements</li><li>Factual Chronology</li><li>Evidence Matrix</li><li>Discovery Analysis</li><li>Witness and Deposition Prep</li><li>Cross-Examination Topics</li><li>Procedural Tasks</li><li>Motion, Trial, and Argument Themes</li><li>Damages and Remedies</li><li>Risks and Gaps</li><li>One-Page Litigation Plan</li><li>Source Basis</li></ol>`)}
+      ${litigationReportSection('Case Snapshot', `<p>${esc(litigationDisplayValue(result.client_or_team_summary))}</p>${litigationReportRows(result.case_snapshot || {})}`)}
+      ${litigationReportSection('Claims and Defenses', litigationReportList(result.claims_and_defenses || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.title || item.claim_type || 'Claim or defense'))}</strong>${litigationReportRows({elements: item.elements, defenses: item.defenses, admissions: item.admissions, missing_proof: item.missing_proof})}</div>`))}
+      ${litigationReportSection('Issues and Proof Elements', litigationReportList(result.issues || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.title || item.issue || 'Issue'))}</strong>${litigationReportRows({proof_elements: item.proof_elements, burdens: item.burdens, disputed_facts: item.disputed_facts, admissions: item.admissions, missing_proof: item.missing_proof})}</div>`))}
+      ${litigationReportSection('Factual Chronology', litigationReportList(result.chronology || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.date || item.event_date || 'Date not found'))}</strong><span>${esc(litigationDisplayValue(item.description))}</span></div>`))}
+      ${litigationReportSection('Evidence Matrix', litigationReportList(result.evidence_matrix || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.issue || 'Issue'))}</strong>${litigationReportRows({element: item.element, supporting_evidence: item.supporting_evidence, adverse_evidence: item.adverse_evidence, gaps: item.gaps})}</div>`), {pageBreak: true})}
+      ${litigationReportSection('Discovery Analysis', litigationReportList(result.discovery_analysis || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.item_type || 'Discovery'))}</strong>${litigationReportRows({description: item.description, status: item.status, confidence_score: item.confidence_score})}</div>`))}
+      ${litigationReportSection('Witness Preparation', litigationReportList(result.witness_prep || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.name || 'Witness'))}</strong>${litigationReportRows({role: item.role, topics: item.topics, admissions: item.admissions, contradictions: item.contradictions, prep_questions: item.prep_questions})}</div>`))}
+      ${litigationReportSection('Deposition Preparation', litigationReportList(result.deposition_prep || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.witness || 'Witness'))}</strong>${litigationReportRows({topics: item.topics, questions: item.questions, caveats: item.caveats})}</div>`))}
+      ${litigationReportSection('Cross-Examination Topics', litigationReportList(result.cross_examination || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.witness || 'Witness'))}</strong>${litigationReportRows({topics: item.topics, questions: item.questions, caveats: item.caveats})}</div>`))}
+      ${litigationReportSection('Procedural Tasks and Deadlines', litigationReportList(result.procedural_tasks || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.due_date || item.task_type || 'Task'))}</strong><span>${esc(litigationDisplayValue(item.description || item.compliance_risk))}</span></div>`), {pageBreak: true})}
+      ${litigationReportSection('Motion Strategy', litigationReportRows(result.motion_strategy || {}))}
+      ${litigationReportSection('Trial Preparation', litigationReportRows(result.trial_prep || {}))}
+      ${litigationReportSection('Argument Themes', litigationReportRows(result.argument_strategy || {}))}
+      ${litigationReportSection('Damages and Remedies', litigationReportRows(result.damages_and_remedies || {}))}
+      ${litigationReportSection('Risks and Gaps', litigationReportList(result.risks_and_gaps || [], item => `<div class="item"><strong>${esc(litigationDisplayValue(item.risk_level || 'Risk'))}</strong><span>${esc(litigationDisplayValue(item.summary || item.decision_point || item.leverage))}</span></div>`))}
+      ${litigationReportSection('One-Page Litigation Plan', litigationReportRows({opening_focus: 'Confirm pleadings, relief sought, court posture, and agreed facts.', proof_focus: 'Use the evidence matrix to separate supported facts, adverse evidence, and missing proof.', discovery_focus: result.discovery_analysis || [], witness_focus: result.witness_prep || [], motion_and_trial_focus: {motions: result.motion_strategy || {}, trial: result.trial_prep || {}}, deadlines: result.procedural_tasks || [], review_points: result.risks_and_gaps || []}), {pageBreak: true})}
+      ${litigationReportSection('Source Basis and Audit Notes', `<h3>Warnings</h3>${renderTranslationList(warnings, 'No warnings returned.')}<h3>Sources</h3>${renderTranslationList(sources.map(litigationSourceLabel), 'No source documents returned.')}<h3>Agent Trace</h3>${renderTranslationList((result.agentic_review?.agent_trace || []).map(step => `${step.step_name || 'agent'}: ${step.status || 'unknown'}`), 'No agent trace returned.')}`, {pageBreak: true})}
+      <footer>Litigation preparation report. Generated from indexed matter documents. Verify all source references, procedural assumptions, deadlines, and legal conclusions before use.</footer>
+    </article>`;
+  if (!standalone) return body;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(result.title || 'Litigation Prep')}</title>${litigationReportStyles()}</head><body>${body}</body></html>`;
+}
+
 function renderLitigationPrepResult() {
   const result = App.litigationPrep.result;
   const grid = document.getElementById('litigation-prep-result-grid');
@@ -290,28 +405,7 @@ function renderLitigationPrepResult() {
   grid.style.display = 'grid';
   const config = result.config || {};
   if (meta) meta.textContent = `${config.party_role || 'neutral analysis'}${config.court ? ' · ' + config.court : ''}${config.jurisdiction ? ' · ' + config.jurisdiction : ''}`;
-  const snapshotRows = Object.entries(result.case_snapshot || {}).map(([key, value]) => `<tr><td>${esc(key.replace(/_/g, ' '))}</td><td>${esc(litigationDisplayValue(value))}</td></tr>`).join('');
-  preview.innerHTML = sanitizeDraftHtml(`
-    <article class="draft-document">
-      <h1>${esc(result.title || 'Litigation Prep')}</h1>
-      <section><h2>Team Summary</h2><p>${esc(litigationDisplayValue(result.client_or_team_summary))}</p></section>
-      <section><h2>Case Snapshot</h2><table><tbody>${snapshotRows || '<tr><td>No case snapshot returned.</td></tr>'}</tbody></table></section>
-      ${renderLitigationSection('Claims and Defenses', result.claims_and_defenses || [], item => `<div class="contract-finding-item"><strong>${esc(litigationDisplayValue(item.title || item.claim || 'Claim or defense'))}</strong><span>${esc(litigationDisplayValue(item.missing_proof || item.defenses || 'Requires review'))}</span></div>`)}
-      ${renderLitigationSection('Issues and Proof Elements', result.issues || [], item => `<div class="contract-finding-item"><strong>${esc(litigationDisplayValue(item.title || item.issue || 'Issue'))}</strong><span>${esc(litigationDisplayValue(item.summary || item.missing_proof || 'Requires review'))}</span></div>`)}
-      ${renderLitigationSection('Chronology', result.chronology || [], item => `<div class="contract-finding-item"><strong>${esc(litigationDisplayValue(item.date || item.event_date || 'Date not found'))}</strong><span>${esc(litigationDisplayValue(item.description))}</span></div>`)}
-      ${renderLitigationSection('Evidence Matrix', result.evidence_matrix || [], item => `<div class="contract-finding-item"><strong>${esc(litigationDisplayValue(item.issue || 'Issue'))}</strong><span>${esc(litigationDisplayValue(item.gaps || item.supporting_evidence || 'Evidence requires review'))}</span></div>`)}
-      ${renderLitigationSection('Discovery', result.discovery_analysis || [], item => `<div class="contract-finding-item"><strong>${esc(litigationDisplayValue(item.item_type || 'Discovery'))}</strong><span>${esc(litigationDisplayValue(item.description || item.status || 'Requires review'))}</span></div>`)}
-      ${renderLitigationSection('Witness Prep', result.witness_prep || [], item => `<div class="contract-finding-item"><strong>${esc(litigationDisplayValue(item.name || 'Witness'))}</strong><span>${esc(litigationDisplayValue(item.topics || item.prep_questions || 'Topics require review'))}</span></div>`)}
-      ${renderLitigationSection('Depositions', result.deposition_prep || [], item => `<div class="contract-finding-item"><strong>${esc(litigationDisplayValue(item.witness || 'Witness'))}</strong><span>${esc(litigationDisplayValue(item.questions || item.topics || 'Questions require review'))}</span></div>`)}
-      ${renderLitigationSection('Cross-Examination', result.cross_examination || [], item => `<div class="contract-finding-item"><strong>${esc(litigationDisplayValue(item.witness || 'Witness'))}</strong><span>${esc(litigationDisplayValue(item.questions || item.topics || 'Questions require review'))}</span></div>`)}
-      ${renderLitigationSection('Procedural Tasks', result.procedural_tasks || [], item => `<div class="contract-finding-item"><strong>${esc(litigationDisplayValue(item.due_date || item.task_type || 'Task'))}</strong><span>${esc(litigationDisplayValue(item.description || item.compliance_risk))}</span></div>`)}
-      <section><h2>Motion Strategy</h2><p>${esc(litigationDisplayValue(result.motion_strategy))}</p></section>
-      <section><h2>Trial Prep</h2><p>${esc(litigationDisplayValue(result.trial_prep))}</p></section>
-      <section><h2>Argument Themes</h2><p>${esc(litigationDisplayValue(result.argument_strategy))}</p></section>
-      <section><h2>Damages and Remedies</h2><p>${esc(litigationDisplayValue(result.damages_and_remedies))}</p></section>
-      ${renderLitigationSection('Risks and Gaps', result.risks_and_gaps || [], item => `<div class="contract-risk-item"><span class="risk-badge risk-${esc(item.risk_level || 'medium')}">${esc(item.risk_level || 'medium')}</span><span>${esc(litigationDisplayValue(item.summary || item.decision_point))}</span></div>`)}
-    </article>
-  `);
+  preview.innerHTML = sanitizeDraftHtml(litigationReportStyles() + litigationPrepReportHtml(result, false));
   side.innerHTML = `
     <div class="translate-review-section"><strong>Warnings</strong>${renderTranslationList(result.warnings || [], 'Human legal review required.')}</div>
     <div class="translate-review-section"><strong>Agent Trace</strong>${renderTranslationList((result.agentic_review?.agent_trace || []).map(step => `${step.step_name || 'agent'}: ${step.status || 'unknown'}`), 'No agent trace returned.')}</div>
@@ -321,8 +415,11 @@ function renderLitigationPrepResult() {
 
 function litigationPrepMarkdown(result = App.litigationPrep.result) {
   if (!result) return '';
-  const section = (title, items) => `## ${title}\n${items && items.length ? items.map(item => `- ${litigationDisplayValue(item)}`).join('\n') : 'No supported items returned.'}\n\n`;
-  return `# ${result.title || 'Litigation Prep'}\n\n## Team Summary\n${litigationDisplayValue(result.client_or_team_summary)}\n\n${section('Claims and Defenses', result.claims_and_defenses)}${section('Issues', result.issues)}${section('Chronology', result.chronology)}${section('Evidence Matrix', result.evidence_matrix)}${section('Discovery', result.discovery_analysis)}${section('Witness Prep', result.witness_prep)}${section('Depositions', result.deposition_prep)}${section('Cross-Examination', result.cross_examination)}${section('Procedural Tasks', result.procedural_tasks)}## Motion Strategy\n${litigationDisplayValue(result.motion_strategy)}\n\n## Trial Prep\n${litigationDisplayValue(result.trial_prep)}\n\n## Damages and Remedies\n${litigationDisplayValue(result.damages_and_remedies)}\n\n${section('Risks and Gaps', result.risks_and_gaps)}## Warnings\n${(result.warnings || []).map(item => `- ${item}`).join('\n')}\n`;
+  const section = (title, value) => {
+    if (Array.isArray(value)) return `## ${title}\n${value.length ? value.map(item => `- ${litigationDisplayValue(item)}`).join('\n') : 'No supported items returned.'}\n\n`;
+    return `## ${title}\n${litigationDisplayValue(value)}\n\n`;
+  };
+  return `# ${result.title || 'Litigation Prep'}\n\nLitigation preparation aid. This does not decide the dispute, provide legal advice, or predict outcomes.\n\n## Case Summary\n${litigationDisplayValue(result.client_or_team_summary)}\n\n${section('Claims and Defenses', result.claims_and_defenses)}${section('Issues and Proof Elements', result.issues)}${section('Chronology', result.chronology)}${section('Evidence Matrix', result.evidence_matrix)}${section('Discovery', result.discovery_analysis)}${section('Witness Prep', result.witness_prep)}${section('Depositions', result.deposition_prep)}${section('Cross-Examination', result.cross_examination)}${section('Procedural Tasks', result.procedural_tasks)}${section('Motion Strategy', result.motion_strategy)}${section('Trial Prep', result.trial_prep)}${section('Argument Strategy', result.argument_strategy)}${section('Damages and Remedies', result.damages_and_remedies)}${section('Risks and Gaps', result.risks_and_gaps)}## Warnings\n${(result.warnings || []).map(item => `- ${item}`).join('\n')}\n`;
 }
 
 async function copyLitigationPrep() {
@@ -341,6 +438,37 @@ function downloadLitigationPrep() {
   a.download = `litigation-prep-${Date.now()}.md`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+function litigationPrepHtmlFilename() {
+  const title = (App.litigationPrep.result?.title || 'litigation-prep').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'litigation-prep';
+  return `${title}-${Date.now()}.html`;
+}
+
+function downloadLitigationPrepHtml() {
+  const html = litigationPrepReportHtml(App.litigationPrep.result, true);
+  if (!html) return;
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = litigationPrepHtmlFilename();
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function printLitigationPrepReport() {
+  const html = litigationPrepReportHtml(App.litigationPrep.result, true);
+  if (!html) return;
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showToast('Pop-up blocked. Download the HTML report and print it from the browser.', 'warning');
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 250);
 }
 
 function resetLitigationPrep() {

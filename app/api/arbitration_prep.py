@@ -269,7 +269,15 @@ def _execute_arbitration_prep(
         job.progress = max(job.progress, 45)
         db.commit()
     settings = get_runtime_settings_with_secrets()
-    agentic = run_agentic_arbitration_prep(sources=sources, source_bundle=source_bundle, run_context=config, settings=settings)
+
+    def progress(progress_value: int, message: str, metadata: dict[str, Any]) -> None:
+        if not job:
+            return
+        job.progress = max(job.progress, min(progress_value, 81))
+        add_job_event(db, job=job, event_type="progress", message=message, metadata={"progress": job.progress, "run_id": run_id, **metadata})
+        db.commit()
+
+    agentic = run_agentic_arbitration_prep(sources=sources, source_bundle=source_bundle, run_context=config, settings=settings, progress_callback=progress if job else None)
     provider = configured_llm_provider(settings)
     model = settings.get("chat_model") if provider else None
     if job:
@@ -391,7 +399,8 @@ def _persist_witnesses(db: Session, workspace_id: str, matter_id: str, run_id: s
 def _persist_arguments(db: Session, workspace_id: str, matter_id: str, run_id: str, strategy: dict[str, Any]) -> None:
     themes = strategy.get("themes") if isinstance(strategy.get("themes"), list) else []
     for item in themes[:50]:
-        db.add(ArbitrationArgument(id=str(uuid.uuid4()), workspace_id=workspace_id, matter_id=matter_id, run_id=run_id, theme=str(item.get("theme") or "Argument theme")[:255], strongest_points_json=json.dumps(item.get("strongest_points") or item.get("points") or [], sort_keys=True), vulnerabilities_json=json.dumps(item.get("vulnerabilities") or [], sort_keys=True), opponent_responses_json=json.dumps(item.get("opponent_responses") or [], sort_keys=True), review_status="pending", metadata_json=json.dumps(item, sort_keys=True)))
+        data = item if isinstance(item, dict) else {"theme": str(item)}
+        db.add(ArbitrationArgument(id=str(uuid.uuid4()), workspace_id=workspace_id, matter_id=matter_id, run_id=run_id, theme=str(data.get("theme") or "Argument theme")[:255], strongest_points_json=json.dumps(data.get("strongest_points") or data.get("points") or [], sort_keys=True), vulnerabilities_json=json.dumps(data.get("vulnerabilities") or [], sort_keys=True), opponent_responses_json=json.dumps(data.get("opponent_responses") or [], sort_keys=True), review_status="pending", metadata_json=json.dumps(data, sort_keys=True)))
 
 
 def _persist_procedural_tasks(db: Session, workspace_id: str, matter_id: str, run_id: str, tasks: list[dict[str, Any]]) -> None:

@@ -80,7 +80,9 @@ function renderNegotiationPrepSourceDocuments() {
 function selectedNegotiationPrepDocumentIds() {
   const select = document.getElementById('negotiation-prep-source-documents');
   if (!select) return [];
-  return [...select.selectedOptions].map(option => option.value).filter(Boolean);
+  const selected = [...select.selectedOptions].map(option => option.value).filter(Boolean);
+  if (selected.length) return selected;
+  return [...select.options].map(option => option.value).filter(Boolean);
 }
 
 function collectNegotiationPrepPayload() {
@@ -120,15 +122,18 @@ async function loadNegotiationPrepHistory() {
     const data = await r.json();
     App.negotiationPrep.history = data.items || [];
     card.style.display = App.negotiationPrep.history.length ? 'block' : 'none';
-    list.innerHTML = App.negotiationPrep.history.map(run => `<div class="council-row">
-      <div class="council-row-head">
+    list.innerHTML = App.negotiationPrep.history.map(run => `<div class="council-row negotiation-prep-history-row">
+      <div class="council-row-head negotiation-prep-history-row-head">
         <div>
           <div class="council-card-title">${esc(run.title || 'Negotiation prep')}</div>
           <div class="council-card-meta">${esc(run.completed_at ? new Date(run.completed_at).toLocaleString() : run.status || 'queued')}${run.court ? ' · ' + esc(run.court) : ''}</div>
         </div>
         <span class="council-status ${esc(run.status || 'pending')}">${esc(run.status || 'pending')}</span>
       </div>
-      <div class="council-actions"><button class="btn-secondary" type="button" onclick="openNegotiationPrepRun('${esc(run.id)}')">Open</button></div>
+      <div class="council-actions negotiation-prep-history-actions">
+        <button class="btn-secondary" type="button" onclick="openNegotiationPrepRun('${esc(run.id)}')">Open</button>
+        <button class="btn-secondary danger" type="button" onclick="deleteNegotiationPrepRun('${esc(run.id)}')">Delete</button>
+      </div>
     </div>`).join('');
   } catch(e) {
     card.style.display = 'none';
@@ -146,6 +151,27 @@ async function openNegotiationPrepRun(runId) {
     showToast('Negotiation prep loaded.');
   } catch(e) {
     showToast('Failed to load negotiation prep: ' + e.message, 'error');
+  }
+}
+
+async function deleteNegotiationPrepRun(runId) {
+  const workspaceId = negotiationPrepWorkspaceId();
+  if (!workspaceId || !runId) return;
+  const run = (App.negotiationPrep.history || []).find(item => item.id === runId);
+  const title = run?.title || 'Negotiation prep';
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  try {
+    const r = await fetch(`/api/v2/workspaces/${encodeURIComponent(workspaceId)}/negotiation-prep/runs/${encodeURIComponent(runId)}`, {method:'DELETE'});
+    if (!r.ok) throw new Error(await apiError(r));
+    if (App.negotiationPrep.result?.id === runId) {
+      App.negotiationPrep.result = null;
+      const grid = document.getElementById('negotiation-prep-result-grid');
+      if (grid) grid.style.display = 'none';
+    }
+    await loadNegotiationPrepHistory();
+    showToast('Negotiation prep deleted.');
+  } catch(e) {
+    showToast('Failed to delete negotiation prep: ' + e.message, 'error');
   }
 }
 
@@ -280,6 +306,93 @@ function renderNegotiationSection(title, items, renderer, emptyText) {
   return `<section><h2>${esc(title)}</h2>${items && items.length ? items.map(renderer).join('') : `<p>${esc(emptyText || 'No supported items returned.')}</p>`}</section>`;
 }
 
+function negotiationReportRows(value) {
+  if (!value || typeof value !== 'object') return `<p>${esc(negotiationDisplayValue(value))}</p>`;
+  return `<table><tbody>${Object.entries(value).map(([key, item]) => `<tr><th>${esc(key.replace(/_/g, ' '))}</th><td>${esc(negotiationDisplayValue(item))}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function negotiationReportList(items, renderer, emptyText = 'No supported items returned.') {
+  return items && items.length ? items.map(renderer).join('') : `<p class="muted">${esc(emptyText)}</p>`;
+}
+
+function negotiationReportSection(title, body, opts = {}) {
+  return `<section class="${opts.pageBreak ? 'page-break' : ''}"><h2>${esc(title)}</h2>${body}</section>`;
+}
+
+function negotiationReportStyles() {
+  return `<style>
+    :root { color: #172026; background: #f3f1ea; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; background: #f3f1ea; color: #172026; }
+    .negotiation-report { max-width: 920px; margin: 0 auto; background: #fff; padding: 48px 56px; box-sizing: border-box; }
+    .report-kicker { color: #687076; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { font-size: 32px; line-height: 1.15; margin: 10px 0 12px; letter-spacing: 0; }
+    h2 { font-size: 18px; margin: 28px 0 12px; padding-bottom: 7px; border-bottom: 1px solid #d9dee2; letter-spacing: 0; }
+    h3 { font-size: 14px; margin: 14px 0 6px; letter-spacing: 0; }
+    p, li, td, th { font-size: 12.5px; line-height: 1.48; }
+    .report-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; margin: 20px 0; font-size: 12px; }
+    .report-notice { border: 1px solid #b8c2c9; border-left: 4px solid #31566f; padding: 12px 14px; margin: 18px 0 24px; background: #f7fafb; font-size: 12.5px; }
+    .toc { columns: 2; padding-left: 20px; }
+    .item { break-inside: avoid; border: 1px solid #e0e4e7; padding: 10px 12px; margin: 8px 0; border-radius: 6px; }
+    .item strong { display: block; margin-bottom: 4px; }
+    .muted { color: #687076; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+    th, td { text-align: left; vertical-align: top; border: 1px solid #dfe4e7; padding: 7px 8px; }
+    th { width: 28%; background: #f4f6f7; font-weight: 700; }
+    footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #d9dee2; font-size: 11px; color: #687076; }
+    @media print {
+      @page { size: letter; margin: 0.55in; }
+      body { background: #fff; }
+      .negotiation-report { max-width: none; margin: 0; padding: 0; }
+      .page-break { break-before: page; }
+      h2, .item, tr { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>`;
+}
+
+function negotiationPrepReportHtml(result = App.negotiationPrep.result, standalone = false) {
+  if (!result) return '';
+  const config = result.config || {};
+  const generated = result.completed_at ? new Date(result.completed_at).toLocaleString() : new Date().toLocaleString();
+  const sources = result.sources || [];
+  const warnings = result.warnings || [];
+  const body = `
+    <article class="negotiation-report">
+      <div class="report-kicker">Negotiation preparation</div>
+      <h1>${esc(result.title || 'Negotiation Prep')}</h1>
+      <div class="report-notice">This report is a negotiation preparation aid for lawyer review. It does not recommend settlement, decide the dispute, predict outcomes, or replace counsel judgment.</div>
+      <div class="report-meta">
+        <div><strong>Perspective:</strong> ${esc(config.party_role || 'neutral analysis')}</div>
+        <div><strong>Generated:</strong> ${esc(generated)}</div>
+        <div><strong>Counterparty / forum:</strong> ${esc(config.court || 'Not provided')}</div>
+        <div><strong>Jurisdiction / market:</strong> ${esc(config.jurisdiction || 'Not provided')}</div>
+        <div><strong>Context:</strong> ${esc(config.venue || 'Not provided')}</div>
+        <div><strong>Stage:</strong> ${esc(config.procedural_stage || 'Not provided')}</div>
+        <div><strong>Dates:</strong> ${esc(negotiationDisplayValue(config.hearing_dates || []))}</div>
+        <div><strong>Focus:</strong> ${esc(config.negotiation_focus || 'full prep')}</div>
+      </div>
+      ${negotiationReportSection('Table of Contents', `<ol class="toc"><li>Negotiation Snapshot</li><li>Positions and Concessions</li><li>Issues and Proof Points</li><li>Chronology</li><li>Evidence Matrix</li><li>Information Gaps</li><li>Participant Prep</li><li>Authority and Caucus Prep</li><li>Reality-Testing Questions</li><li>Offer and Session Strategy</li><li>Value, Damages, and Remedies</li><li>Risks, Leverage, BATNA/WATNA</li><li>One-Page Negotiation Plan</li><li>Source Basis</li></ol>`)}
+      ${negotiationReportSection('Negotiation Snapshot', `<p>${esc(negotiationDisplayValue(result.client_or_team_summary))}</p>${negotiationReportRows(result.case_snapshot || {})}`)}
+      ${negotiationReportSection('Positions and Concessions', negotiationReportList(result.claims_and_defenses || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.title || item.claim_type || 'Position'))}</strong>${negotiationReportRows({elements: item.elements, defenses: item.defenses, admissions: item.admissions, settlement_relevance: item.settlement_relevance, missing_proof: item.missing_proof})}</div>`))}
+      ${negotiationReportSection('Issues and Proof Points', negotiationReportList(result.issues || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.title || item.issue || 'Issue'))}</strong>${negotiationReportRows({proof_elements: item.proof_elements, disputed_facts: item.disputed_facts, admissions: item.admissions, missing_proof: item.missing_proof})}</div>`))}
+      ${negotiationReportSection('Chronology', negotiationReportList(result.chronology || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.date || item.event_date || 'Date not found'))}</strong><span>${esc(negotiationDisplayValue(item.description))}</span></div>`))}
+      ${negotiationReportSection('Evidence Matrix', negotiationReportList(result.evidence_matrix || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.issue || 'Issue'))}</strong>${negotiationReportRows({supporting_evidence: item.supporting_evidence, adverse_evidence: item.adverse_evidence, gaps: item.gaps})}</div>`), {pageBreak: true})}
+      ${negotiationReportSection('Information Gaps', negotiationReportList(result.discovery_analysis || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.item_type || 'Information gap'))}</strong>${negotiationReportRows({description: item.description, status: item.status, confidence_score: item.confidence_score})}</div>`))}
+      ${negotiationReportSection('Participant Preparation', negotiationReportList(result.witness_prep || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.name || 'Participant'))}</strong>${negotiationReportRows({role: item.role, topics: item.topics, admissions: item.admissions, contradictions: item.contradictions, prep_questions: item.prep_questions})}</div>`))}
+      ${negotiationReportSection('Authority and Caucus Preparation', negotiationReportList(result.deposition_prep || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.witness || 'Participant'))}</strong>${negotiationReportRows({topics: item.topics, questions: item.questions, caveats: item.caveats})}</div>`))}
+      ${negotiationReportSection('Reality-Testing Questions', negotiationReportList(result.cross_examination || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.witness || 'Participant'))}</strong>${negotiationReportRows({topics: item.topics, questions: item.questions, caveats: item.caveats})}</div>`))}
+      ${negotiationReportSection('Offer and Session Strategy', `${negotiationReportRows({position_brief: result.motion_strategy || {}, session_plan: result.trial_prep || {}, negotiation_themes: result.argument_strategy || {}})}`, {pageBreak: true})}
+      ${negotiationReportSection('Procedural Tasks', negotiationReportList(result.procedural_tasks || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.due_date || item.task_type || 'Task'))}</strong><span>${esc(negotiationDisplayValue(item.description || item.compliance_risk))}</span></div>`))}
+      ${negotiationReportSection('Value, Damages, and Remedies', negotiationReportRows(result.damages_and_remedies || {}))}
+      ${negotiationReportSection('Risks, Leverage, BATNA/WATNA', negotiationReportList(result.risks_and_gaps || [], item => `<div class="item"><strong>${esc(negotiationDisplayValue(item.risk_level || 'Risk'))}</strong><span>${esc(negotiationDisplayValue(item.summary || item.decision_point || item.leverage))}</span></div>`))}
+      ${negotiationReportSection('One-Page Negotiation Plan', negotiationReportRows({opening_focus: 'Confirm posture, objectives, authority, red lines, and evidence-backed points.', information_focus: result.discovery_analysis || [], leverage_focus: result.risks_and_gaps || [], offer_framing: result.argument_strategy || {}, participant_focus: result.witness_prep || [], deadlines: result.procedural_tasks || []}), {pageBreak: true})}
+      ${negotiationReportSection('Source Basis and Audit Notes', `<h3>Warnings</h3>${renderTranslationList(warnings, 'No warnings returned.')}<h3>Sources</h3>${renderTranslationList(sources.map(negotiationSourceLabel), 'No source documents returned.')}<h3>Agent Trace</h3>${renderTranslationList((result.agentic_review?.agent_trace || []).map(step => `${step.step_name || 'agent'}: ${step.status || 'unknown'}`), 'No agent trace returned.')}`, {pageBreak: true})}
+      <footer>Negotiation preparation report. Generated from indexed matter documents. Verify all source references, authority assumptions, deadlines, and legal conclusions before use.</footer>
+    </article>`;
+  if (!standalone) return body;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(result.title || 'Negotiation Prep')}</title>${negotiationReportStyles()}</head><body>${body}</body></html>`;
+}
+
 function renderNegotiationPrepResult() {
   const result = App.negotiationPrep.result;
   const grid = document.getElementById('negotiation-prep-result-grid');
@@ -290,28 +403,7 @@ function renderNegotiationPrepResult() {
   grid.style.display = 'grid';
   const config = result.config || {};
   if (meta) meta.textContent = `${config.party_role || 'neutral analysis'}${config.court ? ' · ' + config.court : ''}${config.jurisdiction ? ' · ' + config.jurisdiction : ''}`;
-  const snapshotRows = Object.entries(result.case_snapshot || {}).map(([key, value]) => `<tr><td>${esc(key.replace(/_/g, ' '))}</td><td>${esc(negotiationDisplayValue(value))}</td></tr>`).join('');
-  preview.innerHTML = sanitizeDraftHtml(`
-    <article class="draft-document">
-      <h1>${esc(result.title || 'Negotiation Prep')}</h1>
-      <section><h2>Team Summary</h2><p>${esc(negotiationDisplayValue(result.client_or_team_summary))}</p></section>
-      <section><h2>Case Snapshot</h2><table><tbody>${snapshotRows || '<tr><td>No case snapshot returned.</td></tr>'}</tbody></table></section>
-      ${renderNegotiationSection('Positions and Concessions', result.claims_and_defenses || [], item => `<div class="contract-finding-item"><strong>${esc(negotiationDisplayValue(item.title || item.claim || 'Position'))}</strong><span>${esc(negotiationDisplayValue(item.missing_proof || item.defenses || 'Requires review'))}</span></div>`)}
-      ${renderNegotiationSection('Issues and Proof Elements', result.issues || [], item => `<div class="contract-finding-item"><strong>${esc(negotiationDisplayValue(item.title || item.issue || 'Issue'))}</strong><span>${esc(negotiationDisplayValue(item.summary || item.missing_proof || 'Requires review'))}</span></div>`)}
-      ${renderNegotiationSection('Chronology', result.chronology || [], item => `<div class="contract-finding-item"><strong>${esc(negotiationDisplayValue(item.date || item.event_date || 'Date not found'))}</strong><span>${esc(negotiationDisplayValue(item.description))}</span></div>`)}
-      ${renderNegotiationSection('Evidence Matrix', result.evidence_matrix || [], item => `<div class="contract-finding-item"><strong>${esc(negotiationDisplayValue(item.issue || 'Issue'))}</strong><span>${esc(negotiationDisplayValue(item.gaps || item.supporting_evidence || 'Evidence requires review'))}</span></div>`)}
-      ${renderNegotiationSection('Information Gaps', result.discovery_analysis || [], item => `<div class="contract-finding-item"><strong>${esc(negotiationDisplayValue(item.item_type || 'Information gap'))}</strong><span>${esc(negotiationDisplayValue(item.description || item.status || 'Requires review'))}</span></div>`)}
-      ${renderNegotiationSection('Participant Prep', result.witness_prep || [], item => `<div class="contract-finding-item"><strong>${esc(negotiationDisplayValue(item.name || 'Participant'))}</strong><span>${esc(negotiationDisplayValue(item.topics || item.prep_questions || 'Topics require review'))}</span></div>`)}
-      ${renderNegotiationSection('Authority and Caucus Prep', result.deposition_prep || [], item => `<div class="contract-finding-item"><strong>${esc(negotiationDisplayValue(item.witness || 'Participant'))}</strong><span>${esc(negotiationDisplayValue(item.questions || item.topics || 'Questions require review'))}</span></div>`)}
-      ${renderNegotiationSection('Reality-Testing Questions', result.cross_examination || [], item => `<div class="contract-finding-item"><strong>${esc(negotiationDisplayValue(item.witness || 'Participant'))}</strong><span>${esc(negotiationDisplayValue(item.questions || item.topics || 'Questions require review'))}</span></div>`)}
-      ${renderNegotiationSection('Procedural Tasks', result.procedural_tasks || [], item => `<div class="contract-finding-item"><strong>${esc(negotiationDisplayValue(item.due_date || item.task_type || 'Task'))}</strong><span>${esc(negotiationDisplayValue(item.description || item.compliance_risk))}</span></div>`)}
-      <section><h2>Mediator Brief Strategy</h2><p>${esc(negotiationDisplayValue(result.motion_strategy))}</p></section>
-      <section><h2>Session Plan</h2><p>${esc(negotiationDisplayValue(result.trial_prep))}</p></section>
-      <section><h2>Negotiation Themes</h2><p>${esc(negotiationDisplayValue(result.argument_strategy))}</p></section>
-      <section><h2>Damages and Remedies</h2><p>${esc(negotiationDisplayValue(result.damages_and_remedies))}</p></section>
-      ${renderNegotiationSection('Risks and Gaps', result.risks_and_gaps || [], item => `<div class="contract-risk-item"><span class="risk-badge risk-${esc(item.risk_level || 'medium')}">${esc(item.risk_level || 'medium')}</span><span>${esc(negotiationDisplayValue(item.summary || item.decision_point))}</span></div>`)}
-    </article>
-  `);
+  preview.innerHTML = sanitizeDraftHtml(negotiationReportStyles() + negotiationPrepReportHtml(result, false));
   side.innerHTML = `
     <div class="translate-review-section"><strong>Warnings</strong>${renderTranslationList(result.warnings || [], 'Human legal review required.')}</div>
     <div class="translate-review-section"><strong>Agent Trace</strong>${renderTranslationList((result.agentic_review?.agent_trace || []).map(step => `${step.step_name || 'agent'}: ${step.status || 'unknown'}`), 'No agent trace returned.')}</div>
@@ -321,8 +413,11 @@ function renderNegotiationPrepResult() {
 
 function negotiationPrepMarkdown(result = App.negotiationPrep.result) {
   if (!result) return '';
-  const section = (title, items) => `## ${title}\n${items && items.length ? items.map(item => `- ${negotiationDisplayValue(item)}`).join('\n') : 'No supported items returned.'}\n\n`;
-  return `# ${result.title || 'Negotiation Prep'}\n\n## Team Summary\n${negotiationDisplayValue(result.client_or_team_summary)}\n\n${section('Positions and Concessions', result.claims_and_defenses)}${section('Issues', result.issues)}${section('Chronology', result.chronology)}${section('Evidence Matrix', result.evidence_matrix)}${section('Information Gaps', result.discovery_analysis)}${section('Participant Prep', result.witness_prep)}${section('Authority and Caucus Prep', result.deposition_prep)}${section('Reality-Testing Questions', result.cross_examination)}${section('Procedural Tasks', result.procedural_tasks)}## Mediator Brief Strategy\n${negotiationDisplayValue(result.motion_strategy)}\n\n## Session Plan\n${negotiationDisplayValue(result.trial_prep)}\n\n## Damages and Remedies\n${negotiationDisplayValue(result.damages_and_remedies)}\n\n${section('Risks and Gaps', result.risks_and_gaps)}## Warnings\n${(result.warnings || []).map(item => `- ${item}`).join('\n')}\n`;
+  const section = (title, value) => {
+    if (Array.isArray(value)) return `## ${title}\n${value.length ? value.map(item => `- ${negotiationDisplayValue(item)}`).join('\n') : 'No supported items returned.'}\n\n`;
+    return `## ${title}\n${negotiationDisplayValue(value)}\n\n`;
+  };
+  return `# ${result.title || 'Negotiation Prep'}\n\nNegotiation preparation aid. This does not recommend settlement, decide the dispute, or predict outcomes.\n\n## Case Summary\n${negotiationDisplayValue(result.client_or_team_summary)}\n\n${section('Positions and Concessions', result.claims_and_defenses)}${section('Issues', result.issues)}${section('Chronology', result.chronology)}${section('Evidence Matrix', result.evidence_matrix)}${section('Information Gaps', result.discovery_analysis)}${section('Participant Prep', result.witness_prep)}${section('Authority and Caucus Prep', result.deposition_prep)}${section('Reality-Testing Questions', result.cross_examination)}${section('Procedural Tasks', result.procedural_tasks)}${section('Position Brief Strategy', result.motion_strategy)}${section('Session Plan', result.trial_prep)}${section('Negotiation Themes', result.argument_strategy)}${section('Damages and Remedies', result.damages_and_remedies)}${section('Risks and Gaps', result.risks_and_gaps)}## Warnings\n${(result.warnings || []).map(item => `- ${item}`).join('\n')}\n`;
 }
 
 async function copyNegotiationPrep() {
@@ -341,6 +436,37 @@ function downloadNegotiationPrep() {
   a.download = `negotiation-prep-${Date.now()}.md`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+function negotiationPrepHtmlFilename() {
+  const title = (App.negotiationPrep.result?.title || 'negotiation-prep').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'negotiation-prep';
+  return `${title}-${Date.now()}.html`;
+}
+
+function downloadNegotiationPrepHtml() {
+  const html = negotiationPrepReportHtml(App.negotiationPrep.result, true);
+  if (!html) return;
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = negotiationPrepHtmlFilename();
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function printNegotiationPrepReport() {
+  const html = negotiationPrepReportHtml(App.negotiationPrep.result, true);
+  if (!html) return;
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showToast('Pop-up blocked. Download the HTML report and print it from the browser.', 'warning');
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 250);
 }
 
 function resetNegotiationPrep() {

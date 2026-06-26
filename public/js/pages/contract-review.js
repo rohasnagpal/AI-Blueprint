@@ -732,6 +732,10 @@ function renderStandaloneContractReviewResult() {
   const qualityItems = contractReviewHasFallbackTrace(result)
     ? ['One or more internal specialist outputs were incomplete. Deterministic fallback was used where needed; verify the review before relying on it.']
     : ['No internal fallback was recorded for this run.'];
+  const loop = result.agentic_review?.autonomous_loop || {};
+  const loopItems = loop.enabled
+    ? [`Autonomous loop completed ${Array.isArray(loop.steps) ? loop.steps.length : 0} step${Array.isArray(loop.steps) && loop.steps.length === 1 ? '' : 's'}${loop.replans ? ` with ${loop.replans} replan${loop.replans === 1 ? '' : 's'}` : ''}. ${loop.stop_reason || ''}`.trim()]
+    : ['Autonomous loop metadata was not recorded for this run.'];
   preview.innerHTML = sanitizeDraftHtml(`
     ${renderStandaloneWorkflowReview(result.workflow)}
     <article class="draft-document">
@@ -745,6 +749,7 @@ function renderStandaloneContractReviewResult() {
   `);
   side.innerHTML = `
     <div class="translate-review-section"><strong>Warnings</strong>${renderTranslationList(result.review_warnings || [], 'Human legal review required.')}</div>
+    <div class="translate-review-section"><strong>Agentic Loop</strong>${renderTranslationList(loopItems, 'No loop metadata returned.')}</div>
     <div class="translate-review-section"><strong>Review Quality</strong>${renderTranslationList(qualityItems, 'No review quality notes returned.')}</div>
     <div class="translate-review-section"><strong>Source Basis</strong>${renderTranslationList(sourceBasis.map(contractReviewSourceBasisLabel), 'No source documents returned.')}</div>
   `;

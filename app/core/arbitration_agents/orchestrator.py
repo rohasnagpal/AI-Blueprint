@@ -1,6 +1,6 @@
 import json
 import time
-from typing import Any
+from typing import Any, Callable
 
 from app.core.arbitration_agents.agents import AGENT_SPECS, fallback_agent_output
 from app.core.arbitration_agents.tools import run_arbitration_agent_tools
@@ -8,7 +8,7 @@ from app.core.json_utils import json_loads
 from app.core.llm import complete_with_configured_llm, configured_llm_provider
 
 
-MAX_AUTONOMOUS_STEPS = 24
+MAX_AUTONOMOUS_STEPS = 48
 MAX_REPLANS = 4
 
 
@@ -18,6 +18,7 @@ def run_agentic_arbitration_prep(
     source_bundle: list[dict[str, Any]],
     run_context: dict[str, Any],
     settings: dict[str, Any],
+    progress_callback: Callable[[int, str, dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     provider = configured_llm_provider(settings)
     model = run_context.get("model") or settings.get("chat_model")
@@ -25,7 +26,7 @@ def run_agentic_arbitration_prep(
     state: dict[str, Any] = {
         "run_context": run_context,
         "sources": sources[:20],
-        "source_excerpt": "\n\n".join(str(item.get("content") or "") for item in source_bundle)[:16000],
+        "source_excerpt": _source_excerpt(source_bundle),
         "available_tools": run_context.get("supported_tools", []),
         "safety_rules": [
             "Do not invent facts, dates, rules, quotes, or evidence.",
@@ -107,6 +108,7 @@ def run_agentic_arbitration_prep(
             trace.append(_trace(step_name, "failed", error, provider if action_type == "run_agent" else "internal", model, elapsed_ms))
             autonomous_steps.append(_action_record(step_number, action, "failed", {"error": error, "duration_ms": elapsed_ms}))
             _update_run_state_after_action(run_state, action, None, error)
+            _emit_progress(progress_callback, step_number, f"Arbitration step failed: {step_name}", {"action": action, "error": error})
             continue
         if action_type == "run_tool":
             tool_payload = result.get("tool_result") or {}
@@ -126,6 +128,7 @@ def run_agentic_arbitration_prep(
             run_state["qc_flags"].extend(flags)
             run_state["human_review_gates"] = _human_review_gates(run_state, flags)
         autonomous_steps.append(_action_record(step_number, action, "completed", {"duration_ms": elapsed_ms, "result_summary": _result_summary(result), "interim_qc_flags": flags}))
+        _emit_progress(progress_callback, step_number, f"Completed {step_name}", {"action": action, "duration_ms": elapsed_ms, "flags": len(flags)})
 
     if not tool_results.get("tool_results"):
         started = time.perf_counter()
@@ -168,6 +171,7 @@ def run_agentic_arbitration_prep(
     revisions_made: dict[str, Any] = {}
     flagged_items = qc.get("flagged_items") if isinstance(qc.get("flagged_items"), list) else []
     flagged_items = [*flagged_items, *interim_qc_flags]
+    flagged_items = [*flagged_items, *_anchor_verification_flags(tool_results)]
     if flagged_items:
         started = time.perf_counter()
         revision_input = {**state, "agent_outputs_so_far": outputs, "quality_control": qc, "draft": draft}
@@ -239,6 +243,7 @@ def _initial_run_state(run_context: dict[str, Any], sources: list[dict[str, Any]
         "human_review_gates": [],
         "completed_steps": [],
         "next_actions": [],
+        "stop_conditions": [],
         "stop_reason": None,
     }
 
@@ -249,7 +254,7 @@ def _merge_planner_state(run_state: dict[str, Any], planner_data: dict[str, Any]
     for key in ["evidence_gaps", "open_questions", "stop_conditions"]:
         values = planner_data.get(key)
         if isinstance(values, list):
-            target = "open_questions" if key != "stop_conditions" else "next_actions"
+            target = "stop_conditions" if key == "stop_conditions" else "open_questions"
             run_state[target].extend({"source": "planner", "type": key, "value": value} for value in values[:20])
     if planner_data.get("strategy"):
         run_state["strategy"] = planner_data.get("strategy")
@@ -274,9 +279,15 @@ def _planner_actions(planner_data: dict[str, Any], run_context: dict[str, Any]) 
             {"tool": "chronology_builder"},
             {"tool": "issue_evidence_mapper"},
             {"tool": "witness_mapper"},
+            {"tool": "exhibit_index_tool"},
+            {"tool": "contradiction_detector"},
             {"tool": "procedural_deadline_tool"},
+            {"tool": "damages_extractor"},
             {"tool": "privilege_sensitivity_scanner"},
+            {"tool": "argument_outline_tool"},
+            {"tool": "cross_exam_builder"},
             {"tool": "evidence_anchor_verifier"},
+            {"tool": "arbitration_audit_package_tool"},
         ]
     actions = [
         {"type": "run_tool", "name": str(request.get("tool") or "unknown"), "reason": "Planner requested source-grounding tool execution.", "input": request}
@@ -402,11 +413,6 @@ def _interim_qc(run_state: dict[str, Any], action: dict[str, Any], result: dict[
             output = item.get("output")
             if isinstance(output, list) and output:
                 flags.append({"output_key": "warnings", "issue": "Potential privileged or sensitive material detected during autonomous loop.", "items": output[:10], "requires_human_review": True})
-    if action.get("type") in {"run_agent", "verify_anchors"}:
-        verifier = run_arbitration_agent_tools(requests=[{"tool": "evidence_anchor_verifier"}], source_bundle=source_bundle, run_context=run_state.get("matter_context", {}), existing_outputs=(result or {}).get("output") or result or {})
-        unsupported = [item for item in verifier.get("tool_results", [{}])[0].get("output", []) if item.get("supported") is False]
-        if unsupported:
-            flags.append({"output_key": (result or {}).get("output_key") or action.get("name"), "issue": "Unsupported or unverified evidence anchors detected during interim QC.", "unsupported": unsupported[:10], "requires_human_review": True})
     return flags
 
 
@@ -552,7 +558,49 @@ def _summary(outputs: dict[str, Any], fallback: dict[str, Any]) -> str:
     value = outputs.get("client_or_team_summary")
     if isinstance(value, str) and value.strip():
         return value
+    value = outputs.get("neutral_summary_agent", {}).get("client_or_team_summary")
+    if isinstance(value, str) and value.strip():
+        return value
     return fallback["client_or_team_summary"]
+
+
+def _source_excerpt(source_bundle: list[dict[str, Any]], *, max_chars: int = 16000) -> str:
+    if not source_bundle:
+        return ""
+    by_document: dict[str, list[dict[str, Any]]] = {}
+    for item in source_bundle:
+        key = str(item.get("document_id") or item.get("filename") or "source")
+        by_document.setdefault(key, []).append(item)
+    snippets: list[str] = []
+    for items in by_document.values():
+        for source in items[:2]:
+            label = f"[{source.get('filename') or 'Source'} chunk {int(source.get('chunk_index') or 0) + 1}]"
+            content = str(source.get("content") or "")[:1800]
+            if content:
+                snippets.append(f"{label}\n{content}")
+    text = "\n\n".join(snippets)
+    return text if len(text) <= max_chars else text[:max_chars]
+
+
+def _emit_progress(callback: Callable[[int, str, dict[str, Any]], None] | None, step_number: int, message: str, metadata: dict[str, Any]) -> None:
+    if not callback:
+        return
+    progress = min(80, 45 + int((step_number / max(1, MAX_AUTONOMOUS_STEPS)) * 35))
+    try:
+        callback(progress, message, metadata)
+    except Exception:
+        return
+
+
+def _anchor_verification_flags(tool_results: dict[str, Any]) -> list[dict[str, Any]]:
+    flags: list[dict[str, Any]] = []
+    for item in tool_results.get("tool_results", []):
+        if item.get("tool") != "evidence_anchor_verifier":
+            continue
+        unsupported = [entry for entry in item.get("output", []) if isinstance(entry, dict) and entry.get("supported") is False]
+        if unsupported:
+            flags.append({"output_key": "evidence_anchors", "issue": "Unsupported or unverified evidence anchors detected in consolidated post-loop verification.", "unsupported": unsupported[:20], "requires_human_review": True})
+    return flags
 
 
 def _compact(value: Any) -> Any:

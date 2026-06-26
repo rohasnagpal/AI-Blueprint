@@ -28,10 +28,8 @@ TONES = {"formal", "neutral", "firm", "aggressive", "collaborative", "client-fri
 ALLOWED_TAGS = "article|section|header|footer|h1|h2|h3|h4|p|ol|ul|li|table|thead|tbody|tr|th|td|blockquote|aside|strong|em|br|hr|small|div|span"
 DRAFT_AGENT_SEQUENCE = [
     "draft_intake_agent",
-    "draft_architect_agent",
-    "draft_writer_agent",
-    "draft_review_agent",
-    "draft_revision_agent",
+    "draft_architect_writer_agent",
+    "draft_review_revision_agent",
     "draft_render_agent",
 ]
 
@@ -320,7 +318,7 @@ def _quality_gate_report(*, sections: list[dict[str, Any]], draft_html: str, mis
     gates = []
     gates.append({"name": "sections_present", "status": "passed" if sections else "failed"})
     gates.append({"name": "printable_html", "status": "passed" if draft_html.startswith("<article") and "</article>" in draft_html else "needs_review"})
-    gates.append({"name": "missing_facts_marked", "status": "passed" if missing or "[" in draft_html or "placeholder" not in draft_html.lower() else "needs_review"})
+    gates.append({"name": "missing_facts_marked", "status": "passed" if missing or "[" in draft_html else "needs_review"})
     gates.append({"name": "source_discipline", "status": "passed" if not source_context or sources_used else "needs_review"})
     gates.append({"name": "human_review_warning", "status": "passed" if any("review" in str(item).lower() for item in warnings) else "needs_review"})
     return {
@@ -528,21 +526,21 @@ def _draft(body: DraftRequest, *, tone: str, source_context: str, progress_callb
 
     try:
         if progress_callback:
-            progress_callback("Architecture and writing agents drafting document", 45, {"stage": "draft_writer_agent", "tokens": dict(estimated_tokens)})
+            progress_callback("Architecture and writing agents drafting document", 45, {"stage": "draft_architect_writer_agent", "tokens": dict(estimated_tokens)})
         started = time.perf_counter()
         section_draft = _plan_and_draft_step(settings, intake, tone=tone, source_context=source_context, model=model, token_callback=add_tokens)
         agent_outputs["draft_architect_agent"] = section_draft.get("outline") if isinstance(section_draft.get("outline"), dict) else {"sections": [section.get("heading") for section in section_draft.get("sections", []) if isinstance(section, dict)]}
         agent_outputs["draft_writer_agent"] = section_draft
+        agent_outputs["draft_architect_writer_agent"] = section_draft
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        agent_trace.append(_trace("draft_architect_agent", "completed", provider, model, duration_ms=elapsed_ms))
-        agent_trace.append(_trace("draft_writer_agent", "completed", provider, model, duration_ms=elapsed_ms))
+        agent_trace.append(_trace("draft_architect_writer_agent", "completed", provider, model, duration_ms=elapsed_ms, metadata={"logical_outputs": ["draft_architect_agent", "draft_writer_agent"]}))
     except Exception as exc:
         section_draft = _default_section_draft(body.details)
         pipeline_warnings.append(f"Plan-and-draft fallback used: {exc}")
         agent_outputs["draft_architect_agent"] = {"sections": ["Details"]}
         agent_outputs["draft_writer_agent"] = section_draft
-        agent_trace.append(_trace("draft_architect_agent", "fallback", provider, model, str(exc)))
-        agent_trace.append(_trace("draft_writer_agent", "fallback", provider, model, str(exc)))
+        agent_outputs["draft_architect_writer_agent"] = section_draft
+        agent_trace.append(_trace("draft_architect_writer_agent", "fallback", provider, model, str(exc), metadata={"logical_outputs": ["draft_architect_agent", "draft_writer_agent"]}))
 
     outline = section_draft.get("outline") if isinstance(section_draft.get("outline"), dict) else {"sections": []}
     analysis = {
@@ -554,24 +552,23 @@ def _draft(body: DraftRequest, *, tone: str, source_context: str, progress_callb
 
     try:
         if progress_callback:
-            progress_callback("Review and revision agents checking draft", 72, {"stage": "draft_review_agent", "tokens": dict(estimated_tokens)})
+            progress_callback("Review and revision agents checking draft", 72, {"stage": "draft_review_revision_agent", "tokens": dict(estimated_tokens)})
         started = time.perf_counter()
         data = _qa_and_revise_step(settings, intake, tone=tone, draft=section_draft, model=model, token_callback=add_tokens)
-        agent_outputs["draft_review_agent"] = {"qa_issues": data.get("qa_issues") or [], "missing_information": data.get("missing_information") or [], "review_warnings": data.get("review_warnings") or []}
+        qa = {"issues": data.get("qa_issues") if isinstance(data.get("qa_issues"), list) else [], "missing_information": data.get("missing_information") or [], "assumptions": data.get("assumptions") or [], "review_warnings": data.get("review_warnings") or []}
+        agent_outputs["draft_review_agent"] = qa
         agent_outputs["draft_revision_agent"] = data
+        agent_outputs["draft_review_revision_agent"] = data
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        agent_trace.append(_trace("draft_review_agent", "completed", provider, model, duration_ms=elapsed_ms))
-        agent_trace.append(_trace("draft_revision_agent", "completed", provider, model, duration_ms=elapsed_ms))
+        agent_trace.append(_trace("draft_review_revision_agent", "completed", provider, model, duration_ms=elapsed_ms, metadata={"logical_outputs": ["draft_review_agent", "draft_revision_agent"]}))
     except Exception as exc:
         data = section_draft
         pipeline_warnings.append(f"QA-and-revision fallback used: {exc}")
-        agent_outputs["draft_review_agent"] = {"qa_issues": [str(exc)], "missing_information": data.get("missing_information") or [], "review_warnings": data.get("review_warnings") or []}
+        qa = {"issues": [str(exc)], "missing_information": data.get("missing_information") or [], "assumptions": data.get("assumptions") or [], "review_warnings": data.get("review_warnings") or []}
+        agent_outputs["draft_review_agent"] = qa
         agent_outputs["draft_revision_agent"] = data
-        agent_trace.append(_trace("draft_review_agent", "fallback", provider, model, str(exc)))
-        agent_trace.append(_trace("draft_revision_agent", "fallback", provider, model, str(exc)))
-
-    if "qa" not in locals():
-        qa: dict[str, Any] = {"issues": data.get("qa_issues") if isinstance(data.get("qa_issues"), list) else [], "missing_information": data.get("missing_information") or [], "assumptions": data.get("assumptions") or [], "review_warnings": data.get("review_warnings") or []}
+        agent_outputs["draft_review_revision_agent"] = data
+        agent_trace.append(_trace("draft_review_revision_agent", "fallback", provider, model, str(exc), metadata={"logical_outputs": ["draft_review_agent", "draft_revision_agent"]}))
 
     sections = data.get("sections") if isinstance(data.get("sections"), list) else section_draft.get("sections")
     if not isinstance(sections, list) or not sections:

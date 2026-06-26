@@ -4,16 +4,39 @@
       <div class="view-header">
         <h2>Negotiation Prep</h2>
         <div class="view-header-copy">
-          <span>Prepare structured negotiation work product from indexed matter documents.</span>
+          <span>Generate a structured negotiation preparation report from indexed matter documents.</span>
           <details class="inline-help">
             <summary>How it works</summary>
             <div class="inline-help-panel">
-              <p>Negotiation Prep uses an agentic workflow to convert matter materials into a practical negotiation plan.</p>
-              <ul>
-                <li>Specialized agents review positions, leverage, constraints, evidence, and commercial context.</li>
-                <li>They prepare talking points, concessions, fallback options, participant prep, and session plans.</li>
-                <li>The workflow flags gaps, risks, and decision points while lawyers keep control of final strategy.</li>
-              </ul>
+              <p>Negotiation Prep organizes matter materials into a lawyer-reviewed negotiation plan. It does not recommend settlement, decide the dispute, or predict outcomes.</p>
+              <div class="negotiation-help-grid">
+                <div>
+                  <strong>Upload</strong>
+                  <ul>
+                    <li>Pleadings, demand letters, or position papers</li>
+                    <li>Contracts, policies, or commercial terms</li>
+                    <li>Correspondence and negotiation exchanges</li>
+                    <li>Invoices, payment records, and damages schedules</li>
+                    <li>Prior offers, counteroffers, and term sheets</li>
+                    <li>Authority documents and internal constraints</li>
+                    <li>Expert reports or valuation support</li>
+                    <li>Confidentiality terms and procedural orders</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Output</strong>
+                  <ul>
+                    <li>Neutral negotiation summary and posture</li>
+                    <li>Positions, interests, concessions, and proof gaps</li>
+                    <li>Chronology and evidence matrix</li>
+                    <li>Information gaps and authority questions</li>
+                    <li>BATNA/WATNA, leverage, and risk points</li>
+                    <li>Offer framing and settlement option themes</li>
+                    <li>Reality-testing questions and talking points</li>
+                    <li>One-page negotiation session plan</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </details>
         </div>
@@ -32,73 +55,20 @@
 
       <div class="settings-card translate-setup-card draft-setup-card">
         <div class="council-form">
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="negotiation-prep-title">Run title</label>
-              <input class="council-input" id="negotiation-prep-title" placeholder="Negotiation prep"/>
-            </div>
-            <div class="council-field">
-              <label for="negotiation-prep-party-role">Party role</label>
-              <div class="council-field-help">Sets the perspective for leverage, concessions, risks, and fallback options. Use Neutral analysis for a balanced assessment.</div>
-              <select class="council-select" id="negotiation-prep-party-role">
-                <option value="requesting party">Requesting party</option>
-                <option value="responding party">Responding party</option>
-                <option value="third party">Third party</option>
-                <option value="neutral analysis" selected>Neutral analysis</option>
-              </select>
-            </div>
-            <div class="council-field">
-              <label for="negotiation-prep-court">Counterparty / forum</label>
-              <input class="council-input" id="negotiation-prep-court" placeholder="Counterparty, business unit, mediator, forum"/>
-            </div>
-          </div>
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="negotiation-prep-jurisdiction">Jurisdiction / market</label>
-              <input class="council-input" id="negotiation-prep-jurisdiction" placeholder="England and Wales, New York, India"/>
-            </div>
-            <div class="council-field">
-              <label for="negotiation-prep-venue">Deal / dispute context</label>
-              <input class="council-input" id="negotiation-prep-venue" placeholder="Commercial deal, settlement, renewal, collection"/>
-            </div>
-            <div class="council-field">
-              <label for="negotiation-prep-stage">Negotiation stage</label>
-              <input class="council-input" id="negotiation-prep-stage" placeholder="Planning, first offer, counteroffer, impasse"/>
-            </div>
-          </div>
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="negotiation-prep-focus">Negotiation focus</label>
-              <div class="council-field-help">Full prep produces the broadest package. Choose a narrower focus when you only need one workstream.</div>
-              <select class="council-select" id="negotiation-prep-focus">
-                <option value="full prep">Full prep</option>
-                <option value="positions">Positions</option>
-                <option value="information gaps">Information gaps</option>
-                <option value="participant prep">Participant prep</option>
-                <option value="talking points">Talking points</option>
-                <option value="session plan">Session plan</option>
-                <option value="damages">Damages</option>
-              </select>
-            </div>
-            <div class="council-field">
-              <label for="negotiation-prep-dates">Negotiation / deadline dates</label>
-              <input class="council-input" id="negotiation-prep-dates" placeholder="2026-07-15, 2026-08-01"/>
-            </div>
-          </div>
           <div class="council-field" id="negotiation-prep-source-documents-field">
             <label for="negotiation-prep-source-documents">Indexed source documents</label>
-            <div class="council-field-help">Select the indexed record materials to use. At least one source document is required to run prep.</div>
+            <div class="council-field-help">Leave blank to use all indexed documents in the selected matter.</div>
             <select class="council-select draft-source-select" id="negotiation-prep-source-documents" multiple></select>
           </div>
           <div class="council-field">
-            <label for="negotiation-prep-instructions">Prep instructions</label>
-            <textarea class="council-textarea" id="negotiation-prep-instructions" rows="4" placeholder="Focus positions, interests, authority, concessions, information gaps, damages, settlement options, or talking points"></textarea>
+            <label for="negotiation-prep-instructions">Optional negotiation notes</label>
+            <textarea class="council-textarea" id="negotiation-prep-instructions" rows="4" placeholder="Optional: party perspective, counterparty, negotiation stage, authority limits, offer history, commercial priorities, red lines, or issues to test"></textarea>
           </div>
         </div>
       </div>
 
       <div class="translate-actions">
-        <button class="btn-primary" type="button" id="negotiation-prep-run-btn" onclick="runNegotiationPrep()">Run Prep</button>
+        <button class="btn-primary" type="button" id="negotiation-prep-run-btn" onclick="runNegotiationPrep()">Generate Negotiation Prep Report</button>
         <button class="btn-secondary" type="button" onclick="resetNegotiationPrep()">Clear</button>
         <span class="translate-status" id="negotiation-prep-status"></span>
       </div>
@@ -120,6 +90,12 @@
               </button>
               <button class="icon-btn translate-result-icon-btn" type="button" title="Download Markdown" aria-label="Download Markdown" onclick="downloadNegotiationPrep()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Print report" aria-label="Print report" onclick="printNegotiationPrepReport()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download print-ready HTML" aria-label="Download print-ready HTML" onclick="downloadNegotiationPrepHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
               </button>
             </div>
           </div>

@@ -93,7 +93,7 @@ def _llm_cross_plan(settings: dict[str, Any], model: str | None, run_context: di
                 "core_attack": "string",
                 "admissions_to_obtain": ["string"],
                 "contradiction_bundles": [{"contradiction": "string", "source_1": "string", "source_2": "string", "why_it_matters": "string", "questions": ["string"]}],
-                "cross_tree": [{"question": "string", "purpose": "string", "expected_answer": "string", "if_evasive": "string", "if_denied": "string", "document_to_confront": "string", "risk": "low|medium|high", "stop_or_continue": "string"}],
+                "cross_tree": [{"question": "string", "purpose": "string", "expected_answer": "string", "if_evasive": "string", "if_denied": "string", "document_to_confront": "string", "source_anchor": "filename/page/chunk or exact source label", "risk": "low|medium|high", "stop_or_continue": "string", "do_not_ask_if": "string"}],
                 "questions_to_avoid": [{"question_or_area": "string", "reason": "string", "better": "string"}],
                 "judge_questions": [{"question": "string", "best_answer": "string"}],
                 "opponent_repair": [{"repair": "string", "counter": "string"}],
@@ -168,9 +168,25 @@ def _normalize_plan(plan: dict[str, Any], run_context: dict[str, Any], witness: 
     normalized, first_stats = _sanitize_plan(normalized)
     normalized = _remove_wrong_witness_material(normalized, case_map)
     normalized = _align_plan_to_side(normalized, run_context, case_map, relevant_sources)
+    normalized = _enrich_question_tree(normalized)
     normalized, second_stats = _sanitize_plan(normalized)
     normalized["_sanitizer_stats"] = _merge_sanitizer_stats(first_stats, second_stats)
     return normalized
+
+
+def _enrich_question_tree(plan: dict[str, Any]) -> dict[str, Any]:
+    tree = plan.get("cross_tree")
+    if not isinstance(tree, list):
+        return plan
+    for item in tree:
+        if not isinstance(item, dict):
+            continue
+        confront = str(item.get("document_to_confront") or "").strip()
+        if not str(item.get("source_anchor") or "").strip():
+            item["source_anchor"] = confront or "Confirm source anchor before courtroom use."
+        if not str(item.get("do_not_ask_if") or "").strip():
+            item["do_not_ask_if"] = "Do not ask if the source anchor is unverified, the fact is outside this witness's personal knowledge, or the answer would let the witness retell the opponent's case."
+    return plan
 
 
 def _witness_binding_summary(case_map: dict[str, Any], relevant_sources: list[dict[str, Any]]) -> dict[str, Any]:
@@ -718,8 +734,10 @@ def _question_tree(witness: str, admissions: list[str], bundles: list[dict[str, 
             "if_evasive": "I am only asking you to confirm your identity as this witness.",
             "if_denied": "Ask the witness to state their full name and role.",
             "document_to_confront": key_docs[0] if key_docs else "Witness list / statement",
+            "source_anchor": key_docs[0] if key_docs else "Witness list / statement",
             "risk": "low",
             "stop_or_continue": "Continue after identity is fixed.",
+            "do_not_ask_if": "Do not ask if identity is admitted or the witness identity is uncertain from the record.",
         }
     ]
     for admission in admissions[:5]:
@@ -730,8 +748,10 @@ def _question_tree(witness: str, admissions: list[str], bundles: list[dict[str, 
             "if_evasive": "Break the proposition into date, document, and personal-knowledge parts.",
             "if_denied": "Confront with the cited document if available; otherwise move on.",
             "document_to_confront": key_docs[min(len(questions) - 1, len(key_docs) - 1)] if key_docs else "Relevant source document",
+            "source_anchor": key_docs[min(len(questions) - 1, len(key_docs) - 1)] if key_docs else "Relevant source document",
             "risk": "medium",
             "stop_or_continue": "Continue only if the answer narrows the witness's proof value.",
+            "do_not_ask_if": "Do not ask if the admission is not traceable to this witness or would invite narrative explanation.",
         })
     for bundle in bundles[:3]:
         questions.append({
@@ -741,8 +761,10 @@ def _question_tree(witness: str, admissions: list[str], bundles: list[dict[str, 
             "if_evasive": "Return to the exact prior statement and ask whether those words appear there.",
             "if_denied": "Confront with source 1, then source 2. Do not argue.",
             "document_to_confront": bundle.get("source_1") or "Prior statement",
+            "source_anchor": bundle.get("source_1") or "Prior statement",
             "risk": "medium",
             "stop_or_continue": "Stop after the contradiction is fixed.",
+            "do_not_ask_if": "Do not ask if both contradiction sources have not been verified and marked for confrontation.",
         })
     return questions[:10]
 

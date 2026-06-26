@@ -5,9 +5,16 @@ AGENT_SPECS: list[tuple[str, str, str, int, str]] = [
     (
         "case_intake_agent",
         "Classify the mediation matter from the source evidence and user context.",
-        "Return JSON with key case_snapshot containing matter_type, parties, mediation_posture, relief_sought, forum_or_provider, jurisdiction, venue, mediation_stage, key_dates, prior_negotiations, and confidentiality_constraints.",
+        "Return JSON with key case_snapshot containing matter_type, parties, mediation_posture, relief_sought, forum_or_provider, jurisdiction, venue, mediation_stage, key_dates, prior_negotiations, confidentiality_constraints, and mediator_role_caveat.",
         4000,
         "case_snapshot",
+    ),
+    (
+        "neutral_summary_agent",
+        "Draft a concise neutral case summary for the mediator based only on supplied evidence and clearly labeled assumptions.",
+        "Return JSON with key client_or_team_summary only. The value must be a neutral paragraph that identifies the dispute, parties, relief sought, main defenses, settlement posture, and important caveats without deciding merits.",
+        1800,
+        "client_or_team_summary",
     ),
     (
         "pleadings_and_claims_agent",
@@ -17,9 +24,16 @@ AGENT_SPECS: list[tuple[str, str, str, int, str]] = [
         "claims_and_defenses",
     ),
     (
+        "positions_interests_agent",
+        "Separate each party's stated positions from possible underlying interests for neutral mediator preparation.",
+        "Return JSON with key positions_and_interests only. The value must be an array of objects with party, stated_positions, possible_underlying_interests, emotional_drivers, commercial_drivers, source, confidence_score, and inference_caveats.",
+        4500,
+        "positions_and_interests",
+    ),
+    (
         "issues_and_elements_agent",
-        "Identify legal or commercial issues, proof elements, burdens, disputed facts, admissions, and missing proof.",
-        "Return JSON with key issues only. issues must be an array of objects with title, proof_elements, burdens, disputed_facts, admissions, missing_proof, source.",
+        "Identify legal, factual, commercial, emotional, and procedural issues for neutral mediation preparation.",
+        "Return JSON with key issues only. issues must be an array of objects with title, category, proof_elements, burdens, disputed_facts, admissions, missing_proof, emotional_or_commercial_dimension, source.",
         4000,
         "issues",
     ),
@@ -94,11 +108,53 @@ AGENT_SPECS: list[tuple[str, str, str, int, str]] = [
         "damages_and_remedies",
     ),
     (
+        "batna_watna_zopa_agent",
+        "Prepare neutral BATNA, WATNA, and possible ZOPA or settlement-range considerations for each side without deciding the dispute.",
+        "Return JSON with key batna_watna_zopa only. The value must contain party_assessments, possible_zopa, settlement_range_considerations, assumptions, evidence_gaps, confidence_score, and caveat.",
+        4500,
+        "batna_watna_zopa",
+    ),
+    (
+        "risk_allocation_agent",
+        "Allocate legal, factual, commercial, procedural, emotional, collectability, and timing risks between parties for mediator preparation.",
+        "Return JSON with key risk_allocation only. The value must be an array of objects with risk, allocation, affected_parties, rationale, source, uncertainty, and mediator_note.",
+        4000,
+        "risk_allocation",
+    ),
+    (
+        "settlement_levers_agent",
+        "Identify settlement levers including payment terms, apology, confidentiality, future business, timing, releases, performance terms, and non-monetary options.",
+        "Return JSON with key settlement_levers only. The value must be an array of objects with lever, parties_affected, why_it_may_matter, possible_shapes, source_or_inference, and caveats.",
+        4000,
+        "settlement_levers",
+    ),
+    (
         "cross_examination_agent",
         "Draft private caucus and reality-testing question outlines tied to evidence anchors and contradictions.",
         "Return JSON with key cross_examination only. Each item needs witness, topics, questions, anchors, caveats.",
         4000,
         "cross_examination",
+    ),
+    (
+        "caucus_impasse_agent",
+        "Generate mediator caucus questions for each party and identify likely impasse points.",
+        "Return JSON with keys caucus_questions and impasse_points only. caucus_questions must be an array with party, question, purpose, source_or_assumption, and sensitivity. impasse_points must be an array with issue, why_it_may_block_settlement, early_warning_signs, and mediator_options.",
+        4500,
+        "caucus_impasse",
+    ),
+    (
+        "bridge_proposal_agent",
+        "Suggest possible mediator bridge proposals without deciding merits or recommending a forced outcome.",
+        "Return JSON with key bridge_proposals only. Each proposal needs label, structure, parties_helped, tradeoffs, prerequisites, risks, and neutrality_caveat.",
+        4000,
+        "bridge_proposals",
+    ),
+    (
+        "private_prep_agent",
+        "Prepare the mediator's private prep note and one-page session plan.",
+        "Return JSON with keys mediator_private_prep_note and one_page_session_plan only. Keep the note private, neutral, caveated, and focused on session management.",
+        4500,
+        "private_prep",
     ),
     (
         "settlement_and_risk_agent",
@@ -130,8 +186,33 @@ def fallback_agent_output(agent_id: str, tool_results: dict[str, Any], run_conte
                 "requires_review": True,
             }
         }
+    if agent_id == "neutral_summary_agent":
+        claims = tools.get("claim_defense_mapper", [])
+        issues = tools.get("issue_evidence_mapper", [])
+        claim_titles = ", ".join(str(item.get("title") or item.get("issue")) for item in [*claims[:4], *issues[:4]] if item.get("title") or item.get("issue"))
+        return {
+            "client_or_team_summary": (
+                "This is a neutral mediator preparation summary generated from indexed matter documents. "
+                f"The available materials indicate issues requiring mediator clarification{': ' + claim_titles if claim_titles else ''}. "
+                "The report does not decide merits, predict outcomes, or replace mediator judgment."
+            )
+        }
     if agent_id == "pleadings_and_claims_agent":
         return {"claims_and_defenses": tools.get("claim_defense_mapper", [])}
+    if agent_id == "positions_interests_agent":
+        return {
+            "positions_and_interests": [
+                {
+                    "party": "Party to be confirmed",
+                    "stated_positions": [item.get("title") for item in tools.get("claim_defense_mapper", [])[:6] if item.get("title")],
+                    "possible_underlying_interests": ["Authority, cost, timing, certainty, confidentiality, relationship, and reputational interests require mediator clarification."],
+                    "emotional_drivers": ["Possible frustration, distrust, or need for acknowledgment should be tested in caucus."],
+                    "commercial_drivers": ["Cash flow, business continuity, and settlement finality require confirmation."],
+                    "confidence_score": 0.35,
+                    "inference_caveats": ["Interests are inferred from limited source material and must not be treated as findings."],
+                }
+            ]
+        }
     if agent_id == "issues_and_elements_agent":
         return {"issues": [{"title": item.get("issue"), "proof_elements": [], "burdens": [], "disputed_facts": [], "admissions": [], "missing_proof": item.get("gaps", []), "source": (item.get("supporting_evidence") or [None])[0], "confidence_score": 0.5} for item in tools.get("issue_evidence_mapper", [])]}
     if agent_id == "chronology_agent":
@@ -154,8 +235,77 @@ def fallback_agent_output(agent_id: str, tool_results: dict[str, Any], run_conte
         return {"procedural_tasks": tools.get("procedural_deadline_tool", [])}
     if agent_id == "damages_and_remedies_agent":
         return {"damages_and_remedies": tools.get("damages_extractor", {})}
+    if agent_id == "batna_watna_zopa_agent":
+        return {
+            "batna_watna_zopa": {
+                "party_assessments": [],
+                "possible_zopa": "Not enough supported valuation or authority information to state a range. Explore brackets, non-monetary terms, and risk-adjusted movement in caucus.",
+                "settlement_range_considerations": tools.get("damages_extractor", {}).get("claimed_relief", []),
+                "assumptions": ["Any settlement range requires party authority, valuation support, collectability, timing, and non-monetary terms."],
+                "evidence_gaps": ["Confirm prior offers, authority limits, insurer involvement, payment capacity, and non-monetary interests."],
+                "confidence_score": 0.3,
+                "caveat": "This is mediator preparation only and not a valuation decision or settlement recommendation.",
+            }
+        }
+    if agent_id == "risk_allocation_agent":
+        return {
+            "risk_allocation": [
+                {
+                    "risk": item.get("summary") or "Evidence and procedural assumptions require review.",
+                    "allocation": "Unallocated pending mediator clarification",
+                    "affected_parties": [],
+                    "rationale": item.get("decision_point") or "The source set does not support a firm allocation.",
+                    "uncertainty": "high",
+                    "mediator_note": "Use caucus to test how each side prices this uncertainty.",
+                }
+                for item in tools.get("risks_and_gaps", [])[:10]
+            ]
+        }
+    if agent_id == "settlement_levers_agent":
+        return {
+            "settlement_levers": [
+                {"lever": "Payment timing or structure", "parties_affected": [], "why_it_may_matter": "Can bridge valuation and cash-flow constraints.", "possible_shapes": ["lump sum", "installments", "milestone payment"], "source_or_inference": "inference", "caveats": ["Confirm authority and payment capacity."]},
+                {"lever": "Confidentiality", "parties_affected": [], "why_it_may_matter": "May address reputational or business concerns.", "possible_shapes": ["mutual confidentiality", "limited carve-outs"], "source_or_inference": "inference", "caveats": ["Check legal limits and existing orders."]},
+                {"lever": "Non-monetary acknowledgment or apology", "parties_affected": [], "why_it_may_matter": "May address emotional or relationship interests.", "possible_shapes": ["statement of regret", "process commitment", "future communication protocol"], "source_or_inference": "inference", "caveats": ["Avoid admissions unless parties agree."]},
+            ]
+        }
     if agent_id == "cross_examination_agent":
         return {"cross_examination": tools.get("cross_exam_builder", [])}
+    if agent_id == "caucus_impasse_agent":
+        return {
+            "caucus_questions": [
+                {"party": "Each party", "question": "What would make today's process feel useful even if the matter does not settle today?", "purpose": "Surface interests and process needs.", "source_or_assumption": "mediator preparation inference", "sensitivity": "medium"},
+                {"party": "Each party", "question": "What information would materially change your settlement position?", "purpose": "Identify information gaps and movement conditions.", "source_or_assumption": "mediator preparation inference", "sensitivity": "medium"},
+                {"party": "Each party", "question": "What terms besides money would make resolution more workable?", "purpose": "Broaden the bargaining space.", "source_or_assumption": "mediator preparation inference", "sensitivity": "low"},
+            ],
+            "impasse_points": [
+                {"issue": "Valuation gap", "why_it_may_block_settlement": "The record does not show aligned valuation or authority.", "early_warning_signs": ["anchored opening numbers", "refusal to bracket"], "mediator_options": ["reality-test risk", "use conditional brackets", "separate monetary and non-monetary terms"]},
+                {"issue": "Trust or acknowledgment gap", "why_it_may_block_settlement": "Emotional or reputational needs may be hidden behind legal positions.", "early_warning_signs": ["repeated blame framing", "rejection of practical options"], "mediator_options": ["reframe interests", "test apology or process commitments"]},
+            ],
+        }
+    if agent_id == "bridge_proposal_agent":
+        return {
+            "bridge_proposals": [
+                {"label": "Conditional bracket", "structure": "Ask each side privately whether movement is possible if the other side enters a defined range.", "parties_helped": ["all parties"], "tradeoffs": ["Preserves face but may expose authority limits."], "prerequisites": ["private caucus authority check"], "risks": ["May fail if numbers are premature."], "neutrality_caveat": "A bridge proposal is process management, not a merits view."},
+                {"label": "Term-sheet first", "structure": "Resolve non-monetary terms, confidentiality, timing, and releases before final number movement.", "parties_helped": ["all parties"], "tradeoffs": ["Broadens value but can delay money discussion."], "prerequisites": ["identify must-have terms"], "risks": ["May be seen as avoiding core valuation."], "neutrality_caveat": "Use only if both sides see value in package building."},
+            ]
+        }
+    if agent_id == "private_prep_agent":
+        return {
+            "mediator_private_prep_note": {
+                "opening_frame": "Set a neutral, practical tone: the report is preparation, not a decision on merits.",
+                "watch_points": ["Unsupported assumptions", "valuation gap", "authority limits", "confidentiality constraints", "emotional drivers"],
+                "caucus_priorities": ["Confirm decision-makers and authority", "Test interests beneath positions", "Identify missing information blocking movement"],
+                "do_not_do": ["Do not decide the dispute", "Do not pressure a party into a specific outcome", "Do not treat inferred interests as facts"],
+            },
+            "one_page_session_plan": {
+                "opening": "Confirm confidentiality, process, authority, agenda, and mediator neutrality.",
+                "joint_session": ["Brief neutral issue framing", "Confirm any agreed facts", "Identify information gaps"],
+                "first_caucus": ["Positions, interests, BATNA/WATNA, authority, emotional concerns"],
+                "middle_game": ["Reality-test risks", "Explore levers", "Use brackets or package terms if appropriate"],
+                "closing": ["Document settlement terms or next steps, owners, deadlines, and information exchanges"],
+            },
+        }
     if agent_id == "settlement_and_risk_agent":
         return {"risks_and_gaps": [{"risk_level": "medium", "summary": "Human lawyer review required for all strategy and risk assessments.", "leverage": None, "decision_point": "Review evidence gaps and procedural assumptions.", "requires_review": True}]}
     return {}

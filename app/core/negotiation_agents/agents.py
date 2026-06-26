@@ -10,6 +10,13 @@ AGENT_SPECS: list[tuple[str, str, str, int, str]] = [
         "case_snapshot",
     ),
     (
+        "neutral_summary_agent",
+        "Draft a concise neutral negotiation case summary based only on supplied evidence and clearly labeled assumptions.",
+        "Return JSON with key client_or_team_summary only. The value must neutrally identify the parties, dispute or deal context, claimed value or relief, current posture, key commercial/legal constraints, and caveats without recommending a settlement or predicting outcome.",
+        1800,
+        "client_or_team_summary",
+    ),
+    (
         "pleadings_and_claims_agent",
         "Extract party positions, claims, defenses, concessions, disputed allegations, requested relief, and negotiation-relevant proof gaps.",
         "Return JSON with key claims_and_defenses only. The value must be an array of objects with claim_type, title, elements, defenses, admissions, missing_proof, settlement_relevance, and source.",
@@ -129,6 +136,16 @@ def fallback_agent_output(agent_id: str, tool_results: dict[str, Any], run_conte
                 "governing_instruments": [],
                 "requires_review": True,
             }
+        }
+    if agent_id == "neutral_summary_agent":
+        positions = tools.get("claim_defense_mapper", [])
+        position_titles = ", ".join(str(item.get("title") or item.get("claim_type")) for item in positions[:6] if item.get("title") or item.get("claim_type"))
+        return {
+            "client_or_team_summary": (
+                "This is a neutral negotiation preparation summary generated from indexed matter documents. "
+                f"The available materials indicate positions requiring legal and commercial review{': ' + position_titles if position_titles else ''}. "
+                "The report does not recommend settlement, decide merits, or predict outcomes."
+            )
         }
     if agent_id == "pleadings_and_claims_agent":
         return {"claims_and_defenses": tools.get("claim_defense_mapper", [])}

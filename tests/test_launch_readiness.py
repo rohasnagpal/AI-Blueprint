@@ -46,6 +46,8 @@ from app.core.database import SessionLocal
 from app.core.document_indexer import _extract_chunks
 from app.core.error_sanitizer import sanitize_provider_error
 from app.api.contract_review_standalone import _deterministic_agentic_review_fallback, _is_agent_invalid_json_error, _runtime_settings_for_workspace, _select_playbook
+from app.api.drafting import _quality_gate_report
+from app.api.translation import _run_translation, _sanitize_html as _sanitize_translation_html
 from app.api.auth import _check_auth_rate_limit
 from app.core.models import ContractClause, ContractPlaybook, ContractPlaybookClause, ContractReviewOutput, ContractReviewRun, ContractReviewStepOutput, KnowledgeChunk, KnowledgeEmbedding, Secret, User, Workspace, WorkspaceMember, utcnow
 from app.core.secrets import decrypt_secret, encrypt_secret
@@ -782,6 +784,10 @@ class LaunchReadinessTest(unittest.TestCase):
             )
 
         self.assertEqual(result["client_summary"], "The review found payment and termination points for lawyer review.")
+        self.assertTrue(result["autonomous_loop"]["enabled"])
+        self.assertTrue(result["autonomous_loop"]["steps"])
+        self.assertIn("working_memory", result)
+        self.assertIn("human_review_gates", result)
         self.assertEqual(len(captured_payloads), 6)
         serialized_payloads = [json.dumps(payload, sort_keys=True) for payload in captured_payloads]
         self.assertTrue(all(len(payload) < 30000 for payload in serialized_payloads))
@@ -1002,6 +1008,55 @@ class LaunchReadinessTest(unittest.TestCase):
             settings = _runtime_settings_for_workspace(db, workspace.id, user)
             db.rollback()
         self.assertEqual(settings["openai_api_key"], "sk-workspace-secret-test")
+
+    def test_draft_missing_fact_gate_requires_missing_items_or_brackets(self) -> None:
+        report = _quality_gate_report(
+            sections=[{"heading": "Facts"}],
+            draft_html="<article><section><p>No missing facts are marked.</p></section></article>",
+            missing=[],
+            warnings=["Human review required"],
+            source_context="",
+            sources_used=[],
+        )
+        gate = next(item for item in report["gates"] if item["name"] == "missing_facts_marked")
+        self.assertEqual(gate["status"], "needs_review")
+
+        bracketed = _quality_gate_report(
+            sections=[{"heading": "Facts"}],
+            draft_html="<article><section><p>[Date] is missing.</p></section></article>",
+            missing=[],
+            warnings=["Human review required"],
+            source_context="",
+            sources_used=[],
+        )
+        bracketed_gate = next(item for item in bracketed["gates"] if item["name"] == "missing_facts_marked")
+        self.assertEqual(bracketed_gate["status"], "passed")
+
+    def test_translation_sanitizes_html_and_warns_for_technical_mode(self) -> None:
+        sanitized = _sanitize_translation_html('<article><p onclick="x()">Ok</p><img src=x onerror=alert(1)><script>alert(1)</script></article>')
+        self.assertNotIn("onclick", sanitized)
+        self.assertNotIn("onerror", sanitized)
+        self.assertNotIn("script", sanitized.lower())
+
+        with patch("app.api.translation.get_runtime_settings_with_secrets", return_value={"local_llm_provider": "openai", "openai_api_key": "test", "chat_model": "gpt-test"}), patch("app.api.translation.complete_with_configured_llm", return_value=json.dumps({"translated_html": "<article><p onclick='x'>Translated command.</p><script>alert(1)</script></article>", "translated_text": "Translated command.", "warnings": [], "translator_notes": [], "preserved_terms": [], "quality_check": {}, "detected_language": "English"})):
+            result = _run_translation(text="Run commands only in a sandbox.", source_type="text", source_filename=None, source_language="English", target_language="Hindi", mode="technical", context=None)
+        self.assertNotIn("onclick", result["translated_html"])
+        self.assertNotIn("script", result["translated_html"].lower())
+        self.assertTrue(any("technical" in warning.lower() for warning in result["warnings"]))
+
+    def test_translation_chunks_long_inputs(self) -> None:
+        calls = []
+
+        def fake_complete(_settings, _system, user, **_kwargs):
+            calls.append(json.loads(user))
+            return json.dumps({"translated_html": "<article><p>Translated chunk.</p></article>", "translated_text": "Translated chunk.", "warnings": [], "translator_notes": [], "preserved_terms": [], "quality_check": {}, "detected_language": "English"})
+
+        long_text = ("Clause one. Clause two.\n\n" * 450).strip()
+        with patch("app.api.translation.get_runtime_settings_with_secrets", return_value={"local_llm_provider": "openai", "openai_api_key": "test", "chat_model": "gpt-test"}), patch("app.api.translation.complete_with_configured_llm", side_effect=fake_complete):
+            result = _run_translation(text=long_text, source_type="text", source_filename=None, source_language="English", target_language="Hindi", mode="legal", context=None)
+        self.assertGreater(len(calls), 1)
+        self.assertTrue(result["quality_check"]["chunked"])
+        self.assertTrue(any("chunks" in warning.lower() for warning in result["warnings"]))
 
     def test_runtime_security_requires_bootstrap_password(self) -> None:
         with self.assertRaises(RuntimeError):

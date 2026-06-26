@@ -12,6 +12,44 @@ class ContractReviewAgentError(RuntimeError):
     pass
 
 
+MAX_AUTONOMOUS_STEPS = 32
+MAX_REPLANS = 4
+CONTRACT_REVIEW_AGENT_SEQUENCE = [
+    "intake_and_extraction_agent",
+    "risk_analysis_agent",
+    "negotiation_agent",
+    "client_summary_agent",
+    "quality_control_agent",
+]
+CONTRACT_AGENT_SPECS = {
+    "intake_and_extraction_agent": (
+        "Extract commercially relevant contract facts and correct unsupported deterministic extraction fields.",
+        "Return JSON with key extraction only. extraction must be an object keyed by field name. Each value should include value, supported, evidence, and confidence_score.",
+        5000,
+    ),
+    "risk_analysis_agent": (
+        "Assess clause, playbook, business, and legal risk from the workflow outputs and source evidence.",
+        "Return JSON with key risk_matrix only. risk_matrix must be an array. Each item must include issue, severity, clause_id, clause_type, finding, evidence, requires_review, confidence_score, and recommended_action.",
+        5000,
+    ),
+    "negotiation_agent": (
+        "Turn the extraction and risk analysis into practical negotiation priorities and fallback positions.",
+        "Return JSON with key negotiation_memo only. The value must be a markdown string with sections ## Priority Issues, ## Fallback Positions, ## Walk-Away Conditions, and ## Open Questions.",
+        2600,
+    ),
+    "client_summary_agent": (
+        "Convert the lawyer-facing findings into a cautious plain-English client summary without legal advice.",
+        "Return JSON with key client_summary only. The value must be a concise plain-English string.",
+        2200,
+    ),
+    "quality_control_agent": (
+        "Review the draft outputs for unsupported claims, legal-advice overreach, missing evidence, and internal contradictions.",
+        "Return JSON with keys approved, issues, corrections. approved is boolean; issues is an array; corrections is an object that may contain extraction, risk_matrix, negotiation_memo, or client_summary.",
+        3000,
+    ),
+}
+
+
 def run_agentic_contract_review(
     *,
     text: str,
@@ -39,146 +77,108 @@ def run_agentic_contract_review(
     }
     trace: list[dict[str, Any]] = []
     outputs: dict[str, Any] = {}
+    run_state = _initial_contract_run_state(config, workflow, sources)
+    loop_steps: list[dict[str, Any]] = []
 
-    planner_data, planner_error = _run_agent(
-        "review_planner_agent",
-        "Plan the contract review based on document type, workflow stats, user instructions, and available evidence.",
-        "Return JSON with keys strategy, required_agents, tool_requests, evidence_gaps, and stop_conditions. tool_requests must be an array of objects with a tool key.",
-        {
-            **base_payload,
-            "priority_clause_types": _priority_clause_types(workflow),
-            "instructions": config.get("instructions") or "",
-        },
-        settings,
+    planner_data = _run_contract_planner(
+        base_payload=base_payload,
+        config=config,
+        workflow=workflow,
+        settings=settings,
         model=model,
-        max_tokens=1200,
+        provider=provider,
+        trace=trace,
+        outputs=outputs,
+        progress_callback=progress_callback,
+        deterministic_extraction=deterministic_extraction,
+        deterministic_risks=deterministic_risks,
+        deterministic_negotiation_memo=deterministic_negotiation_memo,
+        deterministic_client_summary=deterministic_client_summary,
+        run_state=run_state,
     )
-    planner_data = _normalize_agent_output("review_planner_agent", planner_data)
-    planner_shape_error = None if planner_error else _agent_output_validation_error("review_planner_agent", planner_data)
-    if planner_error:
-        if _is_invalid_json_error(planner_error):
-            planner_data = _fallback_agent_output(
-                "review_planner_agent",
+    action_queue = _contract_planner_actions(planner_data, tool_context)
+    replans = 0
+    step_number = 0
+    stop_reason = ""
+
+    while step_number < MAX_AUTONOMOUS_STEPS:
+        if not action_queue:
+            if _contract_outputs_complete(outputs) or replans >= MAX_REPLANS:
+                break
+            replans += 1
+            planner_data = _run_contract_planner(
+                base_payload=base_payload,
+                config=config,
+                workflow=workflow,
+                settings=settings,
+                model=model,
+                provider=provider,
+                trace=trace,
+                outputs=outputs,
+                progress_callback=progress_callback,
                 deterministic_extraction=deterministic_extraction,
                 deterministic_risks=deterministic_risks,
                 deterministic_negotiation_memo=deterministic_negotiation_memo,
                 deterministic_client_summary=deterministic_client_summary,
+                run_state=run_state,
+                replan_index=replans,
             )
-            outputs["review_planner_agent"] = planner_data
-            trace.append(_trace("review_planner_agent", "fallback", planner_error, provider, model, None))
-            _emit_progress(progress_callback, "Planner returned malformed JSON; using deterministic review plan", 48)
-        else:
-            trace.append(_trace("review_planner_agent", "failed", planner_error, provider, model, None))
-            _raise_agent_error(provider, planner_error)
-    elif planner_shape_error:
-        planner_data = _fallback_agent_output(
-            "review_planner_agent",
-            deterministic_extraction=deterministic_extraction,
-            deterministic_risks=deterministic_risks,
-            deterministic_negotiation_memo=deterministic_negotiation_memo,
-            deterministic_client_summary=deterministic_client_summary,
-        )
-        outputs["review_planner_agent"] = planner_data
-        trace.append(_trace("review_planner_agent", "fallback", planner_shape_error, provider, model, None))
-        _emit_progress(progress_callback, "Planner returned incomplete JSON; using deterministic review plan", 48)
-    else:
-        outputs["review_planner_agent"] = planner_data
-        trace.append(_trace("review_planner_agent", "completed", None, provider, model, None))
-        _emit_progress(progress_callback, "Review planner completed", 48)
+            action_queue = _contract_planner_actions(planner_data, tool_context, completed=run_state["completed_steps"])
+            if not action_queue:
+                break
 
-    if tool_context:
-        _emit_progress(progress_callback, "Running contract review tools", 50)
-        started = time.perf_counter()
-        tool_results = run_contract_agent_tools(
-            requests=outputs.get("review_planner_agent", {}).get("tool_requests"),
-            source_bundle=tool_context.get("source_bundle", []),
-            workflow=workflow,
-            playbook=tool_context.get("playbook"),
-            playbook_clauses=tool_context.get("playbook_clauses", []),
-        )
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-        outputs["agent_tool_controller"] = tool_results
-        trace.append(_trace("agent_tool_controller", "completed", None, "internal", "contract_agent_tools_v1", elapsed_ms))
-        _emit_progress(progress_callback, "Contract review tools completed", 52)
-
-    agent_specs = [
-        (
-            "intake_and_extraction_agent",
-            "Extract commercially relevant contract facts and correct unsupported deterministic extraction fields.",
-            "Return JSON with key extraction only. extraction must be an object keyed by field name. Each value should include value, supported, evidence, and confidence_score.",
-            5000,
-        ),
-        (
-            "risk_analysis_agent",
-            "Assess clause, playbook, business, and legal risk from the workflow outputs and source evidence.",
-            "Return JSON with key risk_matrix only. risk_matrix must be an array. Each item must include issue, severity, clause_id, clause_type, finding, evidence, requires_review, confidence_score, and recommended_action.",
-            5000,
-        ),
-        (
-            "negotiation_agent",
-            "Turn the extraction and risk analysis into practical negotiation priorities and fallback positions.",
-            "Return JSON with key negotiation_memo only. The value must be a markdown string with sections ## Priority Issues, ## Fallback Positions, ## Walk-Away Conditions, and ## Open Questions.",
-            2600,
-        ),
-        (
-            "client_summary_agent",
-            "Convert the lawyer-facing findings into a cautious plain-English client summary without legal advice.",
-            "Return JSON with key client_summary only. The value must be a concise plain-English string.",
-            2200,
-        ),
-        (
-            "quality_control_agent",
-            "Review the draft outputs for unsupported claims, legal-advice overreach, missing evidence, and internal contradictions.",
-            "Return JSON with keys approved, issues, corrections. approved is boolean; issues is an array; corrections is an object that may contain extraction, risk_matrix, negotiation_memo, or client_summary.",
-            3000,
-        ),
-    ]
-    agent_progress = {
-        "intake_and_extraction_agent": (54, 60, "Extracting contract facts"),
-        "risk_analysis_agent": (62, 68, "Analyzing contract risks"),
-        "negotiation_agent": (70, 74, "Drafting negotiation positions"),
-        "client_summary_agent": (76, 78, "Drafting client summary"),
-        "quality_control_agent": (80, 84, "Running quality control"),
-    }
-
-    for agent_id, role, contract, max_tokens in agent_specs:
-        start_progress, done_progress, message = agent_progress.get(agent_id, (54, 60, f"Running {agent_id}"))
-        _emit_progress(progress_callback, message, start_progress)
-        extra = _task_payload(agent_id, workflow, sources, text, deterministic_extraction, outputs)
-        agent_input = _agent_payload(base_payload, agent_id, extra)
-        started = time.perf_counter()
-        data, error = _run_agent(agent_id, role, contract, agent_input, settings, model=model, max_tokens=max_tokens)
-        data = _normalize_agent_output(agent_id, data)
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-        shape_error = None if error else _agent_output_validation_error(agent_id, data)
+        action = _normalize_contract_action(action_queue.pop(0))
+        if not action:
+            continue
+        step_number += 1
+        step_started = time.perf_counter()
+        try:
+            output, status, error = _execute_contract_action(
+                action,
+                base_payload=base_payload,
+                workflow=workflow,
+                sources=sources,
+                text=text,
+                deterministic_extraction=deterministic_extraction,
+                deterministic_risks=deterministic_risks,
+                deterministic_negotiation_memo=deterministic_negotiation_memo,
+                deterministic_client_summary=deterministic_client_summary,
+                outputs=outputs,
+                settings=settings,
+                model=model,
+                provider=provider,
+                tool_context=tool_context,
+                progress_callback=progress_callback,
+            )
+        except Exception as exc:
+            if isinstance(exc, ContractReviewAgentError):
+                raise
+            output, status, error = {}, "failed", str(exc)
+        elapsed_ms = int((time.perf_counter() - step_started) * 1000)
+        loop_steps.append({"step": step_number, "action": action, "status": status, "error": error, "duration_ms": elapsed_ms})
+        if action["type"] in {"run_agent", "run_tool", "pause_for_human_review"}:
+            trace_provider = "internal" if action["type"] != "run_agent" else provider
+            trace_model = "contract_agent_tools_v1" if action["type"] == "run_tool" else model
+            trace.append(_trace(action.get("name") or action["type"], status, error, trace_provider, trace_model, elapsed_ms))
+        run_state["completed_steps"].append(action.get("name") or action.get("type"))
         if error:
-            if _is_invalid_json_error(error):
-                data = _fallback_agent_output(
-                    agent_id,
-                    deterministic_extraction=deterministic_extraction,
-                    deterministic_risks=deterministic_risks,
-                    deterministic_negotiation_memo=deterministic_negotiation_memo,
-                    deterministic_client_summary=deterministic_client_summary,
-                )
-                trace.append(_trace(agent_id, "fallback", error, provider, model, elapsed_ms))
-                _emit_progress(progress_callback, f"{_agent_label(agent_id)} returned malformed JSON; using deterministic fallback", done_progress)
-            else:
-                trace.append(_trace(agent_id, "failed", error, provider, model, elapsed_ms))
-                _raise_agent_error(provider, error)
-        elif shape_error:
-            data = _fallback_agent_output(
-                agent_id,
-                deterministic_extraction=deterministic_extraction,
-                deterministic_risks=deterministic_risks,
-                deterministic_negotiation_memo=deterministic_negotiation_memo,
-                deterministic_client_summary=deterministic_client_summary,
-            )
-            trace.append(_trace(agent_id, "fallback", shape_error, provider, model, elapsed_ms))
-            _emit_progress(progress_callback, f"{_agent_label(agent_id)} returned incomplete JSON; using deterministic fallback", done_progress)
-        outputs[agent_id] = data
-        if not error and not shape_error:
-            trace.append(_trace(agent_id, "completed", None, provider, model, elapsed_ms))
-            _emit_progress(progress_callback, f"{_agent_label(agent_id)} completed", done_progress)
+            run_state["open_questions"].append(error)
+        if action["type"] == "finalize":
+            stop_reason = action.get("reason") or "Planner finalized contract review."
+            break
+        if output is not None and action.get("name"):
+            run_state["latest_outputs"][action["name"]] = _compact_tool_output(output)
+
+    _ensure_contract_outputs(
+        outputs,
+        trace,
+        deterministic_extraction=deterministic_extraction,
+        deterministic_risks=deterministic_risks,
+        deterministic_negotiation_memo=deterministic_negotiation_memo,
+        deterministic_client_summary=deterministic_client_summary,
+        provider=provider,
+        model=model,
+    )
 
     extraction = _dict_output(outputs, "intake_and_extraction_agent", "extraction")
     risk_output = _list_output(outputs, "risk_analysis_agent", "risk_matrix")
@@ -237,6 +237,15 @@ def run_agentic_contract_review(
         "negotiation_memo": negotiation_output,
         "client_summary": summary_output,
         "agentic_enabled": True,
+        "autonomous_loop": {
+            "enabled": True,
+            "max_steps": MAX_AUTONOMOUS_STEPS,
+            "steps": loop_steps,
+            "replans": replans,
+            "stop_reason": stop_reason or ("completed_required_outputs" if _contract_outputs_complete(outputs) else "step_limit_or_incomplete_queue"),
+        },
+        "working_memory": run_state,
+        "human_review_gates": ["quality_control_agent", "lawyer_review_before_use"],
         "agent_trace": trace,
         "agent_outputs": outputs,
         "quality_control": qc,
@@ -246,6 +255,285 @@ def run_agentic_contract_review(
 def _emit_progress(progress_callback: Callable[[str, int], None] | None, message: str, progress: int) -> None:
     if progress_callback:
         progress_callback(message, progress)
+
+
+def _initial_contract_run_state(config: dict[str, Any], workflow: dict[str, Any], sources: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "mode": "agentic_contract_review_v2",
+        "instructions": config.get("instructions") or "",
+        "review_depth": config.get("review_depth") or "standard",
+        "contract_type": (workflow.get("intake") or {}).get("contract_type") or (workflow.get("intake") or {}).get("contract_category"),
+        "source_count": len(sources or []),
+        "completed_steps": [],
+        "open_questions": [],
+        "evidence_gaps": [],
+        "stop_conditions": [],
+        "latest_outputs": {},
+    }
+
+
+def _run_contract_planner(
+    *,
+    base_payload: dict[str, Any],
+    config: dict[str, Any],
+    workflow: dict[str, Any],
+    settings: dict[str, Any],
+    model: str | None,
+    provider: str | None,
+    trace: list[dict[str, Any]],
+    outputs: dict[str, Any],
+    progress_callback: Callable[[str, int], None] | None,
+    deterministic_extraction: dict[str, Any],
+    deterministic_risks: list[dict[str, Any]],
+    deterministic_negotiation_memo: str,
+    deterministic_client_summary: str,
+    run_state: dict[str, Any],
+    replan_index: int = 0,
+) -> dict[str, Any]:
+    agent_name = "review_planner_agent" if not replan_index else f"review_planner_agent_replan_{replan_index}"
+    planner_data, planner_error = _run_agent(
+        "review_planner_agent",
+        "Plan the next bounded autonomous contract review actions based on contract type, workflow stats, user instructions, working memory, current outputs, and available evidence.",
+        "Return JSON with either next_actions or legacy keys strategy, required_agents, tool_requests, evidence_gaps, and stop_conditions. next_actions items must include type, name, reason, and input. Allowed types are run_tool, run_agent, mark_gap, finalize, and pause_for_human_review.",
+        {
+            **base_payload,
+            "priority_clause_types": _priority_clause_types(workflow),
+            "instructions": config.get("instructions") or "",
+            "run_state": run_state,
+            "current_outputs": _compact_tool_output(outputs),
+        },
+        settings,
+        model=model,
+        max_tokens=1400,
+    )
+    planner_data = _normalize_agent_output("review_planner_agent", planner_data)
+    planner_shape_error = None if planner_error else _agent_output_validation_error("review_planner_agent", planner_data)
+    if planner_error:
+        if _is_invalid_json_error(planner_error):
+            planner_data = _fallback_agent_output(
+                "review_planner_agent",
+                deterministic_extraction=deterministic_extraction,
+                deterministic_risks=deterministic_risks,
+                deterministic_negotiation_memo=deterministic_negotiation_memo,
+                deterministic_client_summary=deterministic_client_summary,
+            )
+            trace.append(_trace(agent_name, "fallback", planner_error, provider, model, None))
+            _emit_progress(progress_callback, "Planner returned malformed JSON; using deterministic review plan", 48)
+        else:
+            trace.append(_trace(agent_name, "failed", planner_error, provider, model, None))
+            _raise_agent_error(provider, planner_error)
+    elif planner_shape_error:
+        planner_data = _fallback_agent_output(
+            "review_planner_agent",
+            deterministic_extraction=deterministic_extraction,
+            deterministic_risks=deterministic_risks,
+            deterministic_negotiation_memo=deterministic_negotiation_memo,
+            deterministic_client_summary=deterministic_client_summary,
+        )
+        trace.append(_trace(agent_name, "fallback", planner_shape_error, provider, model, None))
+        _emit_progress(progress_callback, "Planner returned incomplete JSON; using deterministic review plan", 48)
+    else:
+        trace.append(_trace(agent_name, "completed", None, provider, model, None))
+        _emit_progress(progress_callback, "Review planner completed" if not replan_index else "Review planner replanned actions", 48)
+    outputs[agent_name] = planner_data
+    outputs["review_planner_agent"] = planner_data
+    _merge_contract_planner_state(run_state, planner_data)
+    return planner_data
+
+
+def _merge_contract_planner_state(run_state: dict[str, Any], planner_data: dict[str, Any]) -> None:
+    for key, target in (("evidence_gaps", "evidence_gaps"), ("stop_conditions", "stop_conditions")):
+        values = planner_data.get(key)
+        if isinstance(values, list):
+            for value in values:
+                text = str(value).strip()
+                if text and text not in run_state[target]:
+                    run_state[target].append(text)
+
+
+def _contract_planner_actions(planner_data: dict[str, Any], tool_context: dict[str, Any] | None, completed: list[str] | None = None) -> list[dict[str, Any]]:
+    completed_set = set(completed or [])
+    raw_actions = planner_data.get("next_actions") or planner_data.get("actions")
+    if isinstance(raw_actions, dict):
+        raw_actions = [raw_actions]
+    if isinstance(raw_actions, list) and raw_actions:
+        actions = [item for item in raw_actions if isinstance(item, dict)]
+    else:
+        actions = []
+        tool_requests = planner_data.get("tool_requests") if isinstance(planner_data.get("tool_requests"), list) else []
+        if tool_context and tool_requests and "agent_tool_controller" not in completed_set:
+            actions.append({"type": "run_tool", "name": "agent_tool_controller", "reason": "Run deterministic contract review tools requested by planner.", "input": {"requests": tool_requests}})
+        requested_agents = [agent for agent in planner_data.get("required_agents", []) if agent in CONTRACT_AGENT_SPECS] if isinstance(planner_data.get("required_agents"), list) else []
+        for agent in requested_agents or CONTRACT_REVIEW_AGENT_SEQUENCE:
+            if agent not in completed_set:
+                actions.append({"type": "run_agent", "name": agent, "reason": f"Run {agent}.", "input": {}})
+    if not any(action.get("type") == "finalize" for action in actions):
+        actions.append({"type": "finalize", "name": "finalize", "reason": "Required contract review outputs have been prepared.", "input": {}})
+    return actions
+
+
+def _normalize_contract_action(action: dict[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(action, dict):
+        return None
+    action_type = str(action.get("type") or "").strip()
+    name = str(action.get("name") or action.get("agent") or action.get("tool") or action_type).strip()
+    if action_type not in {"run_tool", "run_agent", "mark_gap", "finalize", "pause_for_human_review"}:
+        if name in CONTRACT_AGENT_SPECS:
+            action_type = "run_agent"
+        elif name == "agent_tool_controller":
+            action_type = "run_tool"
+        else:
+            return None
+    return {"type": action_type, "name": name, "reason": str(action.get("reason") or "").strip(), "input": action.get("input") if isinstance(action.get("input"), dict) else {}}
+
+
+def _execute_contract_action(
+    action: dict[str, Any],
+    *,
+    base_payload: dict[str, Any],
+    workflow: dict[str, Any],
+    sources: list[dict[str, Any]],
+    text: str,
+    deterministic_extraction: dict[str, Any],
+    deterministic_risks: list[dict[str, Any]],
+    deterministic_negotiation_memo: str,
+    deterministic_client_summary: str,
+    outputs: dict[str, Any],
+    settings: dict[str, Any],
+    model: str | None,
+    provider: str | None,
+    tool_context: dict[str, Any] | None,
+    progress_callback: Callable[[str, int], None] | None,
+) -> tuple[Any, str, str | None]:
+    if action["type"] == "finalize":
+        return {}, "completed", None
+    if action["type"] == "mark_gap":
+        return {"gap": action.get("reason") or action.get("input", {}).get("gap")}, "completed", None
+    if action["type"] == "pause_for_human_review":
+        return {"review_gate": action.get("reason") or "Human review requested by planner."}, "completed", None
+    if action["type"] == "run_tool":
+        if not tool_context:
+            return {}, "skipped", "Tool context unavailable."
+        _emit_progress(progress_callback, "Running contract review tools", 50)
+        tool_results = run_contract_agent_tools(
+            requests=action.get("input", {}).get("requests") or outputs.get("review_planner_agent", {}).get("tool_requests"),
+            source_bundle=tool_context.get("source_bundle", []),
+            workflow=workflow,
+            playbook=tool_context.get("playbook"),
+            playbook_clauses=tool_context.get("playbook_clauses", []),
+        )
+        outputs["agent_tool_controller"] = tool_results
+        _emit_progress(progress_callback, "Contract review tools completed", 52)
+        return tool_results, "completed", None
+    if action["type"] != "run_agent" or action["name"] not in CONTRACT_AGENT_SPECS:
+        return {}, "skipped", f"Unsupported contract review action: {action.get('type')} {action.get('name')}"
+    return _execute_contract_agent(
+        action["name"],
+        base_payload=base_payload,
+        workflow=workflow,
+        sources=sources,
+        text=text,
+        deterministic_extraction=deterministic_extraction,
+        deterministic_risks=deterministic_risks,
+        deterministic_negotiation_memo=deterministic_negotiation_memo,
+        deterministic_client_summary=deterministic_client_summary,
+        outputs=outputs,
+        settings=settings,
+        model=model,
+        provider=provider,
+        progress_callback=progress_callback,
+    )
+
+
+def _execute_contract_agent(
+    agent_id: str,
+    *,
+    base_payload: dict[str, Any],
+    workflow: dict[str, Any],
+    sources: list[dict[str, Any]],
+    text: str,
+    deterministic_extraction: dict[str, Any],
+    deterministic_risks: list[dict[str, Any]],
+    deterministic_negotiation_memo: str,
+    deterministic_client_summary: str,
+    outputs: dict[str, Any],
+    settings: dict[str, Any],
+    model: str | None,
+    provider: str | None,
+    progress_callback: Callable[[str, int], None] | None,
+) -> tuple[dict[str, Any], str, str | None]:
+    agent_progress = {
+        "intake_and_extraction_agent": (54, 60, "Extracting contract facts"),
+        "risk_analysis_agent": (62, 68, "Analyzing contract risks"),
+        "negotiation_agent": (70, 74, "Drafting negotiation positions"),
+        "client_summary_agent": (76, 78, "Drafting client summary"),
+        "quality_control_agent": (80, 84, "Running quality control"),
+    }
+    role, contract, max_tokens = CONTRACT_AGENT_SPECS[agent_id]
+    start_progress, done_progress, message = agent_progress.get(agent_id, (54, 60, f"Running {agent_id}"))
+    _emit_progress(progress_callback, message, start_progress)
+    extra = _task_payload(agent_id, workflow, sources, text, deterministic_extraction, outputs)
+    agent_input = _agent_payload(base_payload, agent_id, extra)
+    started = time.perf_counter()
+    data, error = _run_agent(agent_id, role, contract, agent_input, settings, model=model, max_tokens=max_tokens)
+    data = _normalize_agent_output(agent_id, data)
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    shape_error = None if error else _agent_output_validation_error(agent_id, data)
+    if error:
+        if _is_invalid_json_error(error):
+            data = _fallback_agent_output(
+                agent_id,
+                deterministic_extraction=deterministic_extraction,
+                deterministic_risks=deterministic_risks,
+                deterministic_negotiation_memo=deterministic_negotiation_memo,
+                deterministic_client_summary=deterministic_client_summary,
+            )
+            outputs[agent_id] = data
+            _emit_progress(progress_callback, f"{_agent_label(agent_id)} returned malformed JSON; using deterministic fallback", done_progress)
+            return data, "fallback", error
+        _raise_agent_error(provider, error)
+    if shape_error:
+        data = _fallback_agent_output(
+            agent_id,
+            deterministic_extraction=deterministic_extraction,
+            deterministic_risks=deterministic_risks,
+            deterministic_negotiation_memo=deterministic_negotiation_memo,
+            deterministic_client_summary=deterministic_client_summary,
+        )
+        outputs[agent_id] = data
+        _emit_progress(progress_callback, f"{_agent_label(agent_id)} returned incomplete JSON; using deterministic fallback", done_progress)
+        return data, "fallback", shape_error
+    outputs[agent_id] = data
+    _emit_progress(progress_callback, f"{_agent_label(agent_id)} completed", done_progress)
+    return data, "completed", None
+
+
+def _contract_outputs_complete(outputs: dict[str, Any]) -> bool:
+    return all(agent in outputs for agent in CONTRACT_REVIEW_AGENT_SEQUENCE)
+
+
+def _ensure_contract_outputs(
+    outputs: dict[str, Any],
+    trace: list[dict[str, Any]],
+    *,
+    deterministic_extraction: dict[str, Any],
+    deterministic_risks: list[dict[str, Any]],
+    deterministic_negotiation_memo: str,
+    deterministic_client_summary: str,
+    provider: str | None,
+    model: str | None,
+) -> None:
+    for agent_id in CONTRACT_REVIEW_AGENT_SEQUENCE:
+        if agent_id in outputs:
+            continue
+        outputs[agent_id] = _fallback_agent_output(
+            agent_id,
+            deterministic_extraction=deterministic_extraction,
+            deterministic_risks=deterministic_risks,
+            deterministic_negotiation_memo=deterministic_negotiation_memo,
+            deterministic_client_summary=deterministic_client_summary,
+        )
+        trace.append(_trace(agent_id, "fallback", "Planner did not execute this required output; deterministic fallback used.", provider, model, None))
 
 
 def _agent_label(agent_id: str) -> str:

@@ -10,6 +10,13 @@ AGENT_SPECS: list[tuple[str, str, str, int, str]] = [
         "case_snapshot",
     ),
     (
+        "neutral_summary_agent",
+        "Draft a concise neutral arbitration case summary based only on supplied evidence and clearly labeled assumptions.",
+        "Return JSON with key client_or_team_summary only. The value must be a neutral paragraph identifying the dispute, parties, claims/counterclaims, relief sought, procedural posture, and important caveats without deciding merits.",
+        1800,
+        "client_or_team_summary",
+    ),
+    (
         "issues_and_elements_agent",
         "Identify legal or commercial issues, proof elements, burdens, disputed facts, admissions, and missing proof.",
         "Return JSON with key issues only. issues must be an array of objects with title, proof_elements, burdens, disputed_facts, admissions, missing_proof, source.",
@@ -92,6 +99,16 @@ def fallback_agent_output(agent_id: str, tool_results: dict[str, Any], run_conte
                 "governing_instruments": [],
                 "requires_review": True,
             }
+        }
+    if agent_id == "neutral_summary_agent":
+        issues = tools.get("issue_evidence_mapper", [])
+        issue_titles = ", ".join(str(item.get("issue") or item.get("title")) for item in issues[:6] if item.get("issue") or item.get("title"))
+        return {
+            "client_or_team_summary": (
+                "This is a neutral arbitration preparation summary generated from indexed matter documents. "
+                f"The available materials indicate issues requiring legal review{': ' + issue_titles if issue_titles else ''}. "
+                "The report does not decide merits, predict outcomes, or replace lawyer judgment."
+            )
         }
     if agent_id == "issues_and_elements_agent":
         return {"issues": [{"title": item.get("issue"), "proof_elements": [], "burdens": [], "disputed_facts": [], "admissions": [], "missing_proof": item.get("gaps", []), "source": (item.get("supporting_evidence") or [None])[0], "confidence_score": 0.5} for item in tools.get("issue_evidence_mapper", [])]}

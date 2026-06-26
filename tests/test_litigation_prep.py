@@ -28,6 +28,8 @@ database.SECRET_KEY_FILE = str(APP_SECRET_PATH)
 from fastapi.testclient import TestClient
 
 from main import app
+from app.core.litigation_agents.cross_exam import run_agentic_cross_exam_prep
+from app.core.litigation_agents.models import LitigationWorkflow
 from app.core.litigation_agents.orchestrator import run_agentic_litigation_prep
 from app.core.litigation_agents.tools import SUPPORTED_TOOLS, run_litigation_agent_tools
 from app.core.database import SessionLocal
@@ -139,6 +141,16 @@ class LitigationPrepTest(unittest.TestCase):
                 )
             db.commit()
         return document_id
+
+    def test_litigation_workflow_model_matches_report_shape(self) -> None:
+        workflow = LitigationWorkflow()
+        dumped = workflow.model_dump()
+        self.assertEqual(dumped["version"], "litigation_prep_workflow_v2")
+        self.assertIn("witness_prep", dumped)
+        self.assertNotIn("witnesses", dumped)
+        self.assertIn("argument_strategy", dumped)
+        self.assertIn("cross_examination", dumped)
+        self.assertIn("client_or_team_summary", dumped)
 
     def wait_for_job(self, workspace_id: str, job_id: str) -> dict:
         last = None
@@ -275,6 +287,7 @@ class LitigationPrepTest(unittest.TestCase):
         responses = [
             {"strategy": "plan", "required_agents": [], "tool_requests": [{"tool": "targeted_document_retrieval", "query": "claim"}], "evidence_gaps": [], "stop_conditions": []},
             {"case_snapshot": {"court": "Commercial Division"}},
+            {"client_or_team_summary": "Neutral litigation summary for lawyer review."},
             {"claims_and_defenses": []},
             {"issues": []},
             {"chronology": []},
@@ -309,6 +322,7 @@ class LitigationPrepTest(unittest.TestCase):
     def test_strict_planner_actions_drive_autonomous_loop(self) -> None:
         source_bundle = [{"document_id": "doc-1", "chunk_id": "chunk-1", "filename": "a.txt", "chunk_index": 0, "content": "Complaint filed on 12 Jan 2026. Jane Smith sent notice.", "page": 1}]
         settings = {"chat_model": "mock-model"}
+        progress_events = []
         responses = [
             {"next_actions": [
                 {"type": "run_tool", "name": "targeted_document_retrieval", "reason": "Find complaint evidence", "input": {"tool": "targeted_document_retrieval", "query": "complaint notice"}},
@@ -319,15 +333,46 @@ class LitigationPrepTest(unittest.TestCase):
             {"approved": True, "flagged_items": [], "unsupported_claims": [], "privilege_flags": [], "warnings": [], "corrections": {}},
         ]
         with patch("app.core.litigation_agents.orchestrator.configured_llm_provider", return_value="mock"), patch("app.core.litigation_agents.orchestrator.complete_with_configured_llm", side_effect=[json.dumps(item) for item in responses]) as mocked:
-            result = run_agentic_litigation_prep(sources=[], source_bundle=source_bundle, run_context={"court": "Commercial Division", "jurisdiction": "New York"}, settings=settings)
+            result = run_agentic_litigation_prep(sources=[], source_bundle=source_bundle, run_context={"court": "Commercial Division", "jurisdiction": "New York"}, settings=settings, progress_callback=lambda message, progress, step: progress_events.append((message, progress, step)))
         loop = result["agentic_review"]["autonomous_loop"]
         self.assertEqual(loop["stop_reason"], "Bounded litigation test complete")
         self.assertEqual([step["action"]["type"] for step in loop["steps"][:3]], ["run_tool", "run_agent", "finalize"])
         self.assertTrue(result["chronology"])
         self.assertEqual(mocked.call_count, len(responses))
+        self.assertTrue(progress_events)
+        self.assertIsInstance(progress_events[0][0], str)
+        self.assertIsInstance(progress_events[0][1], int)
+        self.assertIsInstance(progress_events[0][2], str)
+
+    def test_cross_exam_prep_question_tree_has_trial_control_fields(self) -> None:
+        source_bundle = [{
+            "document_id": "doc-1",
+            "chunk_id": "chunk-1",
+            "filename": "pw4_statement.txt",
+            "chunk_index": 0,
+            "content": "PW-4 stated that he saw the payment approval. The earlier statement omits any reference to direct approval and is inconsistent with the invoice register.",
+            "page": 1,
+        }]
+        progress_events = []
+        result = run_agentic_cross_exam_prep(
+            sources=source_bundle,
+            source_bundle=source_bundle,
+            run_context={"target_witness": "PW-4", "party_role": "defence / accused", "cross_objective": "Expose investigation gaps", "risk_level": "balanced"},
+            settings={},
+            progress_callback=lambda message, progress, step: progress_events.append((message, progress, step)),
+        )
+        plan = result["agentic_review"]["cross_exam_plan"]
+        self.assertTrue(plan["cross_tree"])
+        first_question = plan["cross_tree"][0]
+        self.assertIn("source_anchor", first_question)
+        self.assertIn("do_not_ask_if", first_question)
+        self.assertIn("risk", first_question)
+        self.assertTrue(progress_events)
 
     def test_frontend_javascript_syntax(self) -> None:
         import subprocess
 
         completed = subprocess.run(["node", "--check", "public/js/pages/litigation-prep.js"], cwd="/Users/samairahnagpal/AIBlueprint", text=True, capture_output=True, check=False)
         self.assertEqual(completed.returncode, 0, completed.stderr)
+        cross_exam = subprocess.run(["node", "--check", "public/js/pages/cross-exam-prep.js"], cwd="/Users/samairahnagpal/AIBlueprint", text=True, capture_output=True, check=False)
+        self.assertEqual(cross_exam.returncode, 0, cross_exam.stderr)

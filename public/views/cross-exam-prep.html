@@ -8,12 +8,29 @@
           <details class="inline-help">
             <summary>How it works</summary>
             <div class="inline-help-panel">
-              <p>Cross-Examination Prep uses an agentic workflow to build a focused witness plan from the record.</p>
-              <ul>
-                <li>Specialized agents analyze witness statements, documents, contradictions, timelines, and proof gaps.</li>
-                <li>They generate themes, admissions, impeachment points, sequencing, and question sets.</li>
-                <li>The workflow respects red lines and risk level while counsel controls courtroom strategy.</li>
-              </ul>
+              <p>Cross-Examination Prep uses a witness-specific agentic workflow. It reads the indexed matter record, identifies what this witness can and cannot safely prove, and produces a controlled cross plan for lawyer review.</p>
+              <div class="cross-exam-help-grid">
+                <div>
+                  <strong>Upload or index</strong>
+                  <ul>
+                    <li>witness statements, affidavits, examination-in-chief, and prior testimony</li>
+                    <li>pleadings, issues, charges, claim documents, and replies</li>
+                    <li>contracts, correspondence, invoices, policies, exhibits, and objective records</li>
+                    <li>expert reports, investigation records, transcripts, and court or tribunal orders</li>
+                    <li>prior inconsistent statements, omissions, settlement context, and any red-line instructions</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Output</strong>
+                  <ul>
+                    <li>witness role, opponent theory, do-not-contest points, and contested points</li>
+                    <li>admissions to obtain and contradiction bundles with source anchors</li>
+                    <li>question-by-question cross tree with purpose, expected answer, evasion path, denial path, risk, and stop rule</li>
+                    <li>questions to avoid, likely judge questions, opponent repair, closing use, and missing material</li>
+                    <li>a print-ready one-page cross plan plus the full courtroom preparation report</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </details>
         </div>
@@ -33,7 +50,7 @@
       <div class="settings-card translate-setup-card draft-setup-card">
         <div class="settings-card-header">
           <div>
-            <div class="settings-card-title">Prepare Cross</div>
+            <div class="settings-card-title">Prepare Cross-Examination</div>
             <div class="settings-card-subtitle" id="cross-exam-prep-doc-summary">Select a matter with indexed documents.</div>
           </div>
         </div>
@@ -100,7 +117,7 @@
       </div>
 
       <div class="translate-actions">
-        <button class="btn-primary" type="button" id="cross-exam-prep-run-btn" onclick="runCrossExamPrep()">Prepare Cross</button>
+        <button class="btn-primary" type="button" id="cross-exam-prep-run-btn" onclick="runCrossExamPrep()">Generate Cross-Examination Plan</button>
         <button class="btn-secondary" type="button" onclick="resetCrossExamPrep()">Clear</button>
         <span class="translate-status" id="cross-exam-prep-status"></span>
       </div>
@@ -122,13 +139,16 @@
       <div class="translate-result-grid draft-result-grid" id="cross-exam-prep-result-grid" data-csp-style="display:none">
         <div class="settings-card translate-result-card draft-result-card">
           <div class="settings-card-header">
-            <div><div class="settings-card-title">Courtroom Script</div><div class="settings-card-subtitle" id="cross-exam-prep-result-meta"></div></div>
+            <div><div class="settings-card-title">Cross-Examination Report</div><div class="settings-card-subtitle" id="cross-exam-prep-result-meta"></div></div>
             <div class="settings-card-actions">
               <button class="icon-btn translate-result-icon-btn" type="button" title="Copy script" aria-label="Copy script" onclick="copyCrossExamPrep()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
               <button class="icon-btn translate-result-icon-btn" type="button" title="Download Markdown" aria-label="Download Markdown" onclick="downloadCrossExamPrep()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download print-ready HTML" aria-label="Download print-ready HTML" onclick="downloadCrossExamPrepHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 17H8"/><path d="M16 13h-2"/></svg>
               </button>
               <button class="icon-btn translate-result-icon-btn" type="button" title="Print" aria-label="Print" onclick="printCrossExamPrep()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>

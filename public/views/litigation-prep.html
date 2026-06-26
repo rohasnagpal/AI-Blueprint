@@ -4,16 +4,39 @@
       <div class="view-header">
         <h2>Litigation Prep</h2>
         <div class="view-header-copy">
-          <span>Prepare structured litigation work product from indexed matter documents.</span>
+          <span>Generate a structured litigation preparation report from indexed matter documents.</span>
           <details class="inline-help">
             <summary>How it works</summary>
             <div class="inline-help-panel">
-              <p>Litigation Prep uses an agentic workflow to turn indexed case materials into court-ready work product.</p>
-              <ul>
-                <li>Specialized agents review pleadings, facts, claims, defenses, and procedural posture.</li>
-                <li>They build chronology, evidence, discovery, deposition, motion, trial, and damages materials.</li>
-                <li>The workflow surfaces gaps, risks, and next steps while lawyers control strategy and final judgment.</li>
-              </ul>
+              <p>Litigation Prep organizes court materials into a lawyer-reviewed preparation report. It does not decide the dispute, provide legal advice, or predict the outcome.</p>
+              <div class="litigation-help-grid">
+                <div>
+                  <strong>Upload</strong>
+                  <ul>
+                    <li>Complaints, petitions, answers, and replies</li>
+                    <li>Counterclaims and affirmative defenses</li>
+                    <li>Key contracts, policies, or instruments</li>
+                    <li>Court orders, schedules, and deadlines</li>
+                    <li>Discovery requests, responses, and productions</li>
+                    <li>Correspondence and notices</li>
+                    <li>Witness statements, transcripts, and affidavits</li>
+                    <li>Expert reports, damages schedules, and exhibits</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Output</strong>
+                  <ul>
+                    <li>Neutral case summary and case snapshot</li>
+                    <li>Claims, defenses, issues, and proof elements</li>
+                    <li>Factual chronology and evidence matrix</li>
+                    <li>Discovery, witness, and deposition prep</li>
+                    <li>Motion, argument, and trial themes</li>
+                    <li>Cross-examination topics</li>
+                    <li>Procedural tasks, deadlines, damages, and remedies</li>
+                    <li>Risks, gaps, and one-page litigation plan</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </details>
         </div>
@@ -32,73 +55,20 @@
 
       <div class="settings-card translate-setup-card draft-setup-card">
         <div class="council-form">
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="litigation-prep-title">Run title</label>
-              <input class="council-input" id="litigation-prep-title" placeholder="Litigation prep"/>
-            </div>
-            <div class="council-field">
-              <label for="litigation-prep-party-role">Party role</label>
-              <div class="council-field-help">Sets the perspective for risks, strategy, and work product. Use Neutral analysis when you want a balanced case assessment.</div>
-              <select class="council-select" id="litigation-prep-party-role">
-                <option value="plaintiff">Plaintiff</option>
-                <option value="defendant">Defendant</option>
-                <option value="third party">Third party</option>
-                <option value="neutral analysis" selected>Neutral analysis</option>
-              </select>
-            </div>
-            <div class="council-field">
-              <label for="litigation-prep-court">Court</label>
-              <input class="council-input" id="litigation-prep-court" placeholder="Superior Court, SDNY, Commercial Court"/>
-            </div>
-          </div>
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="litigation-prep-jurisdiction">Jurisdiction</label>
-              <input class="council-input" id="litigation-prep-jurisdiction" placeholder="New York, England and Wales"/>
-            </div>
-            <div class="council-field">
-              <label for="litigation-prep-venue">Venue</label>
-              <input class="council-input" id="litigation-prep-venue" placeholder="County, division, district"/>
-            </div>
-            <div class="council-field">
-              <label for="litigation-prep-stage">Procedural stage</label>
-              <input class="council-input" id="litigation-prep-stage" placeholder="Pleadings, discovery, motion practice, trial prep"/>
-            </div>
-          </div>
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="litigation-prep-focus">Litigation focus</label>
-              <div class="council-field-help">Full prep produces the broadest package. Choose a narrower focus when you only need one workstream.</div>
-              <select class="council-select" id="litigation-prep-focus">
-                <option value="full prep">Full prep</option>
-                <option value="pleadings">Pleadings</option>
-                <option value="discovery">Discovery</option>
-                <option value="depositions">Depositions</option>
-                <option value="motion practice">Motion practice</option>
-                <option value="trial prep">Trial prep</option>
-                <option value="damages">Damages</option>
-              </select>
-            </div>
-            <div class="council-field">
-              <label for="litigation-prep-dates">Hearing / deadline / trial dates</label>
-              <input class="council-input" id="litigation-prep-dates" placeholder="2026-07-15, 2026-08-01"/>
-            </div>
-          </div>
           <div class="council-field" id="litigation-prep-source-documents-field">
             <label for="litigation-prep-source-documents">Indexed source documents</label>
-            <div class="council-field-help">Select the indexed record materials to use. At least one source document is required to run prep.</div>
+            <div class="council-field-help">Leave blank to use all indexed documents in the selected matter.</div>
             <select class="council-select draft-source-select" id="litigation-prep-source-documents" multiple></select>
           </div>
           <div class="council-field">
-            <label for="litigation-prep-instructions">Prep instructions</label>
-            <textarea class="council-textarea" id="litigation-prep-instructions" rows="4" placeholder="Focus pleadings, discovery gaps, depositions, motions, damages, trial prep, evidence gaps, or deadlines"></textarea>
+            <label for="litigation-prep-instructions">Optional litigation notes</label>
+            <textarea class="council-textarea" id="litigation-prep-instructions" rows="4" placeholder="Optional: court, jurisdiction, party perspective, procedural stage, trial date, discovery focus, witnesses, motions, damages, or issues to test"></textarea>
           </div>
         </div>
       </div>
 
       <div class="translate-actions">
-        <button class="btn-primary" type="button" id="litigation-prep-run-btn" onclick="runLitigationPrep()">Run Prep</button>
+        <button class="btn-primary" type="button" id="litigation-prep-run-btn" onclick="runLitigationPrep()">Generate Litigation Prep Report</button>
         <button class="btn-secondary" type="button" onclick="resetLitigationPrep()">Clear</button>
         <span class="translate-status" id="litigation-prep-status"></span>
       </div>
@@ -120,6 +90,12 @@
               </button>
               <button class="icon-btn translate-result-icon-btn" type="button" title="Download Markdown" aria-label="Download Markdown" onclick="downloadLitigationPrep()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Print report" aria-label="Print report" onclick="printLitigationPrepReport()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download print-ready HTML" aria-label="Download print-ready HTML" onclick="downloadLitigationPrepHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
               </button>
             </div>
           </div>

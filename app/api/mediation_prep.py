@@ -53,7 +53,7 @@ class MediationPrepRunIn(BaseModel):
     title: str | None = Field(default=None, max_length=255)
     matter_id: str
     document_ids: list[str] = Field(default_factory=list, max_length=40)
-    party_role: str = Field(default="neutral analysis", max_length=80)
+    party_role: str = Field(default="neutral mediator", max_length=80)
     court: str | None = Field(default=None, max_length=150)
     jurisdiction: str | None = Field(default=None, max_length=150)
     venue: str | None = Field(default=None, max_length=150)
@@ -206,6 +206,8 @@ def _format_run_row(run: MediationPrepRun) -> dict[str, Any]:
 
 
 def _format_output(run: MediationPrepRun, output: MediationPrepOutput) -> dict[str, Any]:
+    metadata = json_loads(output.metadata_json, {})
+    mediator_report = metadata.get("mediator_report") if isinstance(metadata.get("mediator_report"), dict) else {}
     return {
         "id": run.id,
         "title": run.title,
@@ -214,6 +216,7 @@ def _format_output(run: MediationPrepRun, output: MediationPrepOutput) -> dict[s
         "config": json_loads(run.config_snapshot_json, {}),
         "case_snapshot": json_loads(output.case_snapshot_json, {}),
         "claims_and_defenses": json_loads(output.claims_and_defenses_json, []),
+        "positions_and_interests": _json_output_field(output, "positions_and_interests_json", [], mediator_report.get("positions_and_interests", [])),
         "issues": json_loads(output.issues_json, []),
         "chronology": json_loads(output.chronology_json, []),
         "evidence_matrix": json_loads(output.evidence_matrix_json, []),
@@ -224,6 +227,14 @@ def _format_output(run: MediationPrepRun, output: MediationPrepOutput) -> dict[s
         "trial_prep": json_loads(output.trial_prep_json, {}),
         "argument_strategy": json_loads(output.argument_strategy_json, {}),
         "cross_examination": json_loads(output.cross_examination_json, []),
+        "batna_watna_zopa": _json_output_field(output, "batna_watna_zopa_json", {}, mediator_report.get("batna_watna_zopa", {})),
+        "risk_allocation": _json_output_field(output, "risk_allocation_json", [], mediator_report.get("risk_allocation", [])),
+        "settlement_levers": _json_output_field(output, "settlement_levers_json", [], mediator_report.get("settlement_levers", [])),
+        "caucus_questions": _json_output_field(output, "caucus_questions_json", [], mediator_report.get("caucus_questions", [])),
+        "impasse_points": _json_output_field(output, "impasse_points_json", [], mediator_report.get("impasse_points", [])),
+        "bridge_proposals": _json_output_field(output, "bridge_proposals_json", [], mediator_report.get("bridge_proposals", [])),
+        "mediator_private_prep_note": _json_output_field(output, "mediator_private_prep_note_json", {}, mediator_report.get("mediator_private_prep_note", {})),
+        "one_page_session_plan": _json_output_field(output, "one_page_session_plan_json", {}, mediator_report.get("one_page_session_plan", {})),
         "procedural_tasks": json_loads(output.procedural_tasks_json, []),
         "damages_and_remedies": json_loads(output.damages_and_remedies_json, {}),
         "risks_and_gaps": json_loads(output.risks_and_gaps_json, []),
@@ -231,10 +242,18 @@ def _format_output(run: MediationPrepRun, output: MediationPrepOutput) -> dict[s
         "warnings": json_loads(output.warnings_json, []),
         "agentic_review": json_loads(output.agentic_review_json, {}),
         "sources": json_loads(output.sources_json, []),
-        "metadata": json_loads(output.metadata_json, {}),
+        "metadata": metadata,
         "created_at": run.created_at.isoformat(),
         "completed_at": run.completed_at.isoformat() if run.completed_at else None,
     }
+
+
+def _json_output_field(output: MediationPrepOutput, field: str, default: Any, fallback: Any) -> Any:
+    raw = getattr(output, field, None)
+    parsed = json_loads(raw, default) if raw is not None else default
+    if parsed == default and fallback not in (None, {}, []):
+        return fallback
+    return parsed
 
 
 def _get_run_output(db: Session, workspace_id: str, run_id: str) -> tuple[MediationPrepRun, MediationPrepOutput]:
@@ -269,7 +288,7 @@ def _execute_mediation_prep(
     config = {
         "matter_id": matter.id,
         "document_ids": body.document_ids,
-        "party_role": body.party_role,
+        "party_role": body.party_role or "neutral mediator",
         "court": body.court,
         "jurisdiction": body.jurisdiction,
         "venue": body.venue,
@@ -284,14 +303,22 @@ def _execute_mediation_prep(
         job.progress = max(job.progress, 45)
         db.commit()
     settings = get_runtime_settings_with_secrets()
-    agentic = run_agentic_mediation_prep(sources=sources, source_bundle=source_bundle, run_context=config, settings=settings)
+
+    def progress(progress_value: int, message: str, metadata: dict[str, Any]) -> None:
+        if not job:
+            return
+        job.progress = max(job.progress, min(progress_value, 81))
+        add_job_event(db, job=job, event_type="progress", message=message, metadata={"progress": job.progress, "run_id": run_id, **metadata})
+        db.commit()
+
+    agentic = run_agentic_mediation_prep(sources=sources, source_bundle=source_bundle, run_context=config, settings=settings, progress_callback=progress if job else None)
     provider = configured_llm_provider(settings)
     model = settings.get("chat_model") if provider else None
     if job:
         add_job_event(db, job=job, event_type="progress", message="Persisting mediation prep outputs", metadata={"progress": 82, "run_id": run_id})
         job.progress = max(job.progress, 82)
         db.commit()
-    _persist_mediation_state(db, workspace_id=workspace_id, matter_id=matter.id, blueprint_id=blueprint.id, run_id=run_id, user=user, title=body.title or "Mediation Prep", config=config, result=agentic, sources=sources, provider=provider, model=model)
+    _persist_mediation_state(db, workspace_id=workspace_id, matter_id=matter.id, blueprint_id=blueprint.id, run_id=run_id, user=user, title=body.title or "Mediator Prep Report", config=config, result=agentic, sources=sources, provider=provider, model=model)
     payload = _format_output(*_get_run_output(db, workspace_id, run_id))
     record_audit_event(
         db,
@@ -314,9 +341,9 @@ def _persist_mediation_state(db: Session, *, workspace_id: str, matter_id: str, 
         blueprint_id=blueprint_id,
         title=title,
         status="completed",
-        status_detail="Agentic mediation preparation completed.",
+        status_detail="Agentic mediator preparation report completed.",
         config_snapshot_json=json.dumps(config, sort_keys=True),
-        workflow_version="mediation_prep_workflow_v1",
+        workflow_version="mediator_prep_report_workflow_v2",
         source_anchor_version="knowledge_chunk_v1",
         created_by_user_id=user.id,
         started_at=now,
@@ -332,6 +359,7 @@ def _persist_mediation_state(db: Session, *, workspace_id: str, matter_id: str, 
             run_id=run_id,
             case_snapshot_json=json.dumps(result.get("case_snapshot", {}), sort_keys=True),
             claims_and_defenses_json=json.dumps(result.get("claims_and_defenses", []), sort_keys=True),
+            positions_and_interests_json=json.dumps(result.get("positions_and_interests", []), sort_keys=True),
             issues_json=json.dumps(result.get("issues", []), sort_keys=True),
             chronology_json=json.dumps(result.get("chronology", []), sort_keys=True),
             evidence_matrix_json=json.dumps(result.get("evidence_matrix", []), sort_keys=True),
@@ -342,6 +370,14 @@ def _persist_mediation_state(db: Session, *, workspace_id: str, matter_id: str, 
             trial_prep_json=json.dumps(result.get("trial_prep", {}), sort_keys=True),
             argument_strategy_json=json.dumps(result.get("argument_strategy", {}), sort_keys=True),
             cross_examination_json=json.dumps(result.get("cross_examination", []), sort_keys=True),
+            batna_watna_zopa_json=json.dumps(result.get("batna_watna_zopa", {}), sort_keys=True),
+            risk_allocation_json=json.dumps(result.get("risk_allocation", []), sort_keys=True),
+            settlement_levers_json=json.dumps(result.get("settlement_levers", []), sort_keys=True),
+            caucus_questions_json=json.dumps(result.get("caucus_questions", []), sort_keys=True),
+            impasse_points_json=json.dumps(result.get("impasse_points", []), sort_keys=True),
+            bridge_proposals_json=json.dumps(result.get("bridge_proposals", []), sort_keys=True),
+            mediator_private_prep_note_json=json.dumps(result.get("mediator_private_prep_note", {}), sort_keys=True),
+            one_page_session_plan_json=json.dumps(result.get("one_page_session_plan", {}), sort_keys=True),
             procedural_tasks_json=json.dumps(result.get("procedural_tasks", []), sort_keys=True),
             damages_and_remedies_json=json.dumps(result.get("damages_and_remedies", {}), sort_keys=True),
             risks_and_gaps_json=json.dumps(result.get("risks_and_gaps", []), sort_keys=True),
@@ -349,7 +385,7 @@ def _persist_mediation_state(db: Session, *, workspace_id: str, matter_id: str, 
             warnings_json=json.dumps(result.get("warnings", []), sort_keys=True),
             agentic_review_json=json.dumps(result.get("agentic_review", {}), sort_keys=True),
             sources_json=json.dumps(sources, sort_keys=True),
-            metadata_json=json.dumps({"provider": provider, "model": model}, sort_keys=True),
+            metadata_json=json.dumps({"provider": provider, "model": model, "mediator_report": _mediator_report_sections(result)}, sort_keys=True),
         )
     )
     _persist_claims(db, workspace_id, matter_id, run_id, result.get("claims_and_defenses", []))
@@ -366,6 +402,20 @@ def _persist_mediation_state(db: Session, *, workspace_id: str, matter_id: str, 
     _persist_procedural_tasks(db, workspace_id, matter_id, run_id, result.get("procedural_tasks", []))
     _persist_risks(db, workspace_id, matter_id, run_id, result.get("risks_and_gaps", []))
     _persist_step_outputs(db, workspace_id, matter_id, run_id, config, result, provider, model)
+
+
+def _mediator_report_sections(result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "positions_and_interests": result.get("positions_and_interests", []),
+        "batna_watna_zopa": result.get("batna_watna_zopa", {}),
+        "risk_allocation": result.get("risk_allocation", []),
+        "settlement_levers": result.get("settlement_levers", []),
+        "caucus_questions": result.get("caucus_questions", []),
+        "impasse_points": result.get("impasse_points", []),
+        "bridge_proposals": result.get("bridge_proposals", []),
+        "mediator_private_prep_note": result.get("mediator_private_prep_note", {}),
+        "one_page_session_plan": result.get("one_page_session_plan", {}),
+    }
 
 
 def _anchor(value: Any) -> dict[str, Any]:
@@ -428,7 +478,8 @@ def _persist_depositions(db: Session, workspace_id: str, matter_id: str, run_id:
 def _persist_arguments(db: Session, workspace_id: str, matter_id: str, run_id: str, strategy: dict[str, Any]) -> None:
     themes = strategy.get("themes") if isinstance(strategy.get("themes"), list) else []
     for item in themes[:50]:
-        db.add(MediationArgument(id=str(uuid.uuid4()), workspace_id=workspace_id, matter_id=matter_id, run_id=run_id, theme=str(item.get("theme") or "Argument theme")[:255], strongest_points_json=json.dumps(item.get("strongest_points") or item.get("points") or [], sort_keys=True), vulnerabilities_json=json.dumps(item.get("vulnerabilities") or [], sort_keys=True), opponent_responses_json=json.dumps(item.get("opponent_responses") or [], sort_keys=True), review_status="pending", metadata_json=json.dumps(item, sort_keys=True)))
+        data = item if isinstance(item, dict) else {"theme": str(item)}
+        db.add(MediationArgument(id=str(uuid.uuid4()), workspace_id=workspace_id, matter_id=matter_id, run_id=run_id, theme=str(data.get("theme") or "Argument theme")[:255], strongest_points_json=json.dumps(data.get("strongest_points") or data.get("points") or [], sort_keys=True), vulnerabilities_json=json.dumps(data.get("vulnerabilities") or [], sort_keys=True), opponent_responses_json=json.dumps(data.get("opponent_responses") or [], sort_keys=True), review_status="pending", metadata_json=json.dumps(data, sort_keys=True)))
 
 
 def _persist_procedural_tasks(db: Session, workspace_id: str, matter_id: str, run_id: str, tasks: list[dict[str, Any]]) -> None:
@@ -440,8 +491,9 @@ def _persist_procedural_tasks(db: Session, workspace_id: str, matter_id: str, ru
 def _persist_motions(db: Session, workspace_id: str, matter_id: str, run_id: str, strategy: dict[str, Any]) -> None:
     motions = strategy.get("motions") if isinstance(strategy.get("motions"), list) else strategy.get("themes") if isinstance(strategy.get("themes"), list) else []
     for item in motions[:60]:
-        anchor = _anchor(item)
-        db.add(MediationMotion(id=str(uuid.uuid4()), workspace_id=workspace_id, matter_id=matter_id, run_id=run_id, source_document_id=anchor.get("document_id"), chunk_id=anchor.get("chunk_id"), motion_type=item.get("motion_type") or "motion", title=str(item.get("title") or item.get("theme") or "Motion issue")[:255], support_json=json.dumps(item.get("support") or item.get("points") or [], sort_keys=True), vulnerabilities_json=json.dumps(item.get("vulnerabilities") or [], sort_keys=True), page=anchor.get("page"), start_offset=anchor.get("start_offset"), end_offset=anchor.get("end_offset"), confidence_score=item.get("confidence_score"), review_status="pending", metadata_json=json.dumps({"source": anchor, "item": item}, sort_keys=True)))
+        data = item if isinstance(item, dict) else {"theme": str(item)}
+        anchor = _anchor(data)
+        db.add(MediationMotion(id=str(uuid.uuid4()), workspace_id=workspace_id, matter_id=matter_id, run_id=run_id, source_document_id=anchor.get("document_id"), chunk_id=anchor.get("chunk_id"), motion_type=data.get("motion_type") or "motion", title=str(data.get("title") or data.get("theme") or "Motion issue")[:255], support_json=json.dumps(data.get("support") or data.get("points") or [], sort_keys=True), vulnerabilities_json=json.dumps(data.get("vulnerabilities") or [], sort_keys=True), page=anchor.get("page"), start_offset=anchor.get("start_offset"), end_offset=anchor.get("end_offset"), confidence_score=data.get("confidence_score"), review_status="pending", metadata_json=json.dumps({"source": anchor, "item": data}, sort_keys=True)))
 
 
 def _persist_discovery(db: Session, workspace_id: str, matter_id: str, run_id: str, discovery: list[dict[str, Any]]) -> None:
@@ -509,7 +561,7 @@ async def create_run(workspace_id: str, body: MediationPrepRunIn, background_tas
     _validate_matter(db, workspace_id, body.matter_id)
     _source_chunks(db, workspace_id, body)
     run_id = str(uuid.uuid4())
-    job = create_job(db, workspace_id=workspace_id, created_by_user_id=user.id, job_type="mediation_prep.run", metadata={"run_id": run_id, "title": body.title or "Mediation Prep"}, message="Mediation prep queued")
+    job = create_job(db, workspace_id=workspace_id, created_by_user_id=user.id, job_type="mediation_prep.run", metadata={"run_id": run_id, "title": body.title or "Mediator Prep Report"}, message="Mediation prep queued")
     record_audit_event(db, action="mediation_prep.queue", resource_type="mediation_prep", resource_id=run_id, user_id=user.id, workspace_id=workspace_id, metadata={"job_id": job.id, "document_count": len(set(body.document_ids)), "matter_id": body.matter_id})
     db.commit()
     db.refresh(job)
@@ -612,9 +664,9 @@ async def create_decision(workspace_id: str, run_id: str, body: MediationDecisio
 async def list_templates(workspace_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_workspace_member(workspace_id, user, db)
     return [
-        {"id": "standard-mediation-prep", "name": "Standard Mediation Prep", "description": "Issues, chronology, evidence, witnesses, procedure, damages, risks, and audit package."},
-        {"id": "hearing-prep", "name": "Mediation Prep", "description": "Emphasizes witness prep, cross-examination, chronology, and exhibits."},
-        {"id": "procedural-compliance", "name": "Procedural Compliance", "description": "Emphasizes orders, deadlines, filings, production, and objections."},
+        {"id": "mediator-prep-report", "name": "Mediator Prep Report", "description": "Neutral private mediator report with summary, chronology, issues, interests, BATNA/WATNA, ZOPA, levers, caucus questions, bridge proposals, and session plan."},
+        {"id": "one-page-session-plan", "name": "One-Page Session Plan", "description": "Focused agenda, caucus sequence, information gaps, impasse points, and closing plan."},
+        {"id": "settlement-design", "name": "Settlement Design", "description": "Emphasizes settlement levers, risk allocation, bridge proposals, non-monetary options, and range considerations."},
     ]
 
 

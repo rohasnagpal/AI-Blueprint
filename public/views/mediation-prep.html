@@ -4,16 +4,39 @@
       <div class="view-header">
         <h2>Mediation Prep</h2>
         <div class="view-header-copy">
-          <span>Prepare structured mediation work product from indexed matter documents.</span>
+          <span>Generate a neutral, private mediator preparation report from indexed matter documents.</span>
           <details class="inline-help">
             <summary>How it works</summary>
             <div class="inline-help-panel">
-              <p>Mediation Prep uses an agentic workflow to organize the matter for settlement-focused preparation.</p>
-              <ul>
-                <li>Specialized agents review positions, interests, evidence, authority, and information gaps.</li>
-                <li>They prepare mediator brief inputs, participant notes, damages analysis, and session planning.</li>
-                <li>The workflow highlights negotiation risks and practical options while lawyers approve final strategy.</li>
-              </ul>
+              <p>Mediation Prep is a private preparation tool for mediators. It does not decide the dispute, predict the outcome, or replace the mediator.</p>
+              <div class="mediation-help-grid">
+                <div>
+                  <strong>Upload</strong>
+                  <ul>
+                    <li>Mediation briefs</li>
+                    <li>Pleadings or claim documents</li>
+                    <li>Contracts, policies, or agreements</li>
+                    <li>Party correspondence</li>
+                    <li>Invoices, claim forms, or payment records</li>
+                    <li>Prior settlement offers</li>
+                    <li>Expert reports or supporting documents</li>
+                    <li>Court or arbitration orders, if any</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Output</strong>
+                  <ul>
+                    <li>Neutral case summary and factual chronology</li>
+                    <li>Key legal, factual, commercial, and emotional issues</li>
+                    <li>Party positions vs underlying interests</li>
+                    <li>BATNA/WATNA and possible ZOPA</li>
+                    <li>Strengths, weaknesses, uncertainties, and risk allocation</li>
+                    <li>Settlement levers and information gaps</li>
+                    <li>Caucus questions, impasse points, and bridge proposals</li>
+                    <li>Private prep note and one-page session plan</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </details>
         </div>
@@ -32,73 +55,20 @@
 
       <div class="settings-card translate-setup-card draft-setup-card">
         <div class="council-form">
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="mediation-prep-title">Run title</label>
-              <input class="council-input" id="mediation-prep-title" placeholder="Mediation prep"/>
-            </div>
-            <div class="council-field">
-              <label for="mediation-prep-party-role">Party role</label>
-              <div class="council-field-help">Sets the perspective for positions, interests, risks, and settlement options. Use Neutral analysis for a balanced assessment.</div>
-              <select class="council-select" id="mediation-prep-party-role">
-                <option value="requesting party">Requesting party</option>
-                <option value="responding party">Responding party</option>
-                <option value="third party">Third party</option>
-                <option value="neutral analysis" selected>Neutral analysis</option>
-              </select>
-            </div>
-            <div class="council-field">
-              <label for="mediation-prep-court">Mediator / provider / court</label>
-              <input class="council-input" id="mediation-prep-court" placeholder="JAMS, AAA, private mediator, court program"/>
-            </div>
-          </div>
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="mediation-prep-jurisdiction">Jurisdiction</label>
-              <input class="council-input" id="mediation-prep-jurisdiction" placeholder="Confidential, England and Wales"/>
-            </div>
-            <div class="council-field">
-              <label for="mediation-prep-venue">Venue</label>
-              <input class="council-input" id="mediation-prep-venue" placeholder="County, division, district"/>
-            </div>
-            <div class="council-field">
-              <label for="mediation-prep-stage">Procedural stage</label>
-              <input class="council-input" id="mediation-prep-stage" placeholder="Pre-mediation, statements due, session scheduled"/>
-            </div>
-          </div>
-          <div class="council-form-row">
-            <div class="council-field">
-              <label for="mediation-prep-focus">Mediation focus</label>
-              <div class="council-field-help">Full prep produces the broadest package. Choose a narrower focus when you only need one workstream.</div>
-              <select class="council-select" id="mediation-prep-focus">
-                <option value="full prep">Full prep</option>
-                <option value="positions">Positions</option>
-                <option value="information gaps">Information gaps</option>
-                <option value="participant prep">Participant prep</option>
-                <option value="mediator brief">Mediator brief</option>
-                <option value="session plan">Session plan</option>
-                <option value="damages">Damages</option>
-              </select>
-            </div>
-            <div class="council-field">
-              <label for="mediation-prep-dates">Mediation / deadline dates</label>
-              <input class="council-input" id="mediation-prep-dates" placeholder="2026-07-15, 2026-08-01"/>
-            </div>
-          </div>
           <div class="council-field" id="mediation-prep-source-documents-field">
             <label for="mediation-prep-source-documents">Indexed source documents</label>
-            <div class="council-field-help">Select the indexed record materials to use. At least one source document is required to run prep.</div>
+            <div class="council-field-help">Leave blank to use all indexed documents in the selected matter.</div>
             <select class="council-select draft-source-select" id="mediation-prep-source-documents" multiple></select>
           </div>
           <div class="council-field">
-            <label for="mediation-prep-instructions">Prep instructions</label>
-            <textarea class="council-textarea" id="mediation-prep-instructions" rows="4" placeholder="Focus positions, interests, authority, information gaps, mediator brief, damages, settlement options, or session planning"></textarea>
+            <label for="mediation-prep-instructions">Optional mediator notes</label>
+            <textarea class="council-textarea" id="mediation-prep-instructions" rows="4" placeholder="Optional: mediation date, party names, prior offers, authority concerns, emotional dynamics, or issues the mediator wants tested"></textarea>
           </div>
         </div>
       </div>
 
       <div class="translate-actions">
-        <button class="btn-primary" type="button" id="mediation-prep-run-btn" onclick="runMediationPrep()">Run Prep</button>
+        <button class="btn-primary" type="button" id="mediation-prep-run-btn" onclick="runMediationPrep()">Generate Mediator Prep Report</button>
         <button class="btn-secondary" type="button" onclick="resetMediationPrep()">Clear</button>
         <span class="translate-status" id="mediation-prep-status"></span>
       </div>
@@ -120,6 +90,12 @@
               </button>
               <button class="icon-btn translate-result-icon-btn" type="button" title="Download Markdown" aria-label="Download Markdown" onclick="downloadMediationPrep()">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Print report" aria-label="Print report" onclick="printMediationPrepReport()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              </button>
+              <button class="icon-btn translate-result-icon-btn" type="button" title="Download print-ready HTML" aria-label="Download print-ready HTML" onclick="downloadMediationPrepHtml()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
               </button>
             </div>
           </div>

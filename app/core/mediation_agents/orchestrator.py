@@ -1,6 +1,6 @@
 import json
 import time
-from typing import Any
+from typing import Any, Callable
 
 from app.core.mediation_agents.agents import AGENT_SPECS, fallback_agent_output
 from app.core.mediation_agents.tools import run_mediation_agent_tools
@@ -8,7 +8,7 @@ from app.core.json_utils import json_loads
 from app.core.llm import complete_with_configured_llm, configured_llm_provider
 
 
-MAX_AUTONOMOUS_STEPS = 24
+MAX_AUTONOMOUS_STEPS = 48
 MAX_REPLANS = 4
 
 
@@ -18,6 +18,7 @@ def run_agentic_mediation_prep(
     source_bundle: list[dict[str, Any]],
     run_context: dict[str, Any],
     settings: dict[str, Any],
+    progress_callback: Callable[[int, str, dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     provider = configured_llm_provider(settings)
     model = run_context.get("model") or settings.get("chat_model")
@@ -25,12 +26,14 @@ def run_agentic_mediation_prep(
     state: dict[str, Any] = {
         "run_context": run_context,
         "sources": sources[:20],
-        "source_excerpt": "\n\n".join(str(item.get("content") or "") for item in source_bundle)[:16000],
+        "source_excerpt": _source_excerpt(source_bundle),
         "available_tools": run_context.get("supported_tools", []),
         "safety_rules": [
             "Do not invent facts, dates, rules, quotes, or evidence.",
             "Every material factual assertion must have an evidence anchor or be marked unsupported.",
             "Do not provide legal advice or predict outcomes.",
+            "Do not decide the dispute or replace the mediator.",
+            "Maintain neutral mediator framing; label party positions separately from mediator inferences.",
             "Separate fact, inference, strategy, and missing evidence.",
         ],
     }
@@ -107,6 +110,7 @@ def run_agentic_mediation_prep(
             trace.append(_trace(step_name, "failed", error, provider if action_type == "run_agent" else "internal", model, elapsed_ms))
             autonomous_steps.append(_action_record(step_number, action, "failed", {"error": error, "duration_ms": elapsed_ms}))
             _update_run_state_after_action(run_state, action, None, error)
+            _emit_progress(progress_callback, step_number, f"Mediation step failed: {step_name}", {"action": action, "error": error})
             continue
         if action_type == "run_tool":
             tool_payload = result.get("tool_result") or {}
@@ -126,6 +130,7 @@ def run_agentic_mediation_prep(
             run_state["qc_flags"].extend(flags)
             run_state["human_review_gates"] = _human_review_gates(run_state, flags)
         autonomous_steps.append(_action_record(step_number, action, "completed", {"duration_ms": elapsed_ms, "result_summary": _result_summary(result), "interim_qc_flags": flags}))
+        _emit_progress(progress_callback, step_number, f"Completed {step_name}", {"action": action, "duration_ms": elapsed_ms, "flags": len(flags)})
 
     if not tool_results.get("tool_results"):
         started = time.perf_counter()
@@ -168,6 +173,8 @@ def run_agentic_mediation_prep(
     revisions_made: dict[str, Any] = {}
     flagged_items = qc.get("flagged_items") if isinstance(qc.get("flagged_items"), list) else []
     flagged_items = [*flagged_items, *interim_qc_flags]
+    anchor_flags = _anchor_verification_flags(tool_results)
+    flagged_items = [*flagged_items, *anchor_flags]
     if flagged_items:
         started = time.perf_counter()
         revision_input = {**state, "agent_outputs_so_far": outputs, "quality_control": qc, "draft": draft}
@@ -239,6 +246,7 @@ def _initial_run_state(run_context: dict[str, Any], sources: list[dict[str, Any]
         "human_review_gates": [],
         "completed_steps": [],
         "next_actions": [],
+        "stop_conditions": [],
         "stop_reason": None,
     }
 
@@ -249,7 +257,7 @@ def _merge_planner_state(run_state: dict[str, Any], planner_data: dict[str, Any]
     for key in ["evidence_gaps", "open_questions", "stop_conditions"]:
         values = planner_data.get(key)
         if isinstance(values, list):
-            target = "open_questions" if key != "stop_conditions" else "next_actions"
+            target = "stop_conditions" if key == "stop_conditions" else "open_questions"
             run_state[target].extend({"source": "planner", "type": key, "value": value} for value in values[:20])
     if planner_data.get("strategy"):
         run_state["strategy"] = planner_data.get("strategy")
@@ -277,11 +285,16 @@ def _planner_actions(planner_data: dict[str, Any], run_context: dict[str, Any]) 
             {"tool": "discovery_gap_analyzer"},
             {"tool": "witness_mapper"},
             {"tool": "deposition_outline_builder"},
+            {"tool": "exhibit_index_tool"},
+            {"tool": "contradiction_detector"},
             {"tool": "procedural_deadline_tool"},
+            {"tool": "damages_extractor"},
             {"tool": "privilege_sensitivity_scanner"},
             {"tool": "motion_argument_outline_tool"},
             {"tool": "trial_theme_builder"},
+            {"tool": "cross_exam_builder"},
             {"tool": "evidence_anchor_verifier"},
+            {"tool": "mediation_audit_package_tool"},
         ]
     actions = [
         {"type": "run_tool", "name": str(request.get("tool") or "unknown"), "reason": "Planner requested source-grounding tool execution.", "input": request}
@@ -407,11 +420,6 @@ def _interim_qc(run_state: dict[str, Any], action: dict[str, Any], result: dict[
             output = item.get("output")
             if isinstance(output, list) and output:
                 flags.append({"output_key": "warnings", "issue": "Potential privileged or sensitive material detected during autonomous loop.", "items": output[:10], "requires_human_review": True})
-    if action.get("type") in {"run_agent", "verify_anchors"}:
-        verifier = run_mediation_agent_tools(requests=[{"tool": "evidence_anchor_verifier"}], source_bundle=source_bundle, run_context=run_state.get("matter_context", {}), existing_outputs=(result or {}).get("output") or result or {})
-        unsupported = [item for item in verifier.get("tool_results", [{}])[0].get("output", []) if item.get("supported") is False]
-        if unsupported:
-            flags.append({"output_key": (result or {}).get("output_key") or action.get("name"), "issue": "Unsupported or unverified evidence anchors detected during interim QC.", "unsupported": unsupported[:10], "requires_human_review": True})
     return flags
 
 
@@ -478,9 +486,12 @@ def _run_agent(agent_id: str, role: str, contract: str, payload: dict[str, Any],
 
 
 def _compose_outputs(outputs: dict[str, Any], fallback: dict[str, Any]) -> dict[str, Any]:
+    caucus_impasse = outputs.get("caucus_impasse_agent", {}) if isinstance(outputs.get("caucus_impasse_agent"), dict) else {}
+    private_prep = outputs.get("private_prep_agent", {}) if isinstance(outputs.get("private_prep_agent"), dict) else {}
     return {
         "case_snapshot": _dict_output(outputs, "case_intake_agent", "case_snapshot", fallback["case_snapshot"]),
         "claims_and_defenses": _list_output(outputs, "pleadings_and_claims_agent", "claims_and_defenses", fallback["claims_and_defenses"]),
+        "positions_and_interests": _list_output(outputs, "positions_interests_agent", "positions_and_interests", fallback["positions_and_interests"]),
         "issues": _list_output(outputs, "issues_and_elements_agent", "issues", fallback["issues"]),
         "chronology": _list_output(outputs, "chronology_agent", "chronology", fallback["chronology"]),
         "evidence_matrix": _list_output(outputs, "evidence_matrix_agent", "evidence_matrix", fallback["evidence_matrix"]),
@@ -491,6 +502,14 @@ def _compose_outputs(outputs: dict[str, Any], fallback: dict[str, Any]) -> dict[
         "trial_prep": _dict_output(outputs, "trial_prep_agent", "trial_prep", fallback["trial_prep"]),
         "argument_strategy": _dict_output(outputs, "argument_strategy_agent", "argument_strategy", fallback["argument_strategy"]),
         "cross_examination": _list_output(outputs, "cross_examination_agent", "cross_examination", fallback["cross_examination"]),
+        "batna_watna_zopa": _dict_output(outputs, "batna_watna_zopa_agent", "batna_watna_zopa", fallback["batna_watna_zopa"]),
+        "risk_allocation": _list_output(outputs, "risk_allocation_agent", "risk_allocation", fallback["risk_allocation"]),
+        "settlement_levers": _list_output(outputs, "settlement_levers_agent", "settlement_levers", fallback["settlement_levers"]),
+        "caucus_questions": caucus_impasse.get("caucus_questions") if isinstance(caucus_impasse.get("caucus_questions"), list) else fallback["caucus_questions"],
+        "impasse_points": caucus_impasse.get("impasse_points") if isinstance(caucus_impasse.get("impasse_points"), list) else fallback["impasse_points"],
+        "bridge_proposals": _list_output(outputs, "bridge_proposal_agent", "bridge_proposals", fallback["bridge_proposals"]),
+        "mediator_private_prep_note": private_prep.get("mediator_private_prep_note") if isinstance(private_prep.get("mediator_private_prep_note"), dict) else fallback["mediator_private_prep_note"],
+        "one_page_session_plan": private_prep.get("one_page_session_plan") if isinstance(private_prep.get("one_page_session_plan"), dict) else fallback["one_page_session_plan"],
         "procedural_tasks": _list_output(outputs, "procedural_agent", "procedural_tasks", fallback["procedural_tasks"]),
         "damages_and_remedies": _dict_output(outputs, "damages_and_remedies_agent", "damages_and_remedies", fallback["damages_and_remedies"]),
         "risks_and_gaps": _list_output(outputs, "settlement_and_risk_agent", "risks_and_gaps", fallback["risks_and_gaps"]),
@@ -510,6 +529,7 @@ def _deterministic_outputs(sources: list[dict[str, Any]], source_bundle: list[di
     return {
         "case_snapshot": {"forum_or_provider": run_context.get("court"), "jurisdiction": run_context.get("jurisdiction"), "venue": run_context.get("venue"), "mediation_stage": run_context.get("procedural_stage"), "requires_review": True},
         "claims_and_defenses": [{"claim_type": "position", "title": "Mediation positions require lawyer classification", "elements": [], "defenses": [], "admissions": [], "missing_proof": ["Confirm party positions, concessions, authority, and missing support."], "source": source, "confidence_score": 0.4}],
+        "positions_and_interests": [{"party": "Party to be confirmed", "stated_positions": ["Review pleadings, briefs, correspondence, and offers to classify stated positions."], "possible_underlying_interests": ["Cost, timing, certainty, confidentiality, relationship, reputation, and acknowledgment interests require mediator clarification."], "emotional_drivers": ["Potential frustration, distrust, or need to be heard should be explored without treating it as fact."], "commercial_drivers": ["Cash flow, business continuity, payment timing, and future dealings require confirmation."], "source": source, "confidence_score": 0.35, "inference_caveats": ["Interests are mediator hypotheses, not findings."]}],
         "issues": [{"title": "Issues require lawyer classification", "summary": "Indexed documents were processed; issue classification requires human legal review.", "proof_elements": [], "burdens": [], "disputed_facts": [], "admissions": [], "missing_proof": ["Confirm claims, counterclaims, and proof elements."], "source": source, "confidence_score": 0.4}],
         "chronology": [],
         "evidence_matrix": [{"issue": "Unclassified issue", "supporting_evidence": [source] if source else [], "adverse_evidence": [], "gaps": ["Map source evidence to elements after lawyer review."]}],
@@ -520,6 +540,18 @@ def _deterministic_outputs(sources: list[dict[str, Any]], source_bundle: list[di
         "trial_prep": {"themes": [], "caveat": "Mediation session planning requires lawyer review and does not predict outcomes."},
         "argument_strategy": {"themes": [], "caveat": "No legal advice, settlement recommendation, or outcome prediction. Negotiation themes require lawyer review."},
         "cross_examination": [],
+        "batna_watna_zopa": {"party_assessments": [], "possible_zopa": "Not enough supported valuation, authority, or prior-offer information to state a range.", "settlement_range_considerations": [], "assumptions": ["Explore authority, payment capacity, non-monetary terms, prior offers, and litigation/arbitration alternatives."], "evidence_gaps": ["Prior offers, authority limits, insurer position, collectability, and non-monetary interests."], "confidence_score": 0.3, "caveat": "Mediator preparation only; not a valuation decision or recommendation."},
+        "risk_allocation": [{"risk": "Uncertain merits, valuation, timing, or collectability risk", "allocation": "Requires caucus testing with each party", "affected_parties": [], "rationale": "Source materials do not support a firm neutral allocation.", "source": source, "uncertainty": "high", "mediator_note": "Ask each side how it prices this uncertainty."}],
+        "settlement_levers": [
+            {"lever": "Payment timing", "parties_affected": [], "why_it_may_matter": "Can bridge valuation and cash-flow constraints.", "possible_shapes": ["lump sum", "installments", "milestones"], "source_or_inference": "inference", "caveats": ["Confirm authority and payment capacity."]},
+            {"lever": "Confidentiality", "parties_affected": [], "why_it_may_matter": "May address reputational or business concerns.", "possible_shapes": ["mutual confidentiality", "limited permitted disclosures"], "source_or_inference": "inference", "caveats": ["Verify legal limits and existing orders."]},
+            {"lever": "Non-monetary acknowledgment", "parties_affected": [], "why_it_may_matter": "May address emotional interests not captured by money.", "possible_shapes": ["statement of regret", "process commitment"], "source_or_inference": "inference", "caveats": ["Avoid admissions unless agreed."]},
+        ],
+        "caucus_questions": [{"party": "Each party", "question": "What interests must be protected for any resolution to work?", "purpose": "Separate interests from positions.", "source_or_assumption": "mediator preparation inference", "sensitivity": "medium"}],
+        "impasse_points": [{"issue": "Valuation gap", "why_it_may_block_settlement": "No supported settlement range or authority information is available.", "early_warning_signs": ["fixed anchors", "refusal to bracket"], "mediator_options": ["reality-test risk", "explore package terms", "use conditional brackets"]}],
+        "bridge_proposals": [{"label": "Package proposal", "structure": "Combine money, timing, confidentiality, releases, and non-monetary terms before testing final number movement.", "parties_helped": ["all parties"], "tradeoffs": ["More complex than a single number."], "prerequisites": ["authority check"], "risks": ["May be premature before interests are known."], "neutrality_caveat": "Process option only, not a merits recommendation."}],
+        "mediator_private_prep_note": {"opening_frame": "Explain that the process is neutral and the mediator will not decide the dispute.", "watch_points": ["authority", "valuation gap", "missing information", "confidentiality", "emotional drivers"], "caucus_priorities": ["interests", "BATNA/WATNA", "movement conditions"], "do_not_do": ["do not decide merits", "do not treat inferred interests as facts"]},
+        "one_page_session_plan": {"opening": "Confirm confidentiality, process, authority, and agenda.", "joint_session": ["neutral issue framing", "agreed facts", "information gaps"], "first_caucus": ["positions", "interests", "authority", "BATNA/WATNA"], "middle_game": ["reality testing", "settlement levers", "bridge proposals"], "closing": ["settlement terms or next steps"]},
         "procedural_tasks": [],
         "damages_and_remedies": {"claimed_relief": [], "gaps": ["Verify relief, damages, mitigation, interest, and costs evidence."]},
         "risks_and_gaps": [{"risk_level": "medium", "summary": "Evidence and procedural assumptions require lawyer review.", "requires_review": True}],
@@ -552,8 +584,8 @@ def _deterministic_revisions(flagged_items: list[dict[str, Any]], draft: dict[st
 
 def _warnings(run_context: dict[str, Any], qc: dict[str, Any]) -> list[str]:
     warnings = [
-        "AI-assisted mediation preparation. Human legal review is required before use or circulation.",
-        "This output is not legal advice and does not predict outcomes.",
+        "AI-assisted mediator preparation. This report does not decide the dispute and does not replace the mediator.",
+        "This output is not legal advice, does not predict outcomes, and should remain a private preparation aid unless reviewed for sharing.",
     ]
     if not run_context.get("court"):
         warnings.append("Court is absent or unspecified; procedural assumptions must be verified.")
@@ -567,7 +599,51 @@ def _summary(outputs: dict[str, Any], fallback: dict[str, Any]) -> str:
     value = outputs.get("client_or_team_summary")
     if isinstance(value, str) and value.strip():
         return value
+    value = outputs.get("neutral_summary_agent", {}).get("client_or_team_summary")
+    if isinstance(value, str) and value.strip():
+        return value
     return fallback["client_or_team_summary"]
+
+
+def _source_excerpt(source_bundle: list[dict[str, Any]], *, max_chars: int = 16000) -> str:
+    if not source_bundle:
+        return ""
+    by_document: dict[str, list[dict[str, Any]]] = {}
+    for item in source_bundle:
+        key = str(item.get("document_id") or item.get("filename") or "source")
+        by_document.setdefault(key, []).append(item)
+    snippets: list[str] = []
+    for items in by_document.values():
+        for source in items[:2]:
+            label = f"[{source.get('filename') or 'Source'} chunk {int(source.get('chunk_index') or 0) + 1}]"
+            content = str(source.get("content") or "")[:1800]
+            if content:
+                snippets.append(f"{label}\n{content}")
+    text = "\n\n".join(snippets)
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars]
+
+
+def _emit_progress(callback: Callable[[int, str, dict[str, Any]], None] | None, step_number: int, message: str, metadata: dict[str, Any]) -> None:
+    if not callback:
+        return
+    progress = min(80, 45 + int((step_number / max(1, MAX_AUTONOMOUS_STEPS)) * 35))
+    try:
+        callback(progress, message, metadata)
+    except Exception:
+        return
+
+
+def _anchor_verification_flags(tool_results: dict[str, Any]) -> list[dict[str, Any]]:
+    flags: list[dict[str, Any]] = []
+    for item in tool_results.get("tool_results", []):
+        if item.get("tool") != "evidence_anchor_verifier":
+            continue
+        unsupported = [entry for entry in item.get("output", []) if isinstance(entry, dict) and entry.get("supported") is False]
+        if unsupported:
+            flags.append({"output_key": "evidence_anchors", "issue": "Unsupported or unverified evidence anchors detected in consolidated post-loop verification.", "unsupported": unsupported[:20], "requires_human_review": True})
+    return flags
 
 
 def _compact(value: Any) -> Any:

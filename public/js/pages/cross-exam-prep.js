@@ -384,7 +384,7 @@ function renderCrossExamSection(title, items, emptyText) {
 function renderCrossExamTree(items) {
   const rows = Array.isArray(items) ? items : [];
   if (!rows.length) return '<p>No cross-examination tree returned.</p>';
-  return `<div class="md-table-wrap"><table class="md-table"><thead><tr><th>Question</th><th>Purpose</th><th>Evasion / Denial</th><th>Confront</th><th>Stop</th></tr></thead><tbody>${rows.map(item => `<tr><td>${esc(item.question || '')}</td><td>${esc(item.purpose || '')}</td><td>${esc([item.if_evasive, item.if_denied].filter(Boolean).join(' / '))}</td><td>${esc(item.document_to_confront || '')}</td><td>${esc(item.stop_or_continue || '')}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="md-table-wrap"><table class="md-table"><thead><tr><th>Question</th><th>Purpose</th><th>Expected</th><th>Evasion / Denial</th><th>Anchor</th><th>Risk</th><th>Stop / Safety</th></tr></thead><tbody>${rows.map(item => `<tr><td>${esc(item.question || '')}</td><td>${esc(item.purpose || '')}</td><td>${esc(item.expected_answer || '')}</td><td>${esc([item.if_evasive, item.if_denied].filter(Boolean).join(' / '))}</td><td>${esc(item.source_anchor || item.document_to_confront || '')}</td><td>${esc(item.risk || '')}</td><td>${esc([item.stop_or_continue, item.do_not_ask_if ? 'Do not ask if: ' + item.do_not_ask_if : ''].filter(Boolean).join(' '))}</td></tr>`).join('')}</tbody></table></div>`;
 }
 
 function renderCrossExamBundles(items) {
@@ -409,6 +409,127 @@ function crossExamBundleMarkdown(item) {
     item?.source_1 || item?.source_2 ? `  Sources: ${[item.source_1, item.source_2].filter(Boolean).map(crossExamDisplayValue).join(' / ')}` : '',
     ...questions.map(q => `  Question: ${crossExamDisplayValue(q)}`),
   ].filter(Boolean).join('\n');
+}
+
+function crossExamReportStyles() {
+  return `<style>
+    :root { color-scheme: light; }
+    body { margin: 0; background: #f6f4ef; color: #171511; font-family: Georgia, "Times New Roman", serif; line-height: 1.55; }
+    .cross-exam-report { max-width: 880px; margin: 0 auto; padding: 34px 42px; background: #fff; }
+    .cross-exam-report h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.18; text-align: center; letter-spacing: 0; }
+    .cross-exam-report .subtitle { margin: 0 0 18px; text-align: center; color: #6d675f; font-family: Arial, sans-serif; font-size: 12px; }
+    .cross-exam-report .notice { margin: 16px 0 20px; padding: 10px 12px; border: 1px solid #d9d2c6; background: #fbfaf7; font-family: Arial, sans-serif; font-size: 12px; color: #4b453e; }
+    .cross-exam-report section { break-inside: avoid; margin: 22px 0 0; }
+    .cross-exam-report h2 { margin: 0 0 8px; font-size: 17px; line-height: 1.25; letter-spacing: 0; border-bottom: 1px solid #ded7cb; padding-bottom: 4px; }
+    .cross-exam-report h3 { margin: 12px 0 6px; font-size: 14px; letter-spacing: 0; }
+    .cross-exam-report p { margin: 0 0 9px; }
+    .cross-exam-report ul, .cross-exam-report ol { margin: 8px 0 10px 22px; padding: 0; }
+    .cross-exam-report li { margin: 4px 0; }
+    .cross-exam-report .meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; margin: 14px 0 12px; font-family: Arial, sans-serif; font-size: 12px; }
+    .cross-exam-report .meta-grid div { border-bottom: 1px solid #eee8de; padding-bottom: 5px; }
+    .cross-exam-report .label { display: block; color: #746d64; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+    .cross-exam-report .value { color: #191713; }
+    .cross-exam-report table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; }
+    .cross-exam-report th, .cross-exam-report td { vertical-align: top; border: 1px solid #ded7cb; padding: 7px; text-align: left; }
+    .cross-exam-report th { background: #f2eee7; font-weight: 700; }
+    .cross-exam-report .bundle { border: 1px solid #ded7cb; padding: 10px 12px; margin: 8px 0; break-inside: avoid; }
+    .cross-exam-report .one-page { border: 2px solid #171511; padding: 14px 16px; margin-top: 28px; break-before: page; }
+    .cross-exam-report .small { color: #6d675f; font-family: Arial, sans-serif; font-size: 11px; }
+    @page { margin: 18mm; }
+    @media print {
+      body { background: #fff; }
+      .cross-exam-report { max-width: none; padding: 0; }
+    }
+  </style>`;
+}
+
+function crossExamReportList(items, emptyText = 'Not found.') {
+  const list = Array.isArray(items) ? items.filter(item => String(crossExamDisplayValue(item)).trim()) : [];
+  return list.length ? `<ul>${list.map(item => `<li>${esc(crossExamDisplayValue(item))}</li>`).join('')}</ul>` : `<p>${esc(emptyText)}</p>`;
+}
+
+function crossExamReportMeta(label, value) {
+  return `<div><span class="label">${esc(label)}</span><span class="value">${esc(crossExamDisplayValue(value))}</span></div>`;
+}
+
+function crossExamReportBundles(items) {
+  const rows = Array.isArray(items) ? items : [];
+  if (!rows.length) return '<p>Not found.</p>';
+  return rows.map((item, index) => {
+    const questions = Array.isArray(item.questions) ? item.questions.filter(Boolean) : [];
+    return `<div class="bundle">
+      <h3>${esc(index + 1)}. ${esc(item.contradiction || 'Contradiction bundle')}</h3>
+      <p>${esc(item.why_it_matters || '')}</p>
+      <p><strong>Source anchors:</strong> ${esc([item.source_1, item.source_2].filter(Boolean).join(' / ') || 'Confirm before use')}</p>
+      ${questions.length ? `<ol>${questions.map(question => `<li>${esc(question)}</li>`).join('')}</ol>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function crossExamReportTree(items) {
+  const rows = Array.isArray(items) ? items : [];
+  if (!rows.length) return '<p>No cross-examination tree returned.</p>';
+  return `<table><thead><tr><th>#</th><th>Question</th><th>Purpose</th><th>Expected Answer</th><th>If Evasive / Denied</th><th>Source Anchor</th><th>Risk / Stop Rule</th></tr></thead><tbody>${rows.map((item, index) => `<tr>
+    <td>${index + 1}</td>
+    <td>${esc(item.question || '')}</td>
+    <td>${esc(item.purpose || '')}</td>
+    <td>${esc(item.expected_answer || '')}</td>
+    <td>${esc([item.if_evasive, item.if_denied].filter(Boolean).join(' / '))}</td>
+    <td>${esc(item.source_anchor || item.document_to_confront || '')}</td>
+    <td>${esc([item.risk ? 'Risk: ' + item.risk : '', item.stop_or_continue, item.do_not_ask_if ? 'Do not ask if: ' + item.do_not_ask_if : ''].filter(Boolean).join(' | '))}</td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+function crossExamPrepReportHtml(result = App.crossExamPrep.result, standalone = false) {
+  if (!result) return '';
+  const plan = crossExamPlan(result);
+  const title = result.title || 'Cross-Examination Prep';
+  if (!plan) {
+    const generic = `<article class="cross-exam-report draft-document"><h1>${esc(title)}</h1><p class="subtitle">Generated ${esc(result.completed_at ? new Date(result.completed_at).toLocaleString() : new Date().toLocaleString())}</p><section><h2>Summary</h2><p>${esc(crossExamDisplayValue(result.client_or_team_summary))}</p></section></article>`;
+    return standalone ? `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>${crossExamReportStyles()}</head><body>${generic}</body></html>` : generic;
+  }
+  const config = result.config || {};
+  const generatedAt = result.completed_at ? new Date(result.completed_at).toLocaleString() : new Date().toLocaleString();
+  const keySources = crossExamKeySources(result, plan);
+  const onePage = `
+    <section class="one-page">
+      <h2>One-Page Cross Plan</h2>
+      <p><strong>Target witness:</strong> ${esc(config.target_witness || title.replace(/^Cross-Examination Prep:\s*/i, ''))}</p>
+      <p><strong>Objective:</strong> ${esc(plan.objective || config.cross_objective || 'Prepare full cross')}</p>
+      <p><strong>Core attack:</strong> ${esc(plan.core_attack || 'Not found.')}</p>
+      <h3>Top admissions</h3>${crossExamReportList((plan.admissions_to_obtain || []).slice(0, 5))}
+      <h3>Main contradiction anchors</h3>${crossExamReportList((plan.contradiction_bundles || []).slice(0, 3).map(item => `${item.contradiction || 'Contradiction'} (${[item.source_1, item.source_2].filter(Boolean).join(' / ') || 'confirm source'})`))}
+      <h3>Stop rules</h3>${crossExamReportList((plan.cross_tree || []).slice(0, 5).map(item => item.stop_or_continue || item.do_not_ask_if))}
+    </section>`;
+  const article = `<article class="cross-exam-report draft-document">
+    <h1>${esc(title)}</h1>
+    <p class="subtitle">Witness-specific courtroom preparation report · Generated ${esc(generatedAt)}</p>
+    <div class="notice">Preparation aid only. This report does not replace counsel's judgment, does not decide admissibility, and should not be used in court until every source anchor and strategic choice has been reviewed by a lawyer.</div>
+    <div class="meta-grid">
+      ${crossExamReportMeta('Witness', config.target_witness || title)}
+      ${crossExamReportMeta('Side', config.party_role || 'Not set')}
+      ${crossExamReportMeta('Objective', plan.objective || config.cross_objective || 'Prepare full cross')}
+      ${crossExamReportMeta('Risk level', config.risk_level || 'balanced')}
+      ${crossExamReportMeta('Language', config.output_language || 'English')}
+      ${crossExamReportMeta('Indexed source chunks', (result.sources || []).length)}
+    </div>
+    <section><h2>Strategy Summary</h2><p>${esc(plan.strategy_summary || result.client_or_team_summary || '')}</p></section>
+    <section><h2>Witness Binding And Scope</h2><p>${esc(plan.witness_role || 'Not found.')}</p><p><strong>Opponent use:</strong> ${esc(plan.opponent_uses_witness_to_prove || 'Not found.')}</p></section>
+    <section><h2>Do Not Contest</h2>${crossExamReportList(plan.do_not_contest)}</section>
+    <section><h2>Contest</h2>${crossExamReportList(plan.contest)}</section>
+    <section><h2>Core Attack</h2><p>${esc(plan.core_attack || 'Not found.')}</p></section>
+    <section><h2>Admissions To Obtain</h2>${crossExamReportList(plan.admissions_to_obtain)}</section>
+    <section><h2>Contradiction Bundles</h2>${crossExamReportBundles(plan.contradiction_bundles)}</section>
+    <section><h2>Cross-Examination Sequence</h2>${crossExamReportTree(plan.cross_tree)}</section>
+    <section><h2>Questions To Avoid</h2>${crossExamReportList((plan.questions_to_avoid || []).map(item => `${item.question_or_area || ''}: ${item.reason || ''}${item.better ? ' Better: ' + item.better : ''}`))}</section>
+    <section><h2>Likely Judge Questions</h2>${crossExamReportList((plan.judge_questions || []).map(item => `${item.question || ''} Best answer: ${item.best_answer || ''}`))}</section>
+    <section><h2>Opponent Repair</h2>${crossExamReportList((plan.opponent_repair || []).map(item => `${item.repair || ''} Counter: ${item.counter || ''}`))}</section>
+    <section><h2>Closing Use</h2><p>${esc(plan.closing_use || 'Not found.')}</p></section>
+    <section><h2>Missing Material</h2>${crossExamReportList(plan.missing_material)}</section>
+    <section><h2>Sources And Audit Notes</h2>${crossExamReportList(keySources, 'No key source documents returned.')}<p class="small">${esc((result.warnings || []).join(' '))}</p></section>
+    ${onePage}
+  </article>`;
+  return standalone ? `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>${crossExamReportStyles()}</head><body>${article}</body></html>` : article;
 }
 
 function renderCrossExamPlan(plan) {
@@ -458,13 +579,7 @@ function renderCrossExamPrepResult() {
     return;
   }
   if (plan) {
-    const html = `
-      <article class="draft-document">
-        <h1>${esc(result.title || 'Cross-Examination Prep')}</h1>
-        <section><h2>Strategy Summary</h2><p>${esc(plan.strategy_summary || result.client_or_team_summary || '')}</p></section>
-        ${renderCrossExamPlan(plan)}
-      </article>
-    `;
+    const html = crossExamPrepReportHtml(result, false);
     preview.innerHTML = typeof sanitizeDraftHtml === 'function' ? sanitizeDraftHtml(html) : html;
     side.innerHTML = `
       <div class="translate-review-section"><strong>Warnings</strong>${renderTranslationList(result.warnings || [], 'Human legal review required.')}</div>
@@ -517,7 +632,7 @@ function crossExamPrepMarkdown(result = App.crossExamPrep.result) {
       `## Core Attack\n${plan.core_attack || ''}`,
       `## Admissions To Obtain\n${(plan.admissions_to_obtain || []).map(item => `- ${crossExamDisplayValue(item)}`).join('\n')}`,
       `## Contradiction Bundles\n${(plan.contradiction_bundles || []).map(crossExamBundleMarkdown).join('\n')}`,
-      `## Cross-Examination Tree\n${(plan.cross_tree || []).map(item => `- Q: ${item.question || ''}\n  Purpose: ${item.purpose || ''}\n  Expected: ${item.expected_answer || ''}\n  If evasive: ${item.if_evasive || ''}\n  If denied: ${item.if_denied || ''}\n  Confront: ${item.document_to_confront || ''}\n  Stop/continue: ${item.stop_or_continue || ''}`).join('\n')}`,
+      `## Cross-Examination Tree\n${(plan.cross_tree || []).map(item => `- Q: ${item.question || ''}\n  Purpose: ${item.purpose || ''}\n  Expected: ${item.expected_answer || ''}\n  If evasive: ${item.if_evasive || ''}\n  If denied: ${item.if_denied || ''}\n  Source anchor: ${item.source_anchor || item.document_to_confront || ''}\n  Risk: ${item.risk || ''}\n  Stop/continue: ${item.stop_or_continue || ''}\n  Do not ask if: ${item.do_not_ask_if || ''}`).join('\n')}`,
       `## Questions To Avoid\n${(plan.questions_to_avoid || []).map(item => `- ${crossExamDisplayValue(item)}`).join('\n')}`,
       `## Likely Judge Questions\n${(plan.judge_questions || []).map(item => `- ${crossExamDisplayValue(item)}`).join('\n')}`,
       `## Opponent Repair\n${(plan.opponent_repair || []).map(item => `- ${crossExamDisplayValue(item)}`).join('\n')}`,
@@ -575,14 +690,41 @@ function downloadCrossExamPrep() {
   const blob = new Blob([text], {type:'text/markdown;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `cross-exam-prep-${Date.now()}.md`;
+  a.download = `${crossExamPrepDownloadBaseName()}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function crossExamPrepDownloadBaseName() {
+  const title = App.crossExamPrep.result?.title || 'cross-exam-prep';
+  const slug = String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'cross-exam-prep';
+  return `${slug}-${Date.now()}`;
+}
+
+function downloadCrossExamPrepHtml() {
+  const html = crossExamPrepReportHtml(App.crossExamPrep.result, true);
+  if (!html) return;
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${crossExamPrepDownloadBaseName()}.html`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
 
 function printCrossExamPrep() {
   if (!App.crossExamPrep.result) return;
-  window.print();
+  const html = crossExamPrepReportHtml(App.crossExamPrep.result, true);
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    window.print();
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 250);
 }
 
 function resetCrossExamPrep() {

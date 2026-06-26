@@ -377,6 +377,9 @@ def _persist_review_state(
                     "agentic_review": {
                         "enabled": bool(agentic_review.get("agentic_enabled")),
                         "trace": agentic_review.get("agent_trace", []),
+                        "autonomous_loop": agentic_review.get("autonomous_loop", {}),
+                        "working_memory": agentic_review.get("working_memory", {}),
+                        "human_review_gates": agentic_review.get("human_review_gates", []),
                         "quality_control": agentic_review.get("quality_control", {}),
                         "outputs": agentic_review.get("agent_outputs", {}),
                     },
@@ -862,6 +865,9 @@ def _execute_standalone_contract_review(
         "agentic_review": {
             "enabled": bool(agentic_review.get("agentic_enabled")),
             "trace": agentic_review.get("agent_trace", []),
+            "autonomous_loop": agentic_review.get("autonomous_loop", {}),
+            "working_memory": agentic_review.get("working_memory", {}),
+            "human_review_gates": agentic_review.get("human_review_gates", []),
             "quality_control": agentic_review.get("quality_control", {}),
             "outputs": agentic_review.get("agent_outputs", {}),
         },

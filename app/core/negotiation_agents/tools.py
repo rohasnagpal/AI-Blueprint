@@ -317,7 +317,7 @@ def _privilege_sensitivity_scanner(source_bundle: list[dict[str, Any]]) -> list[
 def _motion_argument_outline_tool(run_context: dict[str, Any], existing_outputs: dict[str, Any]) -> dict[str, Any]:
     role = run_context.get("party_role") or "neutral analysis"
     matrix = existing_outputs.get("evidence_matrix_agent", {}).get("evidence_matrix") or []
-    return {"party_role": role, "motions": [{"title": "Mediator brief theme", "points": [str(item.get("issue") or item.get("element") or "Issue") for item in matrix[:8]], "vulnerabilities": ["Verify negotiation confidentiality, authority, and evidentiary support."], "caveat": "Mediator brief themes are preparation prompts, not legal advice or outcome predictions."}]}
+    return {"party_role": role, "motions": [{"title": "Negotiation position theme", "points": [str(item.get("issue") or item.get("element") or "Issue") for item in matrix[:8]], "vulnerabilities": ["Verify negotiation confidentiality, authority, and evidentiary support."], "caveat": "Negotiation position themes are preparation prompts, not legal advice, settlement recommendations, or outcome predictions."}]}
 
 
 def _trial_theme_builder(existing_outputs: dict[str, Any]) -> dict[str, Any]:

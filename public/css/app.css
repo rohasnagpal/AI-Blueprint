@@ -1449,6 +1449,309 @@
     margin-top: 5px;
   }
 
+  #view-mediation-prep .view-header-copy {
+    display: block;
+  }
+
+  #view-mediation-prep .view-header-copy > span {
+    display: block;
+  }
+
+  #view-mediation-prep .inline-help {
+    display: block;
+    margin-top: 6px;
+  }
+
+  #view-mediation-prep .inline-help-panel {
+    position: static;
+    width: auto;
+    padding: 8px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+  }
+
+  #view-mediation-prep .inline-help-panel p {
+    color: var(--text-muted);
+  }
+
+  #view-mediation-prep .mediation-help-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    max-width: 920px;
+  }
+
+  #view-mediation-prep .mediation-help-grid strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  #view-mediation-prep .mediation-help-grid ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  @media (max-width: 760px) {
+    #view-mediation-prep .mediation-help-grid {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+  }
+
+  #view-arbitration-prep .view-header-copy {
+    display: block;
+  }
+
+  #view-arbitration-prep .view-header-copy > span {
+    display: block;
+  }
+
+  #view-arbitration-prep .inline-help {
+    display: block;
+    margin-top: 6px;
+  }
+
+  #view-arbitration-prep .inline-help-panel {
+    position: static;
+    width: auto;
+    padding: 8px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+  }
+
+  #view-arbitration-prep .inline-help-panel p {
+    color: var(--text-muted);
+  }
+
+  #view-arbitration-prep .arbitration-help-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    max-width: 920px;
+  }
+
+  #view-arbitration-prep .arbitration-help-grid strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  #view-arbitration-prep .arbitration-help-grid ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  @media (max-width: 760px) {
+    #view-arbitration-prep .arbitration-help-grid {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+  }
+
+  #view-litigation-prep .view-header-copy {
+    display: block;
+  }
+
+  #view-litigation-prep .view-header-copy > span {
+    display: block;
+  }
+
+  #view-litigation-prep .inline-help {
+    display: block;
+    margin-top: 6px;
+  }
+
+  #view-litigation-prep .inline-help-panel {
+    position: static;
+    width: auto;
+    padding: 8px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+  }
+
+  #view-litigation-prep .inline-help-panel p {
+    color: var(--text-muted);
+  }
+
+  #view-litigation-prep .litigation-help-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    max-width: 920px;
+  }
+
+  #view-litigation-prep .litigation-help-grid strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  #view-litigation-prep .litigation-help-grid ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  @media (max-width: 760px) {
+    #view-litigation-prep .litigation-help-grid {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+  }
+
+  #view-litigation-prep .litigation-prep-history-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    box-shadow: none;
+  }
+
+  #view-litigation-prep .litigation-prep-history-row-head {
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  #view-litigation-prep .litigation-prep-history-row-head > div {
+    min-width: 0;
+  }
+
+  #view-litigation-prep .litigation-prep-history-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  #view-litigation-prep .litigation-prep-history-actions .btn-secondary {
+    min-height: 34px;
+    padding: 7px 12px;
+    line-height: 1.2;
+  }
+
+  @media (max-width: 760px) {
+    #view-litigation-prep .litigation-prep-history-row {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    #view-litigation-prep .litigation-prep-history-actions {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+  }
+
+  #view-negotiation-prep .view-header-copy {
+    display: block;
+  }
+
+  #view-negotiation-prep .view-header-copy > span {
+    display: block;
+  }
+
+  #view-negotiation-prep .inline-help {
+    display: block;
+    margin-top: 6px;
+  }
+
+  #view-negotiation-prep .inline-help-panel {
+    position: static;
+    width: auto;
+    padding: 8px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+  }
+
+  #view-negotiation-prep .inline-help-panel p {
+    color: var(--text-muted);
+  }
+
+  #view-negotiation-prep .negotiation-help-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    max-width: 920px;
+  }
+
+  #view-negotiation-prep .negotiation-help-grid strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  #view-negotiation-prep .negotiation-help-grid ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  #view-negotiation-prep .negotiation-prep-history-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    box-shadow: none;
+  }
+
+  #view-negotiation-prep .negotiation-prep-history-row-head {
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  #view-negotiation-prep .negotiation-prep-history-row-head > div {
+    min-width: 0;
+  }
+
+  #view-negotiation-prep .negotiation-prep-history-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  #view-negotiation-prep .negotiation-prep-history-actions .btn-secondary {
+    min-height: 34px;
+    padding: 7px 12px;
+    line-height: 1.2;
+  }
+
+  @media (max-width: 760px) {
+    #view-negotiation-prep .negotiation-help-grid,
+    #view-negotiation-prep .negotiation-prep-history-row {
+      grid-template-columns: 1fr;
+    }
+
+    #view-negotiation-prep .negotiation-help-grid {
+      gap: 10px;
+    }
+
+    #view-negotiation-prep .negotiation-prep-history-row {
+      align-items: stretch;
+    }
+
+    #view-negotiation-prep .negotiation-prep-history-actions {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+  }
+
   #view-add-doc .view-header {
     max-width: var(--add-doc-content-width);
   }
@@ -1655,6 +1958,86 @@
 
   #view-contract-review .translate-actions {
     margin-bottom: 18px;
+  }
+
+  #view-contract-review .view-header-copy {
+    display: block;
+  }
+
+  #view-contract-review .view-header-copy > span {
+    display: block;
+  }
+
+  #view-contract-review .inline-help {
+    display: block;
+    margin-top: 6px;
+  }
+
+  #view-contract-review .inline-help summary {
+    display: inline-flex;
+    cursor: pointer;
+  }
+
+  #view-contract-review .inline-help-panel {
+    position: static;
+    width: auto;
+    max-width: 980px;
+    margin-top: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+  }
+
+  #view-contract-review .inline-help-panel p {
+    margin: 0 0 10px;
+    color: var(--text-muted);
+  }
+
+  #view-contract-review .contract-review-help-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  #view-contract-review .contract-review-help-grid strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  #view-contract-review .contract-review-help-grid ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  #view-contract-review .contract-review-help-grid li {
+    margin: 4px 0;
+  }
+
+  #view-contract-review .council-form .council-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #view-contract-review .council-form .council-field label {
+    order: 1;
+    margin-bottom: 0;
+  }
+
+  #view-contract-review .council-form .council-input,
+  #view-contract-review .council-form .council-select,
+  #view-contract-review .council-form .council-textarea {
+    order: 2;
+  }
+
+  #view-contract-review .council-form .council-field-help {
+    order: 3;
+    margin: 0;
   }
 
   .translate-status {
@@ -1899,6 +2282,64 @@
     margin-bottom: 12px;
   }
 
+  #view-cross-exam-prep .view-header-copy {
+    display: block;
+  }
+
+  #view-cross-exam-prep .view-header-copy > span {
+    display: block;
+  }
+
+  #view-cross-exam-prep .inline-help {
+    display: block;
+    margin-top: 6px;
+  }
+
+  #view-cross-exam-prep .inline-help summary {
+    display: inline-flex;
+    cursor: pointer;
+  }
+
+  #view-cross-exam-prep .inline-help-panel {
+    position: static;
+    width: auto;
+    max-width: 980px;
+    margin-top: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+  }
+
+  #view-cross-exam-prep .inline-help-panel p {
+    margin: 0 0 10px;
+    color: var(--text-muted);
+  }
+
+  #view-cross-exam-prep .cross-exam-help-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  #view-cross-exam-prep .cross-exam-help-grid strong {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  #view-cross-exam-prep .cross-exam-help-grid ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+
+  #view-cross-exam-prep .cross-exam-help-grid li {
+    margin: 4px 0;
+  }
+
   #view-cross-exam-prep .cross-exam-options-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     column-gap: 16px;
@@ -1912,6 +2353,28 @@
 
   #view-cross-exam-prep .council-form > .council-field label {
     margin-bottom: 0;
+  }
+
+  #view-cross-exam-prep .council-form .council-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #view-cross-exam-prep .council-form .council-field label {
+    order: 1;
+    margin-bottom: 0;
+  }
+
+  #view-cross-exam-prep .council-form .council-input,
+  #view-cross-exam-prep .council-form .council-select,
+  #view-cross-exam-prep .council-form .council-textarea {
+    order: 2;
+  }
+
+  #view-cross-exam-prep .council-form .council-field-help {
+    order: 3;
+    margin: 0;
   }
 
   #view-cross-exam-prep #cross-exam-prep-red-lines,
@@ -2031,6 +2494,14 @@
     }
 
     #view-cross-exam-prep .cross-exam-options-row {
+      grid-template-columns: 1fr;
+    }
+
+    #view-cross-exam-prep .cross-exam-help-grid {
+      grid-template-columns: 1fr;
+    }
+
+    #view-contract-review .contract-review-help-grid {
       grid-template-columns: 1fr;
     }
 

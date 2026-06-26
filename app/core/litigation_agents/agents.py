@@ -10,6 +10,13 @@ AGENT_SPECS: list[tuple[str, str, str, int, str]] = [
         "case_snapshot",
     ),
     (
+        "neutral_summary_agent",
+        "Draft a concise neutral litigation case summary based only on supplied evidence and clearly labeled assumptions.",
+        "Return JSON with key client_or_team_summary only. The value must be a neutral paragraph identifying the dispute, parties, claims/counterclaims, relief sought, procedural posture, and important caveats without deciding merits or predicting outcome.",
+        1800,
+        "client_or_team_summary",
+    ),
+    (
         "pleadings_and_claims_agent",
         "Extract causes of action, elements, defenses, admissions, denials, disputed allegations, conceded facts, and requested relief.",
         "Return JSON with key claims_and_defenses only. The value must be an array of objects with claim_type, title, elements, defenses, admissions, missing_proof, and source.",
@@ -129,6 +136,16 @@ def fallback_agent_output(agent_id: str, tool_results: dict[str, Any], run_conte
                 "governing_instruments": [],
                 "requires_review": True,
             }
+        }
+    if agent_id == "neutral_summary_agent":
+        claims = tools.get("claim_defense_mapper", [])
+        claim_titles = ", ".join(str(item.get("title") or item.get("claim_type")) for item in claims[:6] if item.get("title") or item.get("claim_type"))
+        return {
+            "client_or_team_summary": (
+                "This is a neutral litigation preparation summary generated from indexed matter documents. "
+                f"The available materials indicate claims or defenses requiring legal review{': ' + claim_titles if claim_titles else ''}. "
+                "The report does not decide merits, provide legal advice, or predict outcomes."
+            )
         }
     if agent_id == "pleadings_and_claims_agent":
         return {"claims_and_defenses": tools.get("claim_defense_mapper", [])}

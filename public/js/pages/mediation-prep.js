@@ -80,7 +80,9 @@ function renderMediationPrepSourceDocuments() {
 function selectedMediationPrepDocumentIds() {
   const select = document.getElementById('mediation-prep-source-documents');
   if (!select) return [];
-  return [...select.selectedOptions].map(option => option.value).filter(Boolean);
+  const selected = [...select.selectedOptions].map(option => option.value).filter(Boolean);
+  if (selected.length) return selected;
+  return [...select.options].map(option => option.value).filter(Boolean);
 }
 
 function collectMediationPrepPayload() {
@@ -90,10 +92,10 @@ function collectMediationPrepPayload() {
   return {
     workspaceId,
     payload: {
-      title: document.getElementById('mediation-prep-title')?.value.trim() || 'Mediation Prep',
+      title: document.getElementById('mediation-prep-title')?.value.trim() || 'Mediator Prep Report',
       matter_id: selectedMediationPrepMatterId(),
       document_ids: selectedMediationPrepDocumentIds(),
-      party_role: document.getElementById('mediation-prep-party-role')?.value || 'neutral analysis',
+      party_role: document.getElementById('mediation-prep-party-role')?.value || 'neutral mediator',
       court: document.getElementById('mediation-prep-court')?.value.trim() || null,
       jurisdiction: document.getElementById('mediation-prep-jurisdiction')?.value.trim() || null,
       venue: document.getElementById('mediation-prep-venue')?.value.trim() || null,
@@ -280,6 +282,91 @@ function renderMediationSection(title, items, renderer, emptyText) {
   return `<section><h2>${esc(title)}</h2>${items && items.length ? items.map(renderer).join('') : `<p>${esc(emptyText || 'No supported items returned.')}</p>`}</section>`;
 }
 
+function mediationReportRows(value) {
+  if (!value || typeof value !== 'object') return `<p>${esc(mediationDisplayValue(value))}</p>`;
+  return `<table><tbody>${Object.entries(value).map(([key, item]) => `<tr><th>${esc(key.replace(/_/g, ' '))}</th><td>${esc(mediationDisplayValue(item))}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function mediationReportList(items, renderer, emptyText = 'No supported items returned.') {
+  return items && items.length ? items.map(renderer).join('') : `<p class="muted">${esc(emptyText)}</p>`;
+}
+
+function mediationReportSection(title, body, opts = {}) {
+  return `<section class="${opts.pageBreak ? 'page-break' : ''}"><h2>${esc(title)}</h2>${body}</section>`;
+}
+
+function mediationReportStyles() {
+  return `<style>
+    :root { color: #172026; background: #f4f1ea; font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; background: #f4f1ea; color: #172026; }
+    .mediator-report { max-width: 920px; margin: 0 auto; background: #fff; padding: 48px 56px; box-sizing: border-box; }
+    .report-kicker { color: #687076; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { font-size: 32px; line-height: 1.15; margin: 10px 0 12px; letter-spacing: 0; }
+    h2 { font-size: 18px; margin: 28px 0 12px; padding-bottom: 7px; border-bottom: 1px solid #d9dee2; letter-spacing: 0; }
+    h3 { font-size: 14px; margin: 14px 0 6px; letter-spacing: 0; }
+    p, li, td, th { font-size: 12.5px; line-height: 1.48; }
+    .report-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; margin: 20px 0; font-size: 12px; }
+    .report-notice { border: 1px solid #b8c2c9; border-left: 4px solid #31566f; padding: 12px 14px; margin: 18px 0 24px; background: #f7fafb; font-size: 12.5px; }
+    .toc { columns: 2; padding-left: 20px; }
+    .item { break-inside: avoid; border: 1px solid #e0e4e7; padding: 10px 12px; margin: 8px 0; border-radius: 6px; }
+    .item strong { display: block; margin-bottom: 4px; }
+    .muted { color: #687076; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+    th, td { text-align: left; vertical-align: top; border: 1px solid #dfe4e7; padding: 7px 8px; }
+    th { width: 28%; background: #f4f6f7; font-weight: 700; }
+    footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #d9dee2; font-size: 11px; color: #687076; }
+    @media print {
+      @page { size: letter; margin: 0.55in; }
+      body { background: #fff; }
+      .mediator-report { max-width: none; margin: 0; padding: 0; }
+      .page-break { break-before: page; }
+      h2, .item, tr { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>`;
+}
+
+function mediationPrepReportHtml(result = App.mediationPrep.result, standalone = false) {
+  if (!result) return '';
+  const config = result.config || {};
+  const generated = result.completed_at ? new Date(result.completed_at).toLocaleString() : new Date().toLocaleString();
+  const sources = result.sources || [];
+  const warnings = result.warnings || [];
+  const body = `
+    <article class="mediator-report">
+      <div class="report-kicker">Private mediator preparation</div>
+      <h1>${esc(result.title || 'Mediator Prep Report')}</h1>
+      <div class="report-notice">This report is a neutral preparation aid for the mediator. It does not decide the dispute, provide legal advice, predict the outcome, or replace mediator judgment. Inferences, settlement ranges, and bridge options must be tested in session.</div>
+      <div class="report-meta">
+        <div><strong>Perspective:</strong> ${esc(config.party_role || 'neutral mediator')}</div>
+        <div><strong>Generated:</strong> ${esc(generated)}</div>
+        <div><strong>Provider / court:</strong> ${esc(config.court || 'Not provided')}</div>
+        <div><strong>Jurisdiction / venue:</strong> ${esc([config.jurisdiction, config.venue].filter(Boolean).join(' / ') || 'Not provided')}</div>
+        <div><strong>Stage:</strong> ${esc(config.procedural_stage || 'Not provided')}</div>
+        <div><strong>Mediation dates:</strong> ${esc(mediationDisplayValue(config.hearing_dates || []))}</div>
+      </div>
+      ${mediationReportSection('Table of Contents', `<ol class="toc"><li>Neutral Case Summary</li><li>Factual Chronology</li><li>Key Issues</li><li>Party Positions vs Underlying Interests</li><li>BATNA / WATNA / ZOPA</li><li>Strengths, Weaknesses, and Uncertainties</li><li>Risk Allocation</li><li>Settlement Levers</li><li>Information Gaps</li><li>Caucus Questions</li><li>Likely Impasse Points</li><li>Bridge Proposals</li><li>Mediator Private Prep Note</li><li>One-Page Session Plan</li><li>Source Basis</li></ol>`)}
+      ${mediationReportSection('Neutral Case Summary', `<p>${esc(mediationDisplayValue(result.client_or_team_summary))}</p>${mediationReportRows(result.case_snapshot || {})}`)}
+      ${mediationReportSection('Factual Chronology', mediationReportList(result.chronology || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.date || item.event_date || 'Date not found'))}</strong><span>${esc(mediationDisplayValue(item.description))}</span></div>`))}
+      ${mediationReportSection('Key Legal, Factual, Commercial, and Emotional Issues', mediationReportList(result.issues || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.title || item.issue || 'Issue'))}</strong><span>${esc(mediationDisplayValue(item.category || 'Unclassified'))}: ${esc(mediationDisplayValue(item.summary || item.missing_proof || item.emotional_or_commercial_dimension || 'Requires review'))}</span></div>`))}
+      ${mediationReportSection('Party Positions vs Underlying Interests', mediationReportList(result.positions_and_interests || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.party || 'Party'))}</strong>${mediationReportRows({stated_positions: item.stated_positions, possible_underlying_interests: item.possible_underlying_interests, emotional_drivers: item.emotional_drivers, commercial_drivers: item.commercial_drivers, inference_caveats: item.inference_caveats})}</div>`), 'No party interest analysis returned.')}
+      ${mediationReportSection('BATNA / WATNA / Possible ZOPA', mediationReportRows(result.batna_watna_zopa || {}), {pageBreak: true})}
+      ${mediationReportSection('Strengths, Weaknesses, and Uncertainty Points', mediationReportList(result.risks_and_gaps || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.risk_level || 'Risk'))}</strong><span>${esc(mediationDisplayValue(item.summary || item.decision_point || item.leverage))}</span></div>`))}
+      ${mediationReportSection('Risk Allocation Between Parties', mediationReportList(result.risk_allocation || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.risk || 'Risk'))}</strong>${mediationReportRows({allocation: item.allocation, affected_parties: item.affected_parties, rationale: item.rationale, uncertainty: item.uncertainty, mediator_note: item.mediator_note})}</div>`))}
+      ${mediationReportSection('Settlement Levers', mediationReportList(result.settlement_levers || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.lever || 'Lever'))}</strong>${mediationReportRows({why_it_may_matter: item.why_it_may_matter, possible_shapes: item.possible_shapes, parties_affected: item.parties_affected, caveats: item.caveats})}</div>`))}
+      ${mediationReportSection('Information Gaps to Clarify', mediationReportList(result.discovery_analysis || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.item_type || 'Information gap'))}</strong><span>${esc(mediationDisplayValue(item.description || item.status || 'Requires review'))}</span></div>`))}
+      ${mediationReportSection('Suggested Caucus Questions', mediationReportList(result.caucus_questions || result.cross_examination || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.party || item.witness || 'Party'))}</strong><span>${esc(mediationDisplayValue(item.question || item.questions || item.topics))}</span><p class="muted">${esc(mediationDisplayValue(item.purpose || item.caveats || ''))}</p></div>`, 'No caucus questions returned.'), {pageBreak: true})}
+      ${mediationReportSection('Likely Impasse Points', mediationReportList(result.impasse_points || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.issue || 'Impasse point'))}</strong>${mediationReportRows({why_it_may_block_settlement: item.why_it_may_block_settlement, early_warning_signs: item.early_warning_signs, mediator_options: item.mediator_options})}</div>`))}
+      ${mediationReportSection('Possible Bridge Proposals', mediationReportList(result.bridge_proposals || [], item => `<div class="item"><strong>${esc(mediationDisplayValue(item.label || 'Bridge proposal'))}</strong>${mediationReportRows({structure: item.structure, parties_helped: item.parties_helped, tradeoffs: item.tradeoffs, prerequisites: item.prerequisites, risks: item.risks, neutrality_caveat: item.neutrality_caveat})}</div>`))}
+      ${mediationReportSection('Mediator Private Prep Note', mediationReportRows(result.mediator_private_prep_note || {}), {pageBreak: true})}
+      ${mediationReportSection('One-Page Session Plan', mediationReportRows(result.one_page_session_plan || {}))}
+      ${mediationReportSection('Source Basis and Audit Notes', `<h3>Warnings</h3>${renderTranslationList(warnings, 'No warnings returned.')}<h3>Sources</h3>${renderTranslationList(sources.map(mediationSourceLabel), 'No source documents returned.')}<h3>Agent Trace</h3>${renderTranslationList((result.agentic_review?.agent_trace || []).map(step => `${step.step_name || 'agent'}: ${step.status || 'unknown'}`), 'No agent trace returned.')}`, {pageBreak: true})}
+      <footer>Private mediator preparation report. Generated from indexed matter documents. Verify all source references, assumptions, authority, and confidentiality constraints before use.</footer>
+    </article>`;
+  if (!standalone) return body;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(result.title || 'Mediator Prep Report')}</title>${mediationReportStyles()}</head><body>${body}</body></html>`;
+}
+
 function renderMediationPrepResult() {
   const result = App.mediationPrep.result;
   const grid = document.getElementById('mediation-prep-result-grid');
@@ -289,29 +376,8 @@ function renderMediationPrepResult() {
   if (!result || !grid || !preview || !side) return;
   grid.style.display = 'grid';
   const config = result.config || {};
-  if (meta) meta.textContent = `${config.party_role || 'neutral analysis'}${config.court ? ' · ' + config.court : ''}${config.jurisdiction ? ' · ' + config.jurisdiction : ''}`;
-  const snapshotRows = Object.entries(result.case_snapshot || {}).map(([key, value]) => `<tr><td>${esc(key.replace(/_/g, ' '))}</td><td>${esc(mediationDisplayValue(value))}</td></tr>`).join('');
-  preview.innerHTML = sanitizeDraftHtml(`
-    <article class="draft-document">
-      <h1>${esc(result.title || 'Mediation Prep')}</h1>
-      <section><h2>Team Summary</h2><p>${esc(mediationDisplayValue(result.client_or_team_summary))}</p></section>
-      <section><h2>Case Snapshot</h2><table><tbody>${snapshotRows || '<tr><td>No case snapshot returned.</td></tr>'}</tbody></table></section>
-      ${renderMediationSection('Positions and Concessions', result.claims_and_defenses || [], item => `<div class="contract-finding-item"><strong>${esc(mediationDisplayValue(item.title || item.claim || 'Position'))}</strong><span>${esc(mediationDisplayValue(item.missing_proof || item.defenses || 'Requires review'))}</span></div>`)}
-      ${renderMediationSection('Issues and Proof Elements', result.issues || [], item => `<div class="contract-finding-item"><strong>${esc(mediationDisplayValue(item.title || item.issue || 'Issue'))}</strong><span>${esc(mediationDisplayValue(item.summary || item.missing_proof || 'Requires review'))}</span></div>`)}
-      ${renderMediationSection('Chronology', result.chronology || [], item => `<div class="contract-finding-item"><strong>${esc(mediationDisplayValue(item.date || item.event_date || 'Date not found'))}</strong><span>${esc(mediationDisplayValue(item.description))}</span></div>`)}
-      ${renderMediationSection('Evidence Matrix', result.evidence_matrix || [], item => `<div class="contract-finding-item"><strong>${esc(mediationDisplayValue(item.issue || 'Issue'))}</strong><span>${esc(mediationDisplayValue(item.gaps || item.supporting_evidence || 'Evidence requires review'))}</span></div>`)}
-      ${renderMediationSection('Information Gaps', result.discovery_analysis || [], item => `<div class="contract-finding-item"><strong>${esc(mediationDisplayValue(item.item_type || 'Information gap'))}</strong><span>${esc(mediationDisplayValue(item.description || item.status || 'Requires review'))}</span></div>`)}
-      ${renderMediationSection('Participant Prep', result.witness_prep || [], item => `<div class="contract-finding-item"><strong>${esc(mediationDisplayValue(item.name || 'Participant'))}</strong><span>${esc(mediationDisplayValue(item.topics || item.prep_questions || 'Topics require review'))}</span></div>`)}
-      ${renderMediationSection('Authority and Caucus Prep', result.deposition_prep || [], item => `<div class="contract-finding-item"><strong>${esc(mediationDisplayValue(item.witness || 'Participant'))}</strong><span>${esc(mediationDisplayValue(item.questions || item.topics || 'Questions require review'))}</span></div>`)}
-      ${renderMediationSection('Reality-Testing Questions', result.cross_examination || [], item => `<div class="contract-finding-item"><strong>${esc(mediationDisplayValue(item.witness || 'Participant'))}</strong><span>${esc(mediationDisplayValue(item.questions || item.topics || 'Questions require review'))}</span></div>`)}
-      ${renderMediationSection('Procedural Tasks', result.procedural_tasks || [], item => `<div class="contract-finding-item"><strong>${esc(mediationDisplayValue(item.due_date || item.task_type || 'Task'))}</strong><span>${esc(mediationDisplayValue(item.description || item.compliance_risk))}</span></div>`)}
-      <section><h2>Mediator Brief Strategy</h2><p>${esc(mediationDisplayValue(result.motion_strategy))}</p></section>
-      <section><h2>Session Plan</h2><p>${esc(mediationDisplayValue(result.trial_prep))}</p></section>
-      <section><h2>Negotiation Themes</h2><p>${esc(mediationDisplayValue(result.argument_strategy))}</p></section>
-      <section><h2>Damages and Remedies</h2><p>${esc(mediationDisplayValue(result.damages_and_remedies))}</p></section>
-      ${renderMediationSection('Risks and Gaps', result.risks_and_gaps || [], item => `<div class="contract-risk-item"><span class="risk-badge risk-${esc(item.risk_level || 'medium')}">${esc(item.risk_level || 'medium')}</span><span>${esc(mediationDisplayValue(item.summary || item.decision_point))}</span></div>`)}
-    </article>
-  `);
+  if (meta) meta.textContent = `${config.party_role || 'neutral mediator'}${config.court ? ' · ' + config.court : ''}${config.jurisdiction ? ' · ' + config.jurisdiction : ''}`;
+  preview.innerHTML = sanitizeDraftHtml(mediationReportStyles() + mediationPrepReportHtml(result, false));
   side.innerHTML = `
     <div class="translate-review-section"><strong>Warnings</strong>${renderTranslationList(result.warnings || [], 'Human legal review required.')}</div>
     <div class="translate-review-section"><strong>Agent Trace</strong>${renderTranslationList((result.agentic_review?.agent_trace || []).map(step => `${step.step_name || 'agent'}: ${step.status || 'unknown'}`), 'No agent trace returned.')}</div>
@@ -321,8 +387,11 @@ function renderMediationPrepResult() {
 
 function mediationPrepMarkdown(result = App.mediationPrep.result) {
   if (!result) return '';
-  const section = (title, items) => `## ${title}\n${items && items.length ? items.map(item => `- ${mediationDisplayValue(item)}`).join('\n') : 'No supported items returned.'}\n\n`;
-  return `# ${result.title || 'Mediation Prep'}\n\n## Team Summary\n${mediationDisplayValue(result.client_or_team_summary)}\n\n${section('Positions and Concessions', result.claims_and_defenses)}${section('Issues', result.issues)}${section('Chronology', result.chronology)}${section('Evidence Matrix', result.evidence_matrix)}${section('Information Gaps', result.discovery_analysis)}${section('Participant Prep', result.witness_prep)}${section('Authority and Caucus Prep', result.deposition_prep)}${section('Reality-Testing Questions', result.cross_examination)}${section('Procedural Tasks', result.procedural_tasks)}## Mediator Brief Strategy\n${mediationDisplayValue(result.motion_strategy)}\n\n## Session Plan\n${mediationDisplayValue(result.trial_prep)}\n\n## Damages and Remedies\n${mediationDisplayValue(result.damages_and_remedies)}\n\n${section('Risks and Gaps', result.risks_and_gaps)}## Warnings\n${(result.warnings || []).map(item => `- ${item}`).join('\n')}\n`;
+  const section = (title, value) => {
+    if (Array.isArray(value)) return `## ${title}\n${value.length ? value.map(item => `- ${mediationDisplayValue(item)}`).join('\n') : 'No supported items returned.'}\n\n`;
+    return `## ${title}\n${mediationDisplayValue(value)}\n\n`;
+  };
+  return `# ${result.title || 'Mediator Prep Report'}\n\nPrivate mediator preparation. This does not decide the dispute, predict the outcome, or replace mediator judgment.\n\n## Neutral Case Summary\n${mediationDisplayValue(result.client_or_team_summary)}\n\n${section('Factual Chronology', result.chronology)}${section('Key Issues', result.issues)}${section('Party Positions vs Underlying Interests', result.positions_and_interests)}${section('BATNA / WATNA / Possible ZOPA', result.batna_watna_zopa)}${section('Strengths, Weaknesses, and Uncertainties', result.risks_and_gaps)}${section('Risk Allocation', result.risk_allocation)}${section('Settlement Levers', result.settlement_levers)}${section('Information Gaps', result.discovery_analysis)}${section('Caucus Questions', result.caucus_questions || result.cross_examination)}${section('Likely Impasse Points', result.impasse_points)}${section('Bridge Proposals', result.bridge_proposals)}${section('Mediator Private Prep Note', result.mediator_private_prep_note)}${section('One-Page Session Plan', result.one_page_session_plan)}## Warnings\n${(result.warnings || []).map(item => `- ${item}`).join('\n')}\n`;
 }
 
 async function copyMediationPrep() {
@@ -341,6 +410,37 @@ function downloadMediationPrep() {
   a.download = `mediation-prep-${Date.now()}.md`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+function mediationPrepHtmlFilename() {
+  const title = (App.mediationPrep.result?.title || 'mediator-prep-report').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'mediator-prep-report';
+  return `${title}-${Date.now()}.html`;
+}
+
+function downloadMediationPrepHtml() {
+  const html = mediationPrepReportHtml(App.mediationPrep.result, true);
+  if (!html) return;
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = mediationPrepHtmlFilename();
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function printMediationPrepReport() {
+  const html = mediationPrepReportHtml(App.mediationPrep.result, true);
+  if (!html) return;
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showToast('Pop-up blocked. Download the HTML report and print it from the browser.', 'warning');
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 250);
 }
 
 function resetMediationPrep() {

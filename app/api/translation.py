@@ -35,6 +35,9 @@ TRANSLATION_MODES = {
     "plain-language",
     "literal",
 }
+TRANSLATION_ALLOWED_TAGS = "article|section|h1|h2|h3|p|ul|ol|li|table|thead|tbody|tr|th|td|aside|strong|em|br"
+TRANSLATION_CHUNK_CHAR_LIMIT = 8_000
+TRANSLATION_LLM_MAX_TOKENS = 4096
 
 
 class TranslationTextIn(BaseModel):
@@ -210,6 +213,56 @@ def _strip_html(value: str) -> str:
     return html.unescape(text).strip()
 
 
+def _sanitize_html(value: str) -> str:
+    text = str(value or "")
+    text = re.sub(r"(?is)<(script|style|iframe|object|embed|link|meta|form|input|button|textarea|select)[^>]*>.*?</\1>", "", text)
+    text = re.sub(r"(?is)</?(?!(?:" + TRANSLATION_ALLOWED_TAGS + r")\b)[a-z][^>]*>", "", text)
+
+    def clean_allowed_tag(match: re.Match[str]) -> str:
+        closing, tag = match.group(1), match.group(2).lower()
+        if closing:
+            return f"</{tag}>"
+        return "<br>" if tag == "br" else f"<{tag}>"
+
+    return re.sub(r"(?is)<(/?)(article|section|h1|h2|h3|p|ul|ol|li|table|thead|tbody|tr|th|td|aside|strong|em|br)\b[^>]*>", clean_allowed_tag, text).strip()
+
+
+def _split_translation_chunks(text: str, *, limit: int = TRANSLATION_CHUNK_CHAR_LIMIT) -> list[str]:
+    if len(text) <= limit:
+        return [text]
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    blocks = re.split(r"(\n\s*\n)", text)
+    for block in blocks:
+        if not block:
+            continue
+        if current and current_len + len(block) > limit:
+            chunks.append("".join(current).strip())
+            current = []
+            current_len = 0
+        if len(block) > limit:
+            for start in range(0, len(block), limit):
+                part = block[start:start + limit].strip()
+                if part:
+                    chunks.append(part)
+            continue
+        current.append(block)
+        current_len += len(block)
+    if current:
+        chunks.append("".join(current).strip())
+    return [chunk for chunk in chunks if chunk]
+
+
+def _translation_output_looks_complete(value: str) -> bool:
+    text = str(value or "").strip()
+    if not text:
+        return False
+    if text.endswith(("।", ".", "!", "?", ":", ";", ")", "]", "}", ">", "”", '"', "'")):
+        return True
+    return bool(re.search(r"</(article|section|p|li|td|th|aside)>$", text, flags=re.I))
+
+
 def _simple_html_translation(
     settings: dict,
     *,
@@ -226,7 +279,7 @@ def _simple_html_translation(
         "Do not output JSON, markdown fences, scripts, styles, or commentary outside the HTML."
     )
     user = _user_prompt(text=text, source_language=source_language, target_language=target_language, mode=mode, context=context)
-    return complete_with_configured_llm(settings, system, user, model=model, temperature=0.1, max_tokens=4096)
+    return complete_with_configured_llm(settings, system, user, model=model, temperature=0.1, max_tokens=TRANSLATION_LLM_MAX_TOKENS)
 
 
 def _fallback_html(text: str, *, target_language: str, mode: str) -> dict:
@@ -250,22 +303,18 @@ def _fallback_html(text: str, *, target_language: str, mode: str) -> dict:
     }
 
 
-def _translate(text: str, *, source_language: str, target_language: str, mode: str, context: str | None) -> dict:
-    settings = get_runtime_settings_with_secrets()
-    provider = configured_llm_provider(settings)
-    model = settings.get("chat_model", "gpt-4o")
-    if not provider:
-        return _fallback_html(text, target_language=target_language, mode=mode)
+def _translate_single(text: str, *, source_language: str, target_language: str, mode: str, context: str | None, settings: dict, provider: str, model: str) -> dict:
     raw = complete_with_configured_llm(
         settings,
         _system_prompt(mode),
         _user_prompt(text=text, source_language=source_language, target_language=target_language, mode=mode, context=context),
         model=model,
         temperature=0.1,
-        max_tokens=4096,
+        max_tokens=TRANSLATION_LLM_MAX_TOKENS,
     )
     if not raw:
         return _fallback_html(text, target_language=target_language, mode=mode)
+    incomplete_raw = not str(raw).strip().endswith("}")
     try:
         data = _json_from_llm(raw)
     except (json.JSONDecodeError, ValueError):
@@ -283,22 +332,31 @@ def _translate(text: str, *, source_language: str, target_language: str, mode: s
         html_output = html_output.strip()
         html_output = re.sub(r"^```(?:html)?\s*", "", html_output)
         html_output = re.sub(r"\s*```$", "", html_output)
+        html_output = _sanitize_html(html_output)
+        warnings = ["Review required: structured translation metadata may be incomplete for this run."]
+        if not _translation_output_looks_complete(html_output):
+            warnings.append("Review required: translated output may be incomplete because the provider response did not end cleanly.")
         return {
             "translated_html": html_output,
             "translated_text": _strip_html(html_output),
             "translator_notes": ["The model returned malformed structured JSON, so AI Blueprint regenerated a simplified HTML translation."],
-            "warnings": ["Review required: structured translation metadata may be incomplete for this run."],
+            "warnings": warnings,
             "preserved_terms": [],
             "quality_check": {"human_review_required": True, "structured_metadata_complete": False},
             "detected_language": None,
             "provider": provider,
             "model": model,
         }
+    translated_html = _sanitize_html(str(data.get("translated_html") or ""))
+    translated_text = str(data.get("translated_text") or "").strip() or _strip_html(translated_html)
+    warnings = data.get("warnings") if isinstance(data.get("warnings"), list) else []
+    if incomplete_raw or not _translation_output_looks_complete(translated_html or translated_text):
+        warnings = [*warnings, "Review required: translated output may be incomplete because the provider response did not end cleanly."]
     return {
-        "translated_html": str(data.get("translated_html") or ""),
-        "translated_text": str(data.get("translated_text") or ""),
+        "translated_html": translated_html,
+        "translated_text": translated_text,
         "translator_notes": data.get("translator_notes") if isinstance(data.get("translator_notes"), list) else [],
-        "warnings": data.get("warnings") if isinstance(data.get("warnings"), list) else [],
+        "warnings": warnings,
         "preserved_terms": data.get("preserved_terms") if isinstance(data.get("preserved_terms"), list) else [],
         "quality_check": data.get("quality_check") if isinstance(data.get("quality_check"), dict) else {"human_review_required": True},
         "detected_language": data.get("detected_language") if data.get("detected_language") else None,
@@ -307,10 +365,67 @@ def _translate(text: str, *, source_language: str, target_language: str, mode: s
     }
 
 
+def _translate(text: str, *, source_language: str, target_language: str, mode: str, context: str | None) -> dict:
+    settings = get_runtime_settings_with_secrets()
+    provider = configured_llm_provider(settings)
+    model = settings.get("chat_model", "gpt-4o")
+    if not provider:
+        return _fallback_html(text, target_language=target_language, mode=mode)
+    chunks = _split_translation_chunks(text)
+    if len(chunks) == 1:
+        return _translate_single(
+            text,
+            source_language=source_language,
+            target_language=target_language,
+            mode=mode,
+            context=context,
+            settings=settings,
+            provider=provider,
+            model=model,
+        )
+    translated_parts = []
+    text_parts = []
+    notes: list[Any] = []
+    warnings: list[Any] = [f"Long source text was translated in {len(chunks)} chunks to avoid provider output truncation."]
+    preserved_terms: list[Any] = []
+    detected_language = None
+    quality_checks = []
+    for index, chunk in enumerate(chunks, start=1):
+        chunk_result = _translate_single(
+            chunk,
+            source_language=source_language,
+            target_language=target_language,
+            mode=mode,
+            context=f"{context or ''}\nChunk {index} of {len(chunks)}. Preserve terminology consistently across chunks.".strip(),
+            settings=settings,
+            provider=provider,
+            model=model,
+        )
+        translated_parts.append(f'<section><h2>Part {index}</h2>{chunk_result.get("translated_html") or ""}</section>')
+        text_parts.append(str(chunk_result.get("translated_text") or ""))
+        notes.extend(chunk_result.get("translator_notes") or [])
+        warnings.extend(chunk_result.get("warnings") or [])
+        preserved_terms.extend(chunk_result.get("preserved_terms") or [])
+        detected_language = detected_language or chunk_result.get("detected_language")
+        quality_checks.append(chunk_result.get("quality_check") or {})
+    return {
+        "translated_html": _sanitize_html(f'<article class="translation-output">{"".join(translated_parts)}</article>'),
+        "translated_text": "\n\n".join(part for part in text_parts if part.strip()),
+        "translator_notes": list(dict.fromkeys(str(item) for item in notes if str(item).strip()))[:80],
+        "warnings": list(dict.fromkeys(str(item) for item in warnings if str(item).strip()))[:80],
+        "preserved_terms": list(dict.fromkeys(str(item) for item in preserved_terms if str(item).strip()))[:120],
+        "quality_check": {"human_review_required": True, "chunked": True, "chunks": len(chunks), "chunk_quality_checks": quality_checks[:20]},
+        "detected_language": detected_language,
+        "provider": provider,
+        "model": model,
+    }
+
+
 def _result_payload(result: dict, *, source_type: str, source_filename: str | None, source_language: str, target_language: str, mode: str, context: str | None) -> dict:
     warnings = list(result.get("warnings") or [])
-    if mode in {"legal", "medical"} and not any("review" in str(item).lower() for item in warnings):
-        warnings.append("Human review is required before official, legal, medical, or regulated use.")
+    if mode in {"legal", "medical", "technical"} and not any("review" in str(item).lower() for item in warnings):
+        warnings.append("Human review is required before official, legal, medical, technical, or regulated use.")
+    translated_html = _sanitize_html(result.get("translated_html") or "")
     return {
         "source_type": source_type,
         "source_filename": source_filename,
@@ -319,8 +434,8 @@ def _result_payload(result: dict, *, source_type: str, source_filename: str | No
         "target_language": target_language,
         "mode": mode,
         "context": context,
-        "translated_html": result.get("translated_html") or "",
-        "translated_text": result.get("translated_text") or "",
+        "translated_html": translated_html,
+        "translated_text": result.get("translated_text") or _strip_html(translated_html),
         "translator_notes": result.get("translator_notes") or [],
         "warnings": warnings,
         "preserved_terms": result.get("preserved_terms") or [],
