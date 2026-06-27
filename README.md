@@ -7,13 +7,42 @@
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](https://github.com/rohasnagpal/AI-Blueprint/blob/main/Dockerfile)
 [![License](https://img.shields.io/github/license/rohasnagpal/AI-Blueprint)](https://github.com/rohasnagpal/AI-Blueprint/blob/main/LICENSE)
 
-A local-first legal AI workspace for document-grounded chat, live voice assistance, legal drafting, contract review, preparation workflows, translation, email drafting, and matter document management.
+Use the best AI agents to Review & Draft Contracts, prep for Arbitration, Litigation, Mediation & Negotiation, do legal translations, and more!
 
-AI Blueprint is built for lawyers, firms, legal teams, and legal operations teams that need AI to work with confidential documents, matter context, source grounding, review workflows, and auditability.
+## AI Blueprint Max
 
-The goal is not to replace legal judgment. The goal is to give lawyers a structured workspace for reviewing documents, preparing disputes and negotiations, drafting work product, translating legal material, and organizing matter knowledge with stronger control over data, models, and retrieval scope.
+AI Blueprint is the full legal AI workspace for organizing work by workspaces, matters, users, permissions, documents, workflows, and audit trails. Features include:
+
+- Contract Review
+- Drafting
+- Arbitration Prep
+- Litigation Prep
+- Mediation Prep
+- Negotiation Prep
+- Translation
+- Personas
+- Voice assistant
+- Admin and security controls
+- Workspaces and matters
+- Local and cloud RAG
 
 <img width="1920" height="1200" alt="ai-blueprint" src="https://github.com/user-attachments/assets/7b8b8230-5ae7-43d0-b23c-695b23c8fa3f" />
+
+## AI Blueprint Mini
+
+AI Blueprint Mini is a single-file Legal AI tool that runs in your browser. It's perfect if you want to start right away without setting up the full platform.
+
+Add an OpenRouter key, upload documents if you have them, describe the task in plain language.
+
+Behind the scenes, here's whats the AI agents do:
+
+- Understand the request, classify the task, identify missing context, and plan the output structure
+- Extract relevant facts, clauses, risks, and warnings from uploaded documents without inventing content
+- Generate the actual legal draft, review, summary, memo, or preparation material requested
+- Check the draft for hallucinations, unsupported claims, weak structure, and legal-risk flags before final output.
+
+<img width="2746" height="2898" alt="image" src="https://github.com/user-attachments/assets/3b1575ed-6d50-4613-aa9e-dd69218da455" />
+
 
 ## Core Capabilities
 
