@@ -2,6 +2,12 @@
 
 AI Blueprint is a legal AI workspace for document-grounded chat, live voice assistance, reusable personas, legal drafting, translation, email replies, contract review, and structured preparation workflows.
 
+## AI Blueprint Mini
+
+Use [AI Blueprint Mini](../../mini.html) when you want the supported single-file browser tool without installing the full workspace. Open the file in a browser, add an OpenRouter key, upload documents if needed, and describe the legal task in plain language.
+
+Use the full AI Blueprint workspace when you need workspaces, matters, users, permissions, audit trails, document libraries, workflow history, email, voice, local RAG, or deployment controls.
+
 The fastest successful path is:
 
 1. Sign in or complete first-run admin setup.

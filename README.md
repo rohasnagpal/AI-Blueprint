@@ -2,7 +2,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/rohasnagpal/AI-Blueprint/ci.yml?branch=main&label=CI)](https://github.com/rohasnagpal/AI-Blueprint/actions/workflows/ci.yml)
 [![Installers](https://img.shields.io/github/actions/workflow/status/rohasnagpal/AI-Blueprint/build-installers.yml?label=installers)](https://github.com/rohasnagpal/AI-Blueprint/actions/workflows/build-installers.yml)
-[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.10--3.12%20tested-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.136.1-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white)](https://github.com/rohasnagpal/AI-Blueprint/blob/main/Dockerfile)
 [![License](https://img.shields.io/github/license/rohasnagpal/AI-Blueprint)](https://github.com/rohasnagpal/AI-Blueprint/blob/main/LICENSE)
@@ -11,13 +11,13 @@ Use the best AI agents to Review & Draft Contracts, prep for Arbitration, Litiga
 
 ## AI Blueprint Mini
 
-AI Blueprint Mini is a single-file Legal AI tool that runs in your browser. It's perfect if you want to start right away without setting up the full platform.
+AI Blueprint Mini is a supported single-file Legal AI tool that runs in your browser from [mini.html](mini.html). It's the quickest path when you want a standalone task-focused tool without setting up the full workspace.
 
-Add an OpenRouter key, upload documents if you have them, describe the task in plain language.
+Open [mini.html](mini.html), add an OpenRouter key, upload documents if you have them, and describe the task in plain language.
 
 <img width="2746" height="2898" alt="image" src="https://github.com/user-attachments/assets/3b1575ed-6d50-4613-aa9e-dd69218da455" />
 
-Behind the scenes, here's whats the AI agents do:
+Behind the scenes, here's what the AI agents do:
 
 - Understand the request, classify the task, identify missing context, and plan the output structure
 - Extract relevant facts, clauses, risks, and warnings from uploaded documents without inventing content
@@ -113,8 +113,9 @@ The local version is the fastest way to start. The network version is the direct
 
 Requirements:
 
-- Python 3.10 or newer
+- Python 3.10, 3.11, or 3.12 for the full app
 - A browser
+- Node.js for development and test runs that check frontend JavaScript
 - Provider API keys depending on the models, voice, and retrieval mode you choose
 
 Run locally:
@@ -129,6 +130,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python main.py
 ```
+
+For optional local RAG dependencies, install `requirements-local.txt` after the base requirements. On Python 3.13 or newer, follow the notes in that file because some local RAG dependencies may not publish compatible wheels.
 
 Open:
 
@@ -260,9 +263,29 @@ Keep `AI_BLUEPRINT_RUN_MIGRATIONS_ON_STARTUP=false` in production so multiple wo
 Install dependencies and run the app as shown in Quick Start. Before opening a pull request, run:
 
 ```bash
-python -m compileall main.py database.py routes rag app migrations
+python -m compileall main.py database.py routes rag app migrations scripts tests
 python -m unittest discover -s tests
 ```
+
+For auth, workspace, document, job, deployment, or release-sensitive changes, also run the isolated smoke checks:
+
+```bash
+AI_BLUEPRINT_DATABASE_URL=sqlite:////tmp/ai_blueprint_v2_foundation.db \
+AI_BLUEPRINT_APP_DATABASE_PATH=/tmp/ai_blueprint_application_foundation.db \
+AI_BLUEPRINT_UPLOADS_DIR=/tmp/ai_blueprint_v2_foundation_uploads \
+AI_BLUEPRINT_SECRET_KEY_FILE=/tmp/ai_blueprint_v2_foundation_secret.key \
+AI_BLUEPRINT_APP_SECRET_KEY_FILE=/tmp/ai_blueprint_application_foundation_secret.key \
+python scripts/v2_foundation_smoke.py
+
+AI_BLUEPRINT_DATABASE_URL=sqlite:////tmp/ai_blueprint_v2_hardening.db \
+AI_BLUEPRINT_APP_DATABASE_PATH=/tmp/ai_blueprint_application_hardening.db \
+AI_BLUEPRINT_UPLOADS_DIR=/tmp/ai_blueprint_v2_hardening_uploads \
+AI_BLUEPRINT_SECRET_KEY_FILE=/tmp/ai_blueprint_v2_hardening_secret.key \
+AI_BLUEPRINT_APP_SECRET_KEY_FILE=/tmp/ai_blueprint_application_hardening_secret.key \
+python scripts/v2_hardening_smoke.py
+```
+
+GitHub CI and CodeQL required checks must pass before release-sensitive changes are merged.
 
 See [Contributing](CONTRIBUTING.md) for contribution expectations.
 

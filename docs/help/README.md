@@ -1,10 +1,11 @@
 # AI Blueprint Help Pack
 
-This folder is the source help knowledge base for AI Blueprint. It documents the current app surface: chat, voice, document management, prep workflows, contract review, drafting, email, translation, personas, and settings.
+This folder is the source help knowledge base for AI Blueprint Max. It documents the current full workspace surface: chat, voice, document management, prep workflows, contract review, drafting, email, translation, personas, and settings. AI Blueprint Mini is a supported standalone single-file tool for quick browser-only legal AI tasks.
 
 ## Files
 
 - [Start Here](start-here.md): first-time setup and the fastest successful path.
+- [AI Blueprint Mini](../../mini.html): supported standalone browser tool for quick legal AI tasks with an OpenRouter key.
 - [Core Concepts](core-concepts.md): workspaces, matters, documents, RAG, personas, jobs, runs, and hidden workflow records.
 - [Workspaces and Matters](workspaces-and-matters.md): workspace selection, matter creation, access, and scope.
 - [Documents and RAG](documents-and-rag.md): uploading, indexing, connected folders, scope selection, and document-grounded Q&A.

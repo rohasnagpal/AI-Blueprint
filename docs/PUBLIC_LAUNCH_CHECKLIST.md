@@ -12,8 +12,8 @@ Run this from a clean database and clean upload directory:
 - Upload an allowed document type and confirm indexing completes.
 - Try a blocked upload type and confirm it is rejected.
 - Create a document-scoped chat.
-- Enable and run the council, contract review, and legal research plugins.
-- Export plugin outputs.
+- Run Contract Review, Draft, Email, Translate, and each visible Prep workflow from the current screens.
+- Export, download, or copy available workflow outputs.
 - Archive, restore, and bulk-delete chats.
 - Delete a matter and confirm matter-scoped documents are detached or hidden as designed.
 - Confirm member users cannot open admin-only pages.
@@ -24,8 +24,15 @@ Run this from a clean database and clean upload directory:
 Before tagging a release, run:
 
 ```bash
-python -m compileall main.py database.py routes rag app migrations
+python -m compileall main.py database.py routes rag app migrations scripts tests
 python -m unittest discover -s tests
+AI_BLUEPRINT_DATABASE_URL=sqlite:////tmp/ai_blueprint_v2_foundation.db \
+AI_BLUEPRINT_APP_DATABASE_PATH=/tmp/ai_blueprint_application_foundation.db \
+AI_BLUEPRINT_UPLOADS_DIR=/tmp/ai_blueprint_v2_foundation_uploads \
+AI_BLUEPRINT_SECRET_KEY_FILE=/tmp/ai_blueprint_v2_foundation_secret.key \
+AI_BLUEPRINT_APP_SECRET_KEY_FILE=/tmp/ai_blueprint_application_foundation_secret.key \
+python scripts/v2_foundation_smoke.py
+
 AI_BLUEPRINT_DATABASE_URL=sqlite:////tmp/ai_blueprint_v2_hardening.db \
 AI_BLUEPRINT_APP_DATABASE_PATH=/tmp/ai_blueprint_application_hardening.db \
 AI_BLUEPRINT_UPLOADS_DIR=/tmp/ai_blueprint_v2_hardening_uploads \
@@ -34,7 +41,7 @@ AI_BLUEPRINT_APP_SECRET_KEY_FILE=/tmp/ai_blueprint_application_hardening_secret.
 python scripts/v2_hardening_smoke.py
 ```
 
-GitHub Actions must pass on Python 3.10, 3.11, and 3.12.
+GitHub Actions must pass on Python 3.10, 3.11, and 3.12. CodeQL required checks must also pass before tagging or publishing a release.
 
 ## 3. Production Configuration
 
@@ -85,4 +92,3 @@ Keep `AI_BLUEPRINT_BOOTSTRAP_DEFAULT_ADMIN` unset or `false` for public deployme
 - Start the app against a clean runtime directory and complete the browser QA path.
 - Tag the release only after CI passes.
 - Record the migration revision, git commit, backup location, and rollback command in the release notes.
-

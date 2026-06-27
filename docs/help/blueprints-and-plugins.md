@@ -7,6 +7,8 @@ The current AI Blueprint UI uses direct screens instead of asking users to creat
 
 Older versions exposed **Blueprints**, **Plugins**, and related AI Council concepts as primary screens. Some backend records still use plugin and blueprint tables so workflow runs can be persisted, audited, and related to matters. In normal use, users do not need to create or configure blueprint records directly.
 
+Current setup, launch, and user docs should not instruct users to enable or run hidden plugins. Use the visible Prep and Workflow screens instead.
+
 ## Current User Workflow
 
 To run a structured workflow:
