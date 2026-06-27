@@ -6,6 +6,7 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 ROOT = Path("/tmp/ai_blueprint_litigation_tests")
 DB_PATH = ROOT / "v2.db"
 APP_DB_PATH = ROOT / "application.db"
@@ -372,7 +373,7 @@ class LitigationPrepTest(unittest.TestCase):
     def test_frontend_javascript_syntax(self) -> None:
         import subprocess
 
-        completed = subprocess.run(["node", "--check", "public/js/pages/litigation-prep.js"], cwd="/Users/samairahnagpal/AIBlueprint", text=True, capture_output=True, check=False)
+        completed = subprocess.run(["node", "--check", "public/js/pages/litigation-prep.js"], cwd=REPO_ROOT, text=True, capture_output=True, check=False)
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        cross_exam = subprocess.run(["node", "--check", "public/js/pages/cross-exam-prep.js"], cwd="/Users/samairahnagpal/AIBlueprint", text=True, capture_output=True, check=False)
+        cross_exam = subprocess.run(["node", "--check", "public/js/pages/cross-exam-prep.js"], cwd=REPO_ROOT, text=True, capture_output=True, check=False)
         self.assertEqual(cross_exam.returncode, 0, cross_exam.stderr)

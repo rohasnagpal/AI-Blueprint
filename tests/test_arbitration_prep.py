@@ -6,6 +6,7 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 ROOT = Path("/tmp/ai_blueprint_arbitration_tests")
 DB_PATH = ROOT / "v2.db"
 APP_DB_PATH = ROOT / "application.db"
@@ -320,5 +321,5 @@ class ArbitrationPrepTest(unittest.TestCase):
     def test_frontend_javascript_syntax(self) -> None:
         import subprocess
 
-        completed = subprocess.run(["node", "--check", "public/js/pages/arbitration-prep.js"], cwd="/Users/samairahnagpal/AIBlueprint", text=True, capture_output=True, check=False)
+        completed = subprocess.run(["node", "--check", "public/js/pages/arbitration-prep.js"], cwd=REPO_ROOT, text=True, capture_output=True, check=False)
         self.assertEqual(completed.returncode, 0, completed.stderr)
