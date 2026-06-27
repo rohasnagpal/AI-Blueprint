@@ -9,6 +9,21 @@
 
 Use the best AI agents to Review & Draft Contracts, prep for Arbitration, Litigation, Mediation & Negotiation, do legal translations, and more!
 
+## AI Blueprint Mini
+
+AI Blueprint Mini is a single-file Legal AI tool that runs in your browser. It's perfect if you want to start right away without setting up the full platform.
+
+Add an OpenRouter key, upload documents if you have them, describe the task in plain language.
+
+<img width="2746" height="2898" alt="image" src="https://github.com/user-attachments/assets/3b1575ed-6d50-4613-aa9e-dd69218da455" />
+
+Behind the scenes, here's whats the AI agents do:
+
+- Understand the request, classify the task, identify missing context, and plan the output structure
+- Extract relevant facts, clauses, risks, and warnings from uploaded documents without inventing content
+- Generate the actual legal draft, review, summary, memo, or preparation material requested
+- Check the draft for hallucinations, unsupported claims, weak structure, and legal-risk flags before final output.
+
 ## AI Blueprint Max
 
 AI Blueprint is the full legal AI workspace for organizing work by workspaces, matters, users, permissions, documents, workflows, and audit trails. Features include:
@@ -28,23 +43,7 @@ AI Blueprint is the full legal AI workspace for organizing work by workspaces, m
 
 <img width="1920" height="1200" alt="ai-blueprint" src="https://github.com/user-attachments/assets/7b8b8230-5ae7-43d0-b23c-695b23c8fa3f" />
 
-## AI Blueprint Mini
-
-AI Blueprint Mini is a single-file Legal AI tool that runs in your browser. It's perfect if you want to start right away without setting up the full platform.
-
-Add an OpenRouter key, upload documents if you have them, describe the task in plain language.
-
-Behind the scenes, here's whats the AI agents do:
-
-- Understand the request, classify the task, identify missing context, and plan the output structure
-- Extract relevant facts, clauses, risks, and warnings from uploaded documents without inventing content
-- Generate the actual legal draft, review, summary, memo, or preparation material requested
-- Check the draft for hallucinations, unsupported claims, weak structure, and legal-risk flags before final output.
-
-<img width="2746" height="2898" alt="image" src="https://github.com/user-attachments/assets/3b1575ed-6d50-4613-aa9e-dd69218da455" />
-
-
-## Core Capabilities
+## Core Capabilities of AI Blueprint Max
 
 - **Document-grounded legal chat and RAG**  
   Ask questions across uploaded files, matter documents, contracts, emails, precedents, policies, statutes, regulations, and approved sources with scoped retrieval.
