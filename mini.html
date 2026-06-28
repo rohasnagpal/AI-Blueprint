@@ -245,35 +245,6 @@
       font-size: 12px;
       line-height: 1.45;
     }
-    .mode-group {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-    }
-    .mode-option input {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
-    .mode-option span {
-      display: flex;
-      min-height: 39px;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      transition: all var(--transition);
-    }
-    .mode-option input:checked + span {
-      border-color: var(--accent);
-      background: var(--accent-soft);
-      color: var(--text);
-    }
     .upload-zone {
       display: block;
       padding: 26px 22px;
@@ -287,6 +258,11 @@
     .upload-zone:hover {
       border-color: var(--accent);
       background: var(--accent-soft);
+    }
+    .upload-zone.drag-active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.12);
     }
     .upload-zone strong {
       display: block;
@@ -447,32 +423,27 @@
       border-radius: var(--radius-sm);
       white-space: pre-wrap;
     }
-    .output {
-      min-height: 260px;
-      padding: 18px 20px;
-      background: #fffdf9;
-      border-top: 1px solid var(--border);
-    }
     .output-list {
       display: grid;
-      gap: 14px;
-      padding: 16px;
-      background: #fffdf9;
+      gap: 18px;
+      padding: 18px;
+      background: #f7f5ef;
       border-top: 1px solid var(--border);
     }
     .output-entry {
       overflow: hidden;
-      background: #ffffff;
+      background: #fffefb;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
+      box-shadow: 0 8px 28px rgba(26, 25, 21, 0.06);
     }
     .output-entry-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 14px;
-      padding: 12px 14px;
-      background: #f8f6f0;
+      padding: 14px 18px;
+      background: #fbfaf7;
       border-bottom: 1px solid var(--border);
     }
     .output-entry-title {
@@ -486,7 +457,9 @@
       font-size: 12px;
     }
     .output-entry-body {
-      padding: 16px;
+      max-width: 780px;
+      padding: 26px 32px 34px;
+      margin: 0 auto;
     }
     .output.empty {
       display: flex;
@@ -497,15 +470,22 @@
     }
     .markdown-body {
       color: var(--text);
-      font-size: 14px;
-      line-height: 1.7;
+      font-size: 15px;
+      line-height: 1.72;
     }
     .markdown-body h1, .markdown-body h2, .markdown-body h3 {
-      margin: 1.2em 0 0.45em;
+      margin: 1.35em 0 0.55em;
       line-height: 1.22;
     }
-    .markdown-body h1 { font-size: 24px; }
-    .markdown-body h2 { font-size: 20px; }
+    .markdown-body h1 {
+      margin-top: 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      font-weight: 400;
+    }
+    .markdown-body h2 { font-size: 19px; }
     .markdown-body h3 { font-size: 16px; }
     .markdown-body p, .markdown-body ul, .markdown-body ol, .markdown-body pre, .markdown-body blockquote {
       margin: 0 0 0.85em;
@@ -521,8 +501,9 @@
     .markdown-body pre {
       overflow: auto;
       padding: 12px;
-      background: #1f2933;
-      color: #f8fafc;
+      background: #f6f4ee;
+      color: var(--text);
+      border: 1px solid var(--border);
       border-radius: var(--radius-sm);
     }
     .markdown-body pre code {
@@ -552,59 +533,18 @@
     .how-it-works-list strong {
       color: var(--text);
     }
-    .model-table-wrap {
-      overflow-x: auto;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-    }
-    .model-table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 760px;
-      background: var(--surface);
-      font-size: 13px;
-    }
-    .model-table th,
-    .model-table td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
-      border-right: 1px solid var(--border);
-      text-align: left;
-      vertical-align: top;
-    }
-    .model-table th {
-      color: var(--text);
-      background: #f0ede6;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-    .model-table tr:last-child td {
-      border-bottom: 0;
-    }
-    .model-table th:last-child,
-    .model-table td:last-child {
-      border-right: 0;
-    }
-    .model-table code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 12px;
-      color: var(--text);
-    }
     .hidden { display: none !important; }
     @media (max-width: 720px) {
       .page { padding: 26px 14px 34px; }
       .view-header h1 { font-size: 27px; }
       .settings-card-header, .card-body { padding-left: 14px; padding-right: 14px; }
-      .form-grid, .mode-group, .api-key-row, .model-override-grid { grid-template-columns: 1fr; }
+      .form-grid, .api-key-row, .model-override-grid { grid-template-columns: 1fr; }
       .api-key-actions, .model-actions { justify-content: stretch; }
       .api-key-actions button, .model-actions button { flex: 1; }
       .prompt-actions { align-items: stretch; flex-direction: column; }
       .actions, .actions button, .prompt-actions button { width: 100%; }
       .actions button { justify-content: center; }
       .doc-item { grid-template-columns: 1fr; }
-      .model-table { min-width: 680px; }
     }
   </style>
 </head>
@@ -620,7 +560,7 @@
         <button class="settings-card-header" type="button" data-accordion-target="settingsCard" aria-expanded="false">
           <div>
             <div class="settings-card-title">Settings</div>
-            <div class="settings-card-subtitle">Add / edit / remove your OpenRouter key, check your credits, choose a mode or AI model.</div>
+            <div class="settings-card-subtitle">Add / edit / remove your OpenRouter key, check your credits, and choose models for each step.</div>
           </div>
           <span class="accordion-icon" aria-hidden="true">⌄</span>
         </button>
@@ -646,18 +586,7 @@
 
             <section class="settings-section">
               <div class="field">
-                <label>Option 1: Select Mode</label>
-                <div class="mode-group" role="radiogroup" aria-label="Mode">
-                  <label class="mode-option"><input type="radio" name="mode" value="low" checked><span>Low Cost</span></label>
-                  <label class="mode-option"><input type="radio" name="mode" value="balanced"><span>Balanced</span></label>
-                  <label class="mode-option"><input type="radio" name="mode" value="high"><span>High Quality</span></label>
-                </div>
-              </div>
-            </section>
-
-            <section class="settings-section">
-              <div class="field">
-                <label>Option 2: Select Models instead of Mode</label>
+                <label>Select Models</label>
                 <div class="model-override-grid">
                   <div class="field">
                     <label for="modelOverrideIntake">Intake</label>
@@ -679,7 +608,7 @@
                 <div class="model-actions">
                   <button class="btn-secondary" type="button" id="refreshModelsBtn">Refresh Models</button>
                 </div>
-                <div class="hint">Optional. Select a model for any step you want to override. Blank steps keep the selected mode preset.</div>
+                <div class="hint">Choose the model used for each internal step before running a task.</div>
                 <div class="hint" id="modelListStatus">Using fallback model list until OpenRouter models load.</div>
               </div>
             </section>
@@ -698,9 +627,9 @@
           <span class="accordion-icon" aria-hidden="true">⌄</span>
         </button>
         <div class="card-body">
-          <label class="upload-zone" for="docUpload">
+          <label class="upload-zone" id="uploadZone" for="docUpload">
             <strong>Upload documents</strong>
-            <span>Supported: .txt, .md, .html, .htm, .pdf, .docx</span>
+            <span>Click or drag files here. Supported: .txt, .md, .html, .htm, .pdf, .docx</span>
           </label>
           <input class="file-input" id="docUpload" type="file" multiple accept=".txt,.md,.html,.htm,.pdf,.docx,text/plain,text/markdown,text/html,application/xhtml+xml,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
           <div id="libraryWarning" class="privacy-note hidden"></div>
@@ -724,7 +653,7 @@
               <button class="btn-secondary hidden" type="button" id="cancelBtn">Cancel</button>
               <button class="btn-secondary hidden" type="button" id="retryBtn">Retry from failed step</button>
             </div>
-            <div class="run-note">This runs 4 AI calls. High Quality mode may cost more and take longer.</div>
+            <div class="run-note">This runs 4 AI calls. Larger or premium models may cost more and take longer.</div>
           </div>
           <div class="request-meta hidden" id="requestUsageMeta">
             <span class="meta-pill" id="usageInfo">Current request tokens: 0</span>
@@ -760,6 +689,7 @@
           <div class="actions">
             <button class="btn-secondary" type="button" id="copyBtn">Copy Output</button>
             <button class="btn-secondary" type="button" id="exportBtn">Export Markdown</button>
+            <button class="btn-secondary" type="button" id="exportHtmlBtn">Export HTML</button>
             <button class="btn-secondary" type="button" id="newThreadBtn">New Thread</button>
             <button class="btn-secondary" type="button" id="clearAllBtn">Clear All</button>
           </div>
@@ -782,45 +712,6 @@
             <li><strong>Work Product:</strong> Generates the actual legal draft, review, summary, memo, or preparation material requested.</li>
             <li><strong>QA Review:</strong> Checks the draft for hallucinations, unsupported claims, weak structure, and legal-risk flags before final output.</li>
           </ul>
-
-          <div class="model-table-wrap" aria-label="Mode model presets">
-            <table class="model-table">
-              <thead>
-                <tr>
-                  <th>Mode</th>
-                  <th>Intake</th>
-                  <th>Document Analysis</th>
-                  <th>Work Product</th>
-                  <th>QA Review</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Low Cost</strong></td>
-                  <td><code>google/gemini-2.5-flash-lite</code></td>
-                  <td><code>google/gemini-2.5-flash-lite</code></td>
-                  <td><code>openai/gpt-4.1-mini</code></td>
-                  <td><code>google/gemini-2.5-flash</code></td>
-                </tr>
-                <tr>
-                  <td><strong>Balanced</strong></td>
-                  <td><code>google/gemini-2.5-flash-lite</code></td>
-                  <td><code>google/gemini-2.5-flash</code></td>
-                  <td><code>anthropic/claude-sonnet-4</code></td>
-                  <td><code>google/gemini-2.5-pro</code></td>
-                </tr>
-                <tr>
-                  <td><strong>High Quality</strong></td>
-                  <td><code>google/gemini-2.5-flash</code></td>
-                  <td><code>google/gemini-2.5-pro</code></td>
-                  <td><code>anthropic/claude-sonnet-4</code></td>
-                  <td><code>openai/gpt-4.1</code></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="hint">Changing the mode changes which models are used for the four internal calls. Step-specific model selections override individual preset models.</div>
         </div>
       </div>
 
@@ -848,7 +739,7 @@
     3. Legal Work Product Generator
     4. Legal QA Reviewer
 
-    The selected mode only changes model choice.
+    Each internal step uses the model selected in Settings.
     The user sees only the final reviewed output.
     */
 
@@ -856,53 +747,15 @@
     const MAX_DOCUMENT_CHARS = 1000000;
     const MAX_CONVERSATION_CONTEXT_CHARS = 16000;
     const API_KEY_STORAGE_KEY = "aiBlueprintMiniOpenRouterKey";
-    const OUTPUT_TOKEN_LIMITS_BY_MODE = {
-      low: {
-        intake: 700,
-        document: 1200,
-        work: 1600,
-        review: 1600
-      },
-      balanced: {
-        intake: 900,
-        document: 1800,
-        work: 2400,
-        review: 2400
-      },
-      high: {
-        intake: 1200,
-        document: 2500,
-        work: 6000,
-        review: 6000
-      }
-    };
-
-    const MODEL_PRESETS = {
-      low: {
-        label: "Low Cost",
-        intake: "google/gemini-2.5-flash-lite",
-        document: "google/gemini-2.5-flash-lite",
-        work: "openai/gpt-4.1-mini",
-        review: "google/gemini-2.5-flash"
-      },
-      balanced: {
-        label: "Balanced",
-        intake: "google/gemini-2.5-flash-lite",
-        document: "google/gemini-2.5-flash",
-        work: "anthropic/claude-sonnet-4",
-        review: "google/gemini-2.5-pro"
-      },
-      high: {
-        label: "High Quality",
-        intake: "google/gemini-2.5-flash",
-        document: "google/gemini-2.5-pro",
-        work: "anthropic/claude-sonnet-4",
-        review: "openai/gpt-4.1"
-      }
+    const OUTPUT_TOKEN_LIMITS = {
+      intake: 900,
+      document: 2500,
+      work: 6000,
+      review: 6000
     };
 
     const MODEL_OPTIONS = [
-      { value: "", label: "Choose an AI model" },
+      { value: "", label: "Select model" },
       { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
       { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
       { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
@@ -925,7 +778,8 @@
     let activeAbortController = null;
     let cancelRequested = false;
     let contextCutoffTime = 0;
-    let currentUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: [] };
+    let currentUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, estimated_cost: 0, cost_available: false, calls: [] };
+    let modelPricing = {};
 
     const els = {
       apiKey: document.getElementById("apiKey"),
@@ -941,6 +795,7 @@
       modelOverrideReview: document.getElementById("modelOverrideReview"),
       refreshModelsBtn: document.getElementById("refreshModelsBtn"),
       modelListStatus: document.getElementById("modelListStatus"),
+      uploadZone: document.getElementById("uploadZone"),
       docUpload: document.getElementById("docUpload"),
       docList: document.getElementById("docList"),
       libraryWarning: document.getElementById("libraryWarning"),
@@ -958,6 +813,7 @@
       output: document.getElementById("output"),
       copyBtn: document.getElementById("copyBtn"),
       exportBtn: document.getElementById("exportBtn"),
+      exportHtmlBtn: document.getElementById("exportHtmlBtn"),
       newThreadBtn: document.getElementById("newThreadBtn"),
       clearAllBtn: document.getElementById("clearAllBtn")
     };
@@ -995,6 +851,10 @@ Rules:
 - Do not invent facts, clauses, dates, parties, citations, or legal positions.
 - If no document text is provided, say that no documents were provided.
 - Extract only what is relevant to the user's request.
+- Return compact JSON. This is internal context, not the final legal deliverable.
+- Do not exhaustively reproduce the contract, all redactions, all clauses, or long extracts.
+- Use short arrays and concise strings. Prefer the most important 10-20 facts, clauses, risks, redactions, and caveats relevant to the user's request.
+- If many similar items exist, group them by category instead of listing every instance.
 - If document text appears incomplete, say so.
 - If extraction warnings are provided, preserve them.
 - If truncation warnings are provided, preserve them.
@@ -1014,9 +874,11 @@ Rules:
 - If the user asks for a draft, produce a usable draft.
 - If the user asks for review, identify risks, issues, weaknesses, and suggested changes.
 - If the user asks for preparation, produce practical preparation material.
-- If the user asks for explanation, explain clearly and briefly.
+- If the user asks for explanation, explain clearly with enough detail to be useful.
 - Separate assumptions from document-based findings.
-- Keep the output practical and concise unless the user asks for detail.
+- Default to comprehensive, detailed legal work product.
+- Do not summarize, shorten, or compress the answer unless the user specifically asks for a summary, brief answer, or short version.
+- For contract reviews, memos, drafting, and preparation outputs, include enough detail to be useful for lawyer review: key findings, reasoning, risks, suggested changes, assumptions, missing information, and caveats where relevant.
 - Do not give a generic disclaimer at the top.
 - Add caveats only where useful.
 - If document extraction was incomplete or truncated, say clearly what was and was not reviewed.`,
@@ -1040,11 +902,17 @@ Check for:
 
 Rules:
 - Return only the final improved answer in Markdown.
+- Do not wrap the final answer in triple backticks or a fenced code block.
+- Do not return HTML unless the user explicitly asks for HTML source.
+- Use headings, short paragraphs, and bullet lists for document-style work product.
+- Avoid Markdown tables unless the user specifically asks for a table.
 - Do not explain your review process.
 - Do not mention the four-call pipeline.
 - Do not mention agents.
 - Do not include hidden analysis.
-- Keep the final output crisp, practical, and usable.
+- Default to comprehensive, detailed, well-structured output unless the user specifically asks for a summary, brief answer, or short version.
+- Do not remove useful detail merely to make the answer shorter.
+- Preserve substantive risk analysis, reasoning, suggested changes, assumptions, missing information, and caveats where relevant.
 - If you find an unsupported legal claim, statute, case citation, legal provision, factual claim, party name, date, clause number, or document reference, either remove it or mark it inline as [UNVERIFIED].
 - Never silently let speculative legal content pass through.
 - If the final answer contains legal citations, statutes, provisions, or case names that were not provided by the user or uploaded documents, mark them as [UNVERIFIED - confirm before use].
@@ -1093,7 +961,7 @@ Rules:
     }
 
     function resetUsage() {
-      currentUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, calls: [] };
+      currentUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, estimated_cost: 0, cost_available: false, calls: [] };
       renderUsage();
     }
 
@@ -1102,10 +970,15 @@ Rules:
       const promptTokens = Number(usage.prompt_tokens || 0);
       const completionTokens = Number(usage.completion_tokens || 0);
       const totalTokens = Number(usage.total_tokens || promptTokens + completionTokens || 0);
+      const cost = usageCost(model, usage, promptTokens, completionTokens);
       currentUsage.prompt_tokens += promptTokens;
       currentUsage.completion_tokens += completionTokens;
       currentUsage.total_tokens += totalTokens;
-      currentUsage.calls.push({ stepName, model, prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens });
+      if (cost !== null) {
+        currentUsage.estimated_cost += cost;
+        currentUsage.cost_available = true;
+      }
+      currentUsage.calls.push({ stepName, model, prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens, estimated_cost: cost });
       renderUsage();
     }
 
@@ -1113,8 +986,26 @@ Rules:
       const total = currentUsage.total_tokens || 0;
       const prompt = currentUsage.prompt_tokens || 0;
       const completion = currentUsage.completion_tokens || 0;
-      els.usageInfo.textContent = `Current request tokens: ${total.toLocaleString()} (${prompt.toLocaleString()} in, ${completion.toLocaleString()} out)`;
+      const cost = currentUsage.cost_available ? ` · est. ${formatDollarCost(currentUsage.estimated_cost)}` : "";
+      els.usageInfo.textContent = `Current request tokens: ${total.toLocaleString()} (${prompt.toLocaleString()} in, ${completion.toLocaleString()} out)${cost}`;
       els.requestUsageMeta.classList.toggle("hidden", !isRunning && total === 0);
+    }
+
+    function usageCost(model, usage, promptTokens, completionTokens) {
+      const direct = Number(usage.cost ?? usage.total_cost ?? usage.estimated_cost);
+      if (Number.isFinite(direct) && direct >= 0) return direct;
+      const pricing = modelPricing[model];
+      if (!pricing) return null;
+      const promptPrice = Number(pricing.prompt || 0);
+      const completionPrice = Number(pricing.completion || 0);
+      if (!Number.isFinite(promptPrice) || !Number.isFinite(completionPrice)) return null;
+      return promptTokens * promptPrice + completionTokens * completionPrice;
+    }
+
+    function formatDollarCost(value) {
+      if (!Number.isFinite(value)) return "$0.00";
+      const digits = value > 0 && value < 0.01 ? 4 : 2;
+      return `$${value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: 4 })}`;
     }
 
     function setStatus(message) {
@@ -1436,34 +1327,41 @@ Rules:
         setError("Enter what you need AI Blueprint to do.", "");
         return;
       }
+      const models = selectedModels();
+      const missingModels = missingSelectedModels(models);
+      if (missingModels.length) {
+        failedStep = null;
+        failedStepRetryable = false;
+        setError(`Select models for: ${missingModels.join(", ")}.`, "");
+        return;
+      }
       saveApiKey();
       clearError();
       if (startStep === 1) resetUsage();
       cancelRequested = false;
       setRunning(true);
       try {
-        const preset = selectedPreset();
         const tokenLimits = selectedOutputTokenLimits(userPrompt);
         const docContext = buildDocumentContext(uploadedDocs);
         if (startStep <= 1) {
           throwIfCancelled();
           setStatus("1/4 Understanding request...");
-          intakeResult = await runJsonStep(1, "Intake Analyst", preset.intake, SYSTEM_PROMPTS.intake, buildIntakeUserContent(userPrompt), tokenLimits.intake);
+          intakeResult = await runJsonStep(1, "Intake Analyst", models.intake, SYSTEM_PROMPTS.intake, buildIntakeUserContent(userPrompt), tokenLimits.intake);
         }
         if (startStep <= 2) {
           throwIfCancelled();
           setStatus("2/4 Analysing documents...");
-          documentAnalysisResult = await runJsonStep(2, "Document Analyst", preset.document, SYSTEM_PROMPTS.document, buildDocumentUserContent(userPrompt, docContext), tokenLimits.document);
+          documentAnalysisResult = await runJsonStep(2, "Document Analyst", models.document, SYSTEM_PROMPTS.document, buildDocumentUserContent(userPrompt, docContext), tokenLimits.document);
         }
         if (startStep <= 3) {
           throwIfCancelled();
           setStatus("3/4 Preparing work product...");
-          workProductResult = await runTextStep(3, "Legal Work Product Generator", preset.work, SYSTEM_PROMPTS.work, buildWorkUserContent(userPrompt, docContext), tokenLimits.work);
+          workProductResult = await runTextStep(3, "Legal Work Product Generator", models.work, SYSTEM_PROMPTS.work, buildWorkUserContent(userPrompt, docContext), tokenLimits.work);
         }
         if (startStep <= 4) {
           throwIfCancelled();
           setStatus("4/4 Reviewing final answer...");
-          finalOutput = await runTextStep(4, "Legal QA Reviewer", preset.review, SYSTEM_PROMPTS.review, buildReviewUserContent(userPrompt), tokenLimits.review);
+          finalOutput = await runTextStep(4, "Legal QA Reviewer", models.review, SYSTEM_PROMPTS.review, buildReviewUserContent(userPrompt), tokenLimits.review);
         }
         failedStep = null;
         failedStepName = "";
@@ -1496,7 +1394,7 @@ Rules:
         try {
           return parseJsonLoose(first);
         } catch (firstParseErr) {
-          const retryPrompt = `${userContent}\n\nYour previous response was not valid JSON. Return strict JSON only. No markdown. No explanation. No code fences.`;
+          const retryPrompt = `${userContent}\n\nYour previous response was invalid, too long, or truncated. Return compact strict JSON only. No markdown. No explanation. No code fences. Use this compact shape: {"documents_provided":true,"documents_reviewed":[],"extraction_quality":"good|partial|poor","key_facts":[],"relevant_clauses":[],"risks_or_issues":[],"redactions_or_gaps":[],"assumptions":[],"caveats":[]}. Keep each array to the most relevant 12 items. Use short strings.`;
           const secondResponse = await callOpenRouter(model, systemPrompt, retryPrompt, maxTokens);
           addUsage(`${stepName} JSON retry`, secondResponse.model || model, secondResponse.usage);
           const second = secondResponse.content;
@@ -1510,6 +1408,7 @@ Rules:
             error.model = model;
             error.retryable = true;
             error.raw = second;
+            error.invalidJson = true;
             throw error;
           }
         }
@@ -1544,7 +1443,7 @@ Rules:
       failedStepName = err.stepName || "";
       failedStepRetryable = Boolean(err.retryable && failedStep);
       const rawError = readableOpenRouterError(err.raw) || err.message || "OpenRouter request failed.";
-      let message = `Step ${failedStep || "?"} failed: ${failedStepName || "Unknown step"}\nPreset: ${selectedPreset().label}\nModel: ${err.model || "unknown"}\nOpenRouter error: ${rawError}`;
+      let message = `Step ${failedStep || "?"} failed: ${failedStepName || "Unknown step"}\nModel: ${err.model || "unknown"}\n${err.invalidJson ? "Model output error" : "OpenRouter error"}: ${rawError}`;
       if ([401, 402, 403].includes(err.status)) {
         failedStepRetryable = false;
         if (err.status === 402 || String(rawError).toLowerCase().includes("credit")) {
@@ -1560,7 +1459,7 @@ Rules:
         message += "\nRun again from the start after fixing the issue.";
       }
       if (String(rawError).toLowerCase().includes("model")) {
-        message += `\nCheck the model ID configured for ${selectedPreset().label} mode.`;
+        message += "\nCheck the model ID configured for this step.";
       }
       setStatus("");
       setError(message, err.raw || lastRawModelOutput || "");
@@ -1607,34 +1506,19 @@ Rules:
       return eligible;
     }
 
-    function selectedPresetKey() {
-      return document.querySelector("input[name='mode']:checked")?.value || "low";
-    }
-
-    function selectedPreset() {
-      const preset = MODEL_PRESETS[selectedPresetKey()] || MODEL_PRESETS.low;
-      const overrides = selectedModelOverrides();
-      if (!Object.values(overrides).some(Boolean)) return preset;
-      return {
-        label: `${preset.label} + Step Model Override`,
-        intake: overrides.intake || preset.intake,
-        document: overrides.document || preset.document,
-        work: overrides.work || preset.work,
-        review: overrides.review || preset.review
-      };
-    }
-
     function selectedOutputTokenLimits(userPrompt) {
-      const mode = selectedPresetKey();
-      const base = { ...(OUTPUT_TOKEN_LIMITS_BY_MODE[mode] || OUTPUT_TOKEN_LIMITS_BY_MODE.low) };
-      const shortNoDocRequest = uploadedDocs.length === 0 && String(userPrompt || "").trim().length <= 220;
-      if (shortNoDocRequest) {
+      const base = { ...OUTPUT_TOKEN_LIMITS };
+      if (asksForSummary(userPrompt)) {
         base.intake = Math.min(base.intake, 500);
         base.document = Math.min(base.document, 500);
         base.work = Math.min(base.work, 1200);
         base.review = Math.min(base.review, 1200);
       }
       return base;
+    }
+
+    function asksForSummary(userPrompt) {
+      return /\b(summary|summarize|summarise|brief|short|quick overview|tl;?dr|high[-\s]?level)\b/i.test(String(userPrompt || ""));
     }
 
     function modelOverrideSelects() {
@@ -1646,13 +1530,25 @@ Rules:
       ].filter(Boolean);
     }
 
-    function selectedModelOverrides() {
+    function selectedModels() {
       return {
         intake: els.modelOverrideIntake?.value || "",
         document: els.modelOverrideDocument?.value || "",
         work: els.modelOverrideWork?.value || "",
         review: els.modelOverrideReview?.value || ""
       };
+    }
+
+    function missingSelectedModels(models) {
+      const labels = {
+        intake: "Intake",
+        document: "Document Analysis",
+        work: "Work Product",
+        review: "QA Review"
+      };
+      return Object.entries(models)
+        .filter(([, value]) => !value)
+        .map(([key]) => labels[key] || key);
     }
 
     function populateModelOverride(options = MODEL_OPTIONS, statusMessage = "Using fallback model list.") {
@@ -1662,9 +1558,22 @@ Rules:
         select.innerHTML = renderedOptions;
         if (currentValue && Array.from(select.options).some(option => option.value === currentValue)) {
           select.value = currentValue;
+        } else {
+          select.value = "";
         }
       });
       els.modelListStatus.textContent = statusMessage;
+    }
+
+    function updateModelPricing(models) {
+      modelPricing = {};
+      models.forEach(model => {
+        if (!model?.id || !model.pricing) return;
+        modelPricing[model.id] = {
+          prompt: model.pricing.prompt,
+          completion: model.pricing.completion
+        };
+      });
     }
 
     async function loadOpenRouterModels() {
@@ -1677,15 +1586,20 @@ Rules:
         const data = JSON.parse(rawText);
         const liveModels = Array.isArray(data?.data) ? data.data : [];
         if (!liveModels.length) throw new Error("OpenRouter returned no models.");
-        const options = [
-          MODEL_OPTIONS[0],
-          ...liveModels
-            .filter(model => model?.id)
-            .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)))
-            .map(model => ({ value: model.id, label: model.name || model.id }))
-        ];
+        updateModelPricing(liveModels);
+        const liveOptions = liveModels
+          .filter(model => model?.id)
+          .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)))
+          .map(model => ({ value: model.id, label: model.name || model.id }));
+        const seen = new Set();
+        const options = [...MODEL_OPTIONS, ...liveOptions].filter(option => {
+          if (option.value && seen.has(option.value)) return false;
+          if (option.value) seen.add(option.value);
+          return true;
+        });
         populateModelOverride(options, `Loaded ${liveModels.length.toLocaleString()} current OpenRouter models.`);
       } catch (err) {
+        updateModelPricing([]);
         populateModelOverride(MODEL_OPTIONS, `Could not load live OpenRouter models. Using fallback list. ${err.message || err}`);
       } finally {
         els.refreshModelsBtn.disabled = isRunning;
@@ -1699,6 +1613,7 @@ Rules:
       els.cancelBtn.classList.toggle("hidden", !running);
       els.newThreadBtn.disabled = running;
       els.clearAllBtn.disabled = running;
+      els.exportHtmlBtn.disabled = running;
       els.saveKeyBtn.disabled = running;
       els.clearKeyBtn.disabled = running;
       els.creditsBtn.disabled = running;
@@ -1723,6 +1638,118 @@ Rules:
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+    }
+
+    function exportHtml() {
+      if (!finalOutput) return setError("There is no output to export.", "");
+      const latest = outputHistory[0] || { prompt: "Legal request", output: finalOutput, createdAt: new Date().toISOString() };
+      const html = buildPrintHtml(latest);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ai-blueprint-mini-output.html";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function buildPrintHtml(entry) {
+      const title = entry.prompt || "AI Blueprint Mini Output";
+      const created = entry.createdAt ? new Date(entry.createdAt).toLocaleString() : new Date().toLocaleString();
+      const body = renderMarkdown(entry.output || finalOutput);
+      return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f7f5ef;
+      color: #1f1f1d;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.68;
+    }
+    main {
+      width: min(100%, 900px);
+      margin: 0 auto;
+      padding: 42px 24px;
+    }
+    .sheet {
+      background: #fffefb;
+      border: 1px solid #e8e5df;
+      border-radius: 8px;
+      box-shadow: 0 12px 40px rgba(26, 25, 21, 0.08);
+      padding: 42px 52px 54px;
+    }
+    .meta {
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #e8e5df;
+      color: #6b6860;
+      font-size: 12px;
+    }
+    h1, h2, h3 { color: #1a1915; line-height: 1.22; page-break-after: avoid; }
+    h1 {
+      margin: 0 0 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e8e5df;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 30px;
+      font-weight: 400;
+    }
+    h2 { margin: 1.45em 0 0.55em; font-size: 20px; }
+    h3 { margin: 1.25em 0 0.45em; font-size: 16px; }
+    p, ul, ol, blockquote, pre { margin: 0 0 0.9em; }
+    ul, ol { padding-left: 1.45em; }
+    li { margin: 0.22em 0; }
+    blockquote {
+      padding: 10px 14px;
+      border-left: 3px solid #d97706;
+      background: #fffbeb;
+      color: #4b4842;
+    }
+    code {
+      padding: 1px 4px;
+      background: #f0ede6;
+      border-radius: 5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+    pre {
+      overflow: auto;
+      padding: 12px;
+      background: #f6f4ee;
+      border: 1px solid #e8e5df;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+    pre code { padding: 0; background: transparent; }
+    @page { margin: 0.65in; }
+    @media print {
+      body { background: #fff; font-size: 12pt; }
+      main { width: auto; padding: 0; }
+      .sheet { border: 0; box-shadow: none; padding: 0; }
+      a { color: inherit; text-decoration: none; }
+      h1, h2, h3, blockquote, pre { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <article class="sheet">
+      <div class="meta">Generated by AI Blueprint Mini · ${escapeHtml(created)}</div>
+      ${body}
+    </article>
+  </main>
+</body>
+</html>`;
     }
 
     function newThread() {
@@ -1819,7 +1846,7 @@ Rules:
     }
 
     function addOutputToHistory(promptText, markdown) {
-      finalOutput = markdown || "";
+      finalOutput = normalizeFinalMarkdown(markdown || "");
       if (!finalOutput) {
         renderOutputHistory();
         return;
@@ -1834,7 +1861,7 @@ Rules:
     }
 
     function renderOutput(markdown) {
-      finalOutput = markdown || "";
+      finalOutput = normalizeFinalMarkdown(markdown || "");
       if (finalOutput) {
         outputHistory = [{
           prompt: "Legal request",
@@ -1856,11 +1883,12 @@ Rules:
         const title = entry.prompt.length > 120 ? `${entry.prompt.slice(0, 117)}...` : entry.prompt;
         const when = new Date(entry.createdAt).toLocaleString();
         const tokens = entry.usage?.total_tokens ? ` · ${Number(entry.usage.total_tokens).toLocaleString()} tokens` : "";
+        const cost = entry.usage?.cost_available ? ` · est. ${formatDollarCost(Number(entry.usage.estimated_cost || 0))}` : "";
         return `<article class="output-entry">
           <div class="output-entry-header">
             <div>
               <div class="output-entry-title">${escapeHtml(title)}</div>
-              <div class="output-entry-meta">${escapeHtml(when)}${escapeHtml(tokens)}</div>
+              <div class="output-entry-meta">${escapeHtml(when)}${escapeHtml(tokens)}${escapeHtml(cost)}</div>
             </div>
             ${index === 0 ? '<span class="meta-pill">Latest</span>' : ""}
           </div>
@@ -1870,17 +1898,23 @@ Rules:
     }
 
     function renderMarkdown(markdown) {
-      const lines = String(markdown || "").split(/\r?\n/);
+      const lines = normalizeFinalMarkdown(markdown || "").split(/\r?\n/);
       let html = "";
       let inList = false;
       let inOrdered = false;
       let inCode = false;
       let code = [];
+      let currentOrderedNumber = 0;
+      let lastOrderedNumber = 0;
       const closeLists = () => {
         if (inList) html += "</ul>";
         if (inOrdered) html += "</ol>";
         inList = false;
         inOrdered = false;
+      };
+      const resetOrderedSequence = () => {
+        currentOrderedNumber = 0;
+        lastOrderedNumber = 0;
       };
       lines.forEach(line => {
         if (line.trim().startsWith("```")) {
@@ -1902,17 +1936,28 @@ Rules:
           closeLists();
           return;
         }
-        if (/^###\s+/.test(line)) { closeLists(); html += `<h3>${inlineMarkdown(line.replace(/^###\s+/, ""))}</h3>`; return; }
-        if (/^##\s+/.test(line)) { closeLists(); html += `<h2>${inlineMarkdown(line.replace(/^##\s+/, ""))}</h2>`; return; }
-        if (/^#\s+/.test(line)) { closeLists(); html += `<h1>${inlineMarkdown(line.replace(/^#\s+/, ""))}</h1>`; return; }
+        if (/^###\s+/.test(line)) { closeLists(); resetOrderedSequence(); html += `<h3>${inlineMarkdown(line.replace(/^###\s+/, ""))}</h3>`; return; }
+        if (/^##\s+/.test(line)) { closeLists(); resetOrderedSequence(); html += `<h2>${inlineMarkdown(line.replace(/^##\s+/, ""))}</h2>`; return; }
+        if (/^#\s+/.test(line)) { closeLists(); resetOrderedSequence(); html += `<h1>${inlineMarkdown(line.replace(/^#\s+/, ""))}</h1>`; return; }
         if (/^\s*[-*]\s+/.test(line)) {
           if (!inList) { closeLists(); html += "<ul>"; inList = true; }
           html += `<li>${inlineMarkdown(line.replace(/^\s*[-*]\s+/, ""))}</li>`;
           return;
         }
-        if (/^\s*\d+\.\s+/.test(line)) {
-          if (!inOrdered) { closeLists(); html += "<ol>"; inOrdered = true; }
-          html += `<li>${inlineMarkdown(line.replace(/^\s*\d+\.\s+/, ""))}</li>`;
+        const orderedMatch = line.match(/^\s*(\d+)\.\s+(.+)$/);
+        if (orderedMatch) {
+          const requestedNumber = Number(orderedMatch[1]) || 1;
+          if (!inOrdered) {
+            closeLists();
+            const start = requestedNumber > 1 ? requestedNumber : (lastOrderedNumber ? lastOrderedNumber + 1 : 1);
+            currentOrderedNumber = start;
+            html += start > 1 ? `<ol start="${start}">` : "<ol>";
+            inOrdered = true;
+          } else {
+            currentOrderedNumber += 1;
+          }
+          lastOrderedNumber = currentOrderedNumber;
+          html += `<li>${inlineMarkdown(orderedMatch[2])}</li>`;
           return;
         }
         if (/^>\s?/.test(line)) {
@@ -1926,6 +1971,13 @@ Rules:
       closeLists();
       if (inCode) html += `<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`;
       return html;
+    }
+
+    function normalizeFinalMarkdown(markdown) {
+      let text = String(markdown || "").trim();
+      const fenced = text.match(/^```(?:markdown|md|text)?\s*\n([\s\S]*?)\n```$/i);
+      if (fenced) text = fenced[1].trim();
+      return text;
     }
 
     function inlineMarkdown(text) {
@@ -1958,6 +2010,11 @@ Rules:
 
     async function handleFileSelection(event) {
       const files = Array.from(event.target.files || []);
+      await addUploadedFiles(files);
+      event.target.value = "";
+    }
+
+    async function addUploadedFiles(files) {
       if (!files.length) return;
       resetPipelineState();
       resetUsage();
@@ -1970,6 +2027,24 @@ Rules:
       }
       buildDocumentContext(uploadedDocs);
       setStatus("");
+    }
+
+    async function handleDocumentDrop(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      els.uploadZone.classList.remove("drag-active");
+      const files = Array.from(event.dataTransfer?.files || []);
+      await addUploadedFiles(files);
+    }
+
+    function handleDocumentDrag(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.type === "dragenter" || event.type === "dragover") {
+        els.uploadZone.classList.add("drag-active");
+      } else {
+        els.uploadZone.classList.remove("drag-active");
+      }
     }
 
     function checkLibraryStatus() {
@@ -1991,7 +2066,6 @@ Rules:
       resetUsage();
       els.creditsInfo.textContent = "Credits: not checked";
     });
-    document.querySelectorAll("input[name='mode']").forEach(input => input.addEventListener("change", invalidatePipelineAndUsage));
     modelOverrideSelects().forEach(select => select.addEventListener("change", invalidatePipelineAndUsage));
     els.prompt.addEventListener("input", invalidatePipelineAndUsage);
     els.saveKeyBtn.addEventListener("click", saveApiKeyFromButton);
@@ -1999,6 +2073,10 @@ Rules:
     els.creditsBtn.addEventListener("click", checkCredits);
     els.refreshModelsBtn.addEventListener("click", loadOpenRouterModels);
     els.docUpload.addEventListener("change", handleFileSelection);
+    ["dragenter", "dragover", "dragleave"].forEach(type => {
+      els.uploadZone.addEventListener(type, handleDocumentDrag);
+    });
+    els.uploadZone.addEventListener("drop", handleDocumentDrop);
     document.querySelectorAll("[data-accordion-target]").forEach(button => {
       button.addEventListener("click", () => toggleAccordion(button.dataset.accordionTarget));
     });
@@ -2016,6 +2094,7 @@ Rules:
     els.retryBtn.addEventListener("click", retryFromFailedStep);
     els.copyBtn.addEventListener("click", copyOutput);
     els.exportBtn.addEventListener("click", exportMarkdown);
+    els.exportHtmlBtn.addEventListener("click", exportHtml);
     els.newThreadBtn.addEventListener("click", newThread);
     els.clearAllBtn.addEventListener("click", clearAll);
 
